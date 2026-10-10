@@ -864,3 +864,11 @@ html[data-season='christmas'] .loading-vignette { background: radial-gradient(el
 .nav-icon.has-remote { position: relative; }
 .nav-icon.has-remote::after { content: ''; position: absolute; top: -2px; right: -3px; width: 8px; height: 8px; border-radius: 50%; background: #46d369; box-shadow: 0 0 0 2px #000; }
 @media (max-width: 700px) { .remote-pair { flex-direction: column; align-items: flex-start; } }
+.remote-modes { display: inline-flex; align-self: flex-start; gap: 4px; padding: 4px; margin-top: 6px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); }
+.remote-modes button { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 9px; font-size: 14px; color: var(--muted); transition: background 0.2s, color 0.2s; }
+.remote-modes button.is-on { background: #fff; color: #000; font-weight: 600; }
+.remote-setup { display: flex; flex-direction: column; gap: 12px; padding: 18px; margin-top: 6px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); font-size: 14px; color: #d6d6d6; }
+.remote-setup ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.remote-setup b { color: #fff; }
+.remote-setup a { color: var(--accent-2); cursor: pointer; text-decoration: underline; }
+.remote-setup .btn-outline { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; }

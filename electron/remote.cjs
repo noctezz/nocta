@@ -28,19 +28,25 @@ function saveCfg() {
   try { fs.writeFileSync(cfgFile, JSON.stringify(cfg)); } catch {}
 }
 
-/** Adresses IPv4 du PC sur le réseau local, la plus probable (Wi-Fi / Ethernet de la box) en premier */
-function lanAddresses() {
-  const out = [];
+const isTailscale = (name, ip) => /tailscale/i.test(name) || /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(ip);
+
+/**
+ * Adresses IPv4 du PC : réseau local (la plus probable, Wi-Fi / Ethernet de la box, en premier)
+ * et adresse Tailscale (réseau privé qui marche aussi en 4G).
+ */
+function addresses() {
+  const lan = [], tailscale = [];
   for (const [name, list] of Object.entries(os.networkInterfaces())) {
-    if (/vEthernet|VirtualBox|VMware|WSL|Hyper-V|Loopback|Tailscale|ZeroTier|docker|^br-|^veth|vboxnet|utun|Bluetooth/i.test(name)) continue;
     for (const a of list || []) {
       if (a.family !== 'IPv4' && a.family !== 4) continue;
       if (a.internal || a.address.startsWith('169.254.')) continue;
+      if (isTailscale(name, a.address)) { tailscale.push(a.address); continue; }
+      if (/vEthernet|VirtualBox|VMware|WSL|Hyper-V|Loopback|ZeroTier|docker|^br-|^veth|vboxnet|utun|Bluetooth/i.test(name)) continue;
       const score = a.address.startsWith('192.168.') ? 0 : a.address.startsWith('10.') ? 1 : /^172\.(1[6-9]|2\d|3[01])\./.test(a.address) ? 2 : 3;
-      out.push({ name, address: a.address, score: score + (/wi-?fi|wlan|wireless|ethernet|^en|^eth/i.test(name) ? 0 : 0.5) });
+      lan.push({ address: a.address, score: score + (/wi-?fi|wlan|wireless|ethernet|^en|^eth/i.test(name) ? 0 : 0.5) });
     }
   }
-  return out.sort((a, b) => a.score - b.score).map((a) => a.address);
+  return { lan: lan.sort((a, b) => a.score - b.score).map((a) => a.address), tailscale };
 }
 
 const clients = () => (wss ? [...wss.clients].filter((c) => c.readyState === 1) : []);
@@ -146,16 +152,21 @@ function init(userData, h) {
   if (cfg.enabled) start();
 }
 
+const qrOf = (url) => QRCode.toDataURL(url, { margin: 1, width: 360, color: { dark: '#0a0a0f', light: '#ffffff' } });
+
 async function status() {
-  const ips = lanAddresses();
-  const urls = server ? ips.map((ip) => `http://${ip}:${port}/?k=${cfg.token}`) : [];
+  const { lan, tailscale } = addresses();
+  const link = (ip) => `http://${ip}:${port}/?k=${cfg.token}`;
+  const urls = server ? lan.map(link) : [];
+  const ts = server && tailscale[0] ? link(tailscale[0]) : null;
   return {
     enabled: cfg.enabled,
     running: !!server,
     error: cfg.enabled && !server ? lastError || 'Serveur indisponible' : null,
     url: urls[0] || null,
     urls,
-    qr: urls[0] ? await QRCode.toDataURL(urls[0], { margin: 1, width: 360, color: { dark: '#0a0a0f', light: '#ffffff' } }) : null,
+    qr: urls[0] ? await qrOf(urls[0]) : null,
+    tailscale: ts ? { url: ts, qr: await qrOf(ts) } : null,
     clients: clients().map((c) => c.device),
   };
 }

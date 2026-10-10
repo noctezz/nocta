@@ -40,6 +40,11 @@ pendant la lecture, le téléphone affiche le titre en cours avec lecture/pause,
 volume, « Passer l'intro » et « Épisode suivant ». La recherche se tape au clavier du téléphone. Astuce iPhone :
 *Partager → Sur l'écran d'accueil* pour l'avoir comme une app. Les flèches du clavier naviguent aussi dans l'app.
 
+**Télécommande en 4G / 5G** : choisis l'onglet *4G / 5G · Tailscale*. Installe [Tailscale](https://tailscale.com/download)
+(gratuit) sur le PC et sur l'iPhone avec le même compte, touche *Actualiser*, puis scanne le QR code. Le téléphone
+pilote alors NOCTA de n'importe où, sans être sur le Wi-Fi. Si Windows demande l'autorisation, coche *Réseaux privés*
+et *Réseaux publics*.
+
 Le bouton agrandir (ou `F11`) passe en vrai plein écran, et le mode est retenu au prochain lancement.
 Pour quitter : menu du profil (en haut à droite), puis **Quitter NOCTA**.
 

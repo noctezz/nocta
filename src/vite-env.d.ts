@@ -17,6 +17,7 @@ interface NoctaRemoteStatus {
   url: string | null;
   urls: string[];
   qr: string | null;
+  tailscale: { url: string; qr: string } | null;
   clients: string[];
 }
 
