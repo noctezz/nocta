@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, FolderOpen, Maximize2, Minimize2, Pencil, Power, Search, Settings, X } from 'lucide-react';
+import { ChevronDown, FolderOpen, Maximize2, Minimize2, Pencil, Power, Search, Settings, Smartphone, X } from 'lucide-react';
 import { useProfile, useStore, type Page } from '../lib/store';
 import { playLocalFile } from '../lib/playback';
 import { Avatar } from './Avatar';
 import { Logo } from './Logo';
+import { RemoteModal, useRemoteStatus } from './RemotePanel';
 
 const LINKS: { page: Page; label: string }[] = [
   { page: 'home', label: 'Accueil' },
@@ -26,6 +27,8 @@ export function Navbar() {
   const [solid, setSolid] = useState(false);
   const [searchOpen, setSearchOpen] = useState(!!query);
   const [menu, setMenu] = useState(false);
+  const [remoteOpen, setRemoteOpen] = useState(false);
+  const [remote] = useRemoteStatus();
   const inputRef = useRef<HTMLInputElement>(null);
   const menuTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -36,7 +39,8 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  useEffect(() => { if (searchOpen) inputRef.current?.focus(); }, [searchOpen]);
+  // Recherche lancée depuis la télécommande : le champ s'ouvre avec le texte tapé
+  useEffect(() => { if (query) setSearchOpen(true); }, [query]);
 
   const openFile = async () => {
     const p = await window.nocta?.openVideoDialog();
@@ -69,7 +73,7 @@ export function Navbar() {
 
       <div className="nav-right no-drag">
         <div className={`nav-search ${searchOpen ? 'is-open' : ''}`}>
-          <button onClick={() => setSearchOpen(true)} aria-label="Rechercher"><Search size={20} /></button>
+          <button onClick={() => { setSearchOpen(true); setTimeout(() => inputRef.current?.focus(), 0); }} aria-label="Rechercher"><Search size={20} /></button>
           <input
             ref={inputRef}
             placeholder="Titres, personnes, genres"
@@ -80,6 +84,16 @@ export function Navbar() {
           />
           {query && <button onClick={() => { setSearch(''); inputRef.current?.focus(); }}><X size={16} /></button>}
         </div>
+
+        {window.nocta && (
+          <button
+            className={`nav-icon ${remote?.clients.length ? 'has-remote' : ''}`}
+            onClick={() => setRemoteOpen(true)}
+            title={remote?.clients.length ? `Télécommande : ${remote.clients.join(', ')} connecté` : 'Télécommande (téléphone)'}
+          >
+            <Smartphone size={20} />
+          </button>
+        )}
 
         {window.nocta && (
           <button className="nav-icon" onClick={openFile} title="Ouvrir une vidéo de ton PC">
@@ -133,6 +147,7 @@ export function Navbar() {
           </AnimatePresence>
         </div>
       </div>
+      <RemoteModal open={remoteOpen} onClose={() => setRemoteOpen(false)} />
     </header>
   );
 }

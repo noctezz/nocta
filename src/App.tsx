@@ -24,6 +24,7 @@ import { fetchManifest, installAddon } from './lib/addons';
 import { errMsg } from './lib/playback';
 import { playLocalFile } from './lib/playback';
 import { useBusy, useHover } from './lib/ui';
+import { installSpatialNav, navigate, type NavKey } from './lib/spatialNav';
 
 const VIDEO_RE = /\.(mkv|mp4|avi|mov|webm|m4v|ts|wmv|flv)$/i;
 
@@ -96,6 +97,19 @@ export default function App() {
       .then(({ manifest, updated }) => toast(`${manifest.name} ${updated ? 'mis à jour' : 'installé'} ✓`, 'success'))
       .catch((e) => toast(`Installation impossible : ${errMsg(e)}`, 'error'));
   }), []);
+
+  // Navigation façon TV (flèches) + télécommande du téléphone
+  useEffect(() => installSpatialNav(), []);
+  useEffect(() => {
+    const r = window.nocta?.remote;
+    if (!r) return;
+    const offs = [
+      r.on('key', (k: NavKey) => navigate(k)),
+      r.on('text', (q: string) => { useStore.getState().setSearch(q); window.scrollTo({ top: 0 }); }),
+      r.on('connected', (device: string) => useStore.getState().toast(`📱 ${device} connecté : la télécommande est prête`, 'success')),
+    ];
+    return () => offs.forEach((o) => o());
+  }, []);
 
   // Glisser-déposer une vidéo n'importe où = lecture immédiate
   useEffect(() => {

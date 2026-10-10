@@ -5,6 +5,7 @@ const store = require('./store.cjs');
 const media = require('./media-server.cjs');
 const { MpvSession, mpvBinary } = require('./mpv.cjs');
 const intro = require('./intro.cjs');
+const remote = require('./remote.cjs');
 
 const isDev = !!process.env.NOCTA_DEV;
 let win;
@@ -137,6 +138,55 @@ ipcMain.handle('intro:detect', (_e, job) => intro.detect(job));
 ipcMain.handle('intro:has', (_e, seriesId, videoId) => intro.hasFp(seriesId, videoId));
 ipcMain.handle('player:fullscreen', () => { win.setFullScreen(!win.isFullScreen()); return !win.isFullScreen(); });
 ipcMain.handle('player:minimize', () => win.minimize());
+// Boutons « Passer l'intro » / « Épisode suivant » visibles : relayés à la télécommande
+ipcMain.handle('player:remote', (_e, st) => { if (session) session.remote = st; });
+
+// ---------- Télécommande (téléphone) ----------
+const REMOTE_KEYS = new Set(['up', 'down', 'left', 'right', 'ok', 'back', 'home', 'playpause', 'skip', 'next']);
+function remoteState() {
+  const s = session;
+  if (!s || s.closed) return { mode: 'nav' };
+  const meta = (s.req && s.req.meta) || {};
+  return {
+    mode: 'player',
+    player: {
+      title: (s.req && s.req.title) || meta.name || '',
+      subtitle: (s.req && s.req.subtitle) || '',
+      art: meta.background || meta.poster || null,
+      time: Math.round(s.last.time || 0),
+      duration: Math.round(s.last.duration || 0),
+      paused: !!s.props.pause,
+      volume: typeof s.props.volume === 'number' ? Math.round(s.props.volume) : 100,
+      started: !!s.started,
+      skip: (s.remote && s.remote.skip) || null,
+      next: (s.info && s.info.next && s.info.next.label) || null,
+    },
+  };
+}
+function remoteKey(k) {
+  if (session && session.overlay && !session.overlay.isDestroyed()) session.sendOverlay('remote:key', k);
+  else if (win && !win.isDestroyed()) {
+    if (win.isMinimized()) win.restore();
+    win.webContents.send('remote:key', k);
+  }
+}
+function onRemoteMessage(msg) {
+  if (msg.t === 'key' && REMOTE_KEYS.has(msg.k)) return remoteKey(msg.k);
+  if (msg.t === 'text' && win && !win.isDestroyed()) return win.webContents.send('remote:text', String(msg.v ?? '').slice(0, 120));
+  if (!session) return;
+  if (msg.t === 'seek' && Number.isFinite(msg.v)) return session.send(['seek', Math.max(0, msg.v), 'absolute']);
+  if (msg.t === 'volume' && Number.isFinite(msg.v)) {
+    const v = Math.max(0, Math.min(100, Math.round(msg.v)));
+    session.send(['set_property', 'volume', v]);
+    session.send(['set_property', 'mute', v === 0]);
+  }
+}
+async function remoteStatusToRenderer() {
+  if (win && !win.isDestroyed()) win.webContents.send('remote:status', await remote.status());
+}
+ipcMain.handle('remote:status', () => remote.status());
+ipcMain.handle('remote:setEnabled', async (_e, v) => { const st = await remote.setEnabled(v); remoteStatusToRenderer(); return st; });
+ipcMain.handle('remote:reset', async () => { const st = await remote.resetToken(); remoteStatusToRenderer(); return st; });
 
 ipcMain.handle('dialog:openVideo', async () => {
   const r = await dialog.showOpenDialog(win, {
@@ -219,11 +269,20 @@ app.whenReady().then(async () => {
     },
   );
   createWindow();
+  remote.init(app.getPath('userData'), {
+    getState: remoteState,
+    onMessage: onRemoteMessage,
+    onClients: (count, device) => {
+      if (device && win && !win.isDestroyed()) win.webContents.send('remote:connected', device);
+      remoteStatusToRenderer();
+    },
+  });
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
 app.on('window-all-closed', () => {
   media.stop();
+  remote.stop();
   if (session) session.stop();
   if (process.platform !== 'darwin') app.quit();
 });

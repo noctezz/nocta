@@ -34,7 +34,7 @@ export function LoadingScreen({ info, onBack, transparent }: { info: LoadingInfo
       <SeasonalLayer theme={season} density={0.8} className="loading-season" />
 
       {onBack && (
-        <button className="player-btn loading-back" onClick={onBack} aria-label="Retour">
+        <button className="player-btn loading-back" data-nav-back onClick={onBack} aria-label="Retour">
           <ArrowLeft size={34} />
         </button>
       )}

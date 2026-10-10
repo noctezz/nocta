@@ -24,7 +24,7 @@ export function Card({
 
   if (variant === 'top10') {
     return (
-      <div className="card card-top10" ref={ref} onMouseEnter={enter} onMouseLeave={leave} onClick={click}>
+      <div className="card card-top10" tabIndex={0} ref={ref} onMouseEnter={enter} onMouseLeave={leave} onClick={click}>
         <svg className="rank" viewBox="0 0 120 160" aria-hidden>
           <text x="120" y="150" textAnchor="end">{rank}</text>
         </svg>
@@ -37,7 +37,7 @@ export function Card({
   const pct = entry && entry.duration ? Math.min(100, (entry.position / entry.duration) * 100) : 0;
 
   return (
-    <div className="card" ref={ref} onMouseEnter={enter} onMouseLeave={leave} onClick={click}>
+    <div className="card" tabIndex={0} ref={ref} onMouseEnter={enter} onMouseLeave={leave} onClick={click}>
       <div className="card-img">
         {imgOk ? (
           <img src={backdropOf(item)} alt="" loading="lazy" draggable={false} onError={() => setImgOk(false)} />

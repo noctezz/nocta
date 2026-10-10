@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('nocta', {
     intro: (mark) => ipcRenderer.invoke('player:intro', mark),
     fullscreen: () => ipcRenderer.invoke('player:fullscreen'),
     minimize: () => ipcRenderer.invoke('player:minimize'),
+    remoteState: (st) => ipcRenderer.invoke('player:remote', st),
     on: (channel, cb) => {
       const fn = (_e, data) => cb(data);
       ipcRenderer.on(channel, fn);
@@ -45,6 +46,16 @@ contextBridge.exposeInMainWorld('nocta', {
       const fn = (_e, url) => cb(url);
       ipcRenderer.on('addons:install', fn);
       return () => ipcRenderer.removeListener('addons:install', fn);
+    },
+  },
+  remote: {
+    status: () => ipcRenderer.invoke('remote:status'),
+    setEnabled: (v) => ipcRenderer.invoke('remote:setEnabled', v),
+    reset: () => ipcRenderer.invoke('remote:reset'),
+    on: (channel, cb) => {
+      const fn = (_e, data) => cb(data);
+      ipcRenderer.on(`remote:${channel}`, fn);
+      return () => ipcRenderer.removeListener(`remote:${channel}`, fn);
     },
   },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),

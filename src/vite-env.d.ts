@@ -10,6 +10,16 @@ interface NoctaProbe {
   subs: { index: number; codec: string; lang: string; title: string; text: boolean; forced: boolean }[];
 }
 
+interface NoctaRemoteStatus {
+  enabled: boolean;
+  running: boolean;
+  error: string | null;
+  url: string | null;
+  urls: string[];
+  qr: string | null;
+  clients: string[];
+}
+
 interface NoctaBridge {
   platform: string;
   store: { load: () => any; save: (data: any) => Promise<boolean> };
@@ -33,6 +43,7 @@ interface NoctaBridge {
     intro: (mark: { start: number; end: number } | null) => Promise<void>;
     fullscreen: () => Promise<boolean>;
     minimize: () => Promise<void>;
+    remoteState: (st: { skip: 'intro' | 'recap' | null }) => Promise<void>;
     on: (channel: string, cb: (data: any) => void) => () => void;
   };
   openVideoDialog: () => Promise<string | null>;
@@ -48,6 +59,12 @@ interface NoctaBridge {
   addons: {
     openWindow: (url: string) => Promise<void>;
     onInstall: (cb: (manifestUrl: string) => void) => () => void;
+  };
+  remote: {
+    status: () => Promise<NoctaRemoteStatus>;
+    setEnabled: (v: boolean) => Promise<NoctaRemoteStatus>;
+    reset: () => Promise<NoctaRemoteStatus>;
+    on: (channel: 'key' | 'text' | 'status' | 'connected', cb: (data: any) => void) => () => void;
   };
   win: {
     toggleFullscreen: () => Promise<boolean>;

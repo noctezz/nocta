@@ -145,7 +145,7 @@ export function ProfileEditor({ profileId, onClose }: { profileId?: string; onCl
 
         <div className="editor-actions">
           <button className="btn btn-white" onClick={save}>Enregistrer</button>
-          <button className="btn-outline" onClick={onClose}>Annuler</button>
+          <button className="btn-outline" data-nav-back onClick={onClose}>Annuler</button>
           {existing && profilesCount > 1 && (
             <button className="btn-outline danger" onClick={() => { remove(existing.id); onClose(); }}>
               <Trash2 size={16} /> Supprimer le profil

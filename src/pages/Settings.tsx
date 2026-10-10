@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../lib/store';
 import { playIntroSound } from '../lib/sound';
+import { RemotePanel } from '../components/RemotePanel';
 
 const ENCODERS: Record<string, string> = {
   libx264: 'Processeur (compatible partout)',
@@ -45,6 +46,11 @@ export function Settings() {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="settings-card">
+        <h2>Télécommande</h2>
+        <RemotePanel />
       </section>
 
       <section className="settings-card">

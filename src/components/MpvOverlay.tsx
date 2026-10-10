@@ -253,6 +253,7 @@ export function MpvOverlay() {
         case 'f': case 'F': toggleFullscreen(); break;
         case 'm': case 'M': toggleMute(); break;
         case 'n': case 'N': if (info.next) goNext(); break;
+        case 's': case 'S': if (activeSeg) skipSegment(activeSeg); break;
         case 'Escape':
           if (panel) setPanel(null);
           else if (fullscreen) toggleFullscreen();
@@ -263,6 +264,23 @@ export function MpvOverlay() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+
+  // ---------- Télécommande (téléphone) ----------
+  const skipVisible = activeSeg && !skipped.current.has(`${activeSeg.kind}-${activeSeg.start}`) ? activeSeg.kind : null;
+  useEffect(() => { bridge().remoteState?.({ skip: skipVisible }); }, [skipVisible]);
+  useEffect(() => bridge().on('remote:key', (k: string) => {
+    poke();
+    switch (k) {
+      case 'ok': case 'playpause': togglePlay(); break;
+      case 'right': skip(10); break;
+      case 'left': skip(-10); break;
+      case 'up': setVol(volume + 5); break;
+      case 'down': setVol(volume - 5); break;
+      case 'skip': if (activeSeg) skipSegment(activeSeg); break;
+      case 'next': if (info.next) goNext(); break;
+      case 'back': case 'home': if (panel) setPanel(null); else close(); break;
+    }
+  }));
 
   // ---------- Barre de progression ----------
   const barRef = useRef<HTMLDivElement>(null);

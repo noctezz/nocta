@@ -33,7 +33,7 @@ export function DetailModal() {
   }, [addons, detail.type, detail.id]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !useStore.getState().picker && close();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [close]);
@@ -96,7 +96,7 @@ export function DetailModal() {
         exit={{ opacity: 0, y: 40, scale: 0.97 }}
         transition={{ type: 'spring', stiffness: 240, damping: 28 }}
       >
-        <button className="round detail-close" onClick={close} aria-label="Fermer"><X size={22} /></button>
+        <button className="round detail-close" data-nav-back onClick={close} aria-label="Fermer"><X size={22} /></button>
 
         <div className="detail-hero">
           <img src={backdropOf(meta)} alt="" draggable={false} />
@@ -107,7 +107,7 @@ export function DetailModal() {
               ? <img className="detail-logo" src={logo} alt={meta.name} onError={() => setLogoOk(false)} />
               : <h1>{meta.name}</h1>}
             <div className="detail-actions">
-              <button className="btn btn-white btn-lg" onClick={play}>
+              <button className="btn btn-white btn-lg" data-nav-default onClick={play}>
                 <Play size={24} fill="currentColor" /> {entry ? 'Reprendre' : 'Lecture'}
                 {!entry && isSeries && nextLabel && <span className="btn-sub">{nextLabel}</span>}
               </button>

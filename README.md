@@ -33,6 +33,13 @@ npm run dev
 4. **Suivi** : les films et épisodes regardés jusqu'au bout sont marqués « Vu » (cochables à la main, saison entière
    d'un clic). « Lecture » reprend au prochain épisode non vu, et l'épisode suivant apparaît dans « Reprendre ».
 
+**Télécommande (iPhone / Android)** : clique sur l'icône téléphone en haut (ou *Paramètres → Télécommande*),
+active-la et scanne le QR code avec l'appareil photo. Le téléphone doit être sur le même Wi-Fi que le PC (si Windows
+demande l'autorisation, coche *Réseaux privés*). Glisse sur le pavé pour te déplacer, touche le centre pour valider ;
+pendant la lecture, le téléphone affiche le titre en cours avec lecture/pause, ±10 s, la barre de progression, le
+volume, « Passer l'intro » et « Épisode suivant ». La recherche se tape au clavier du téléphone. Astuce iPhone :
+*Partager → Sur l'écran d'accueil* pour l'avoir comme une app. Les flèches du clavier naviguent aussi dans l'app.
+
 Le bouton agrandir (ou `F11`) passe en vrai plein écran, et le mode est retenu au prochain lancement.
 Pour quitter : menu du profil (en haut à droite), puis **Quitter NOCTA**.
 
@@ -74,6 +81,7 @@ electron/
   main.cjs          fenêtre, IPC
   preload.cjs       pont sécurisé vers l'interface
   mpv.cjs           lecteur mpv intégré (fenêtre vidéo + interface transparente)
+  remote.cjs        télécommande : serveur local + page téléphone (remote/index.html)
   intro.cjs         détection du générique (empreinte audio, cache) + intro-worker.cjs (calculs)
   media-server.cjs  serveur local : fichiers, remux/transcodage ffmpeg, sous-titres → WebVTT
   store.cjs         sauvegarde des profils/réglages (dossier utilisateur)

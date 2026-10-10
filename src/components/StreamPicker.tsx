@@ -101,7 +101,7 @@ export function StreamPicker() {
       >
         <div className="picker-head" style={{ backgroundImage: `url(${backdropOf(picker.meta)})` }}>
           <div className="picker-head-fade" />
-          <button className="round" onClick={close} aria-label="Fermer"><X size={20} /></button>
+          <button className="round" data-nav-back onClick={close} aria-label="Fermer"><X size={20} /></button>
           <div>
             <small>Choisis une source</small>
             <h2>{picker.meta.name}</h2>

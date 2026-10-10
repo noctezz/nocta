@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NOCTA">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon.png">
+<title>NOCTA · Télécommande</title>
+<style>
+:root {
+  --accent: #e50f3a; --accent-2: #ff3b5c; --bg: #050507; --glass: rgba(255,255,255,.06); --line: rgba(255,255,255,.09);
+  --muted: rgba(255,255,255,.55); --ease: cubic-bezier(.2,.8,.2,1);
+  --st: env(safe-area-inset-top); --sb: env(safe-area-inset-bottom);
+}
+* { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, system-ui, sans-serif; overscroll-behavior: none; }
+body { -webkit-user-select: none; user-select: none; touch-action: manipulation; overflow: hidden; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+svg { display: block; }
+.app { position: fixed; inset: 0; display: flex; flex-direction: column; padding: calc(var(--st) + 14px) 20px calc(var(--sb) + 18px); }
+.backdrop { position: fixed; inset: -10%; z-index: -1; background: radial-gradient(60% 40% at 50% 0%, rgba(229,15,58,.22), transparent 70%), radial-gradient(50% 35% at 50% 100%, rgba(120,20,60,.18), transparent 70%); transition: opacity .6s; }
+.art-bg { position: fixed; inset: -20%; z-index: -1; background-size: cover; background-position: center; filter: blur(50px) saturate(1.3) brightness(.45); opacity: 0; transition: opacity .8s; }
+.is-player .art-bg { opacity: 1; }
+
+header { display: flex; align-items: center; justify-content: space-between; height: 44px; }
+.logo { height: 26px; filter: drop-shadow(0 0 14px rgba(229,15,58,.5)); }
+.pill { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); font-size: 13px; color: var(--muted); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #f5b400; animation: blink 1.2s infinite; }
+.is-on .dot { background: #46d369; animation: none; box-shadow: 0 0 10px #46d369; }
+@keyframes blink { 50% { opacity: .25; } }
+
+.view { flex: 1; display: none; flex-direction: column; min-height: 0; }
+.is-nav .view-nav, .is-player .view-player { display: flex; animation: viewIn .5s var(--ease); }
+@keyframes viewIn { from { opacity: 0; transform: translateY(14px); } }
+
+/* ---------- Pavé tactile ---------- */
+.pad-wrap { flex: 1; display: grid; place-items: center; min-height: 0; padding: 10px 0; }
+.pad { position: relative; width: min(84vw, 380px, 52vh); aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, rgba(255,255,255,.10), rgba(255,255,255,.03) 60%), #0e0e12;
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -20px 50px rgba(0,0,0,.5), 0 30px 80px rgba(0,0,0,.6), 0 0 0 10px rgba(255,255,255,.02);
+  touch-action: none; overflow: hidden; }
+.pad::before { content: ''; position: absolute; inset: 30%; border-radius: 50%; background: radial-gradient(circle at 50% 30%, rgba(255,255,255,.12), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.09); box-shadow: 0 10px 30px rgba(0,0,0,.5); transition: transform .15s, background .2s; }
+.pad.press-ok::before { transform: scale(.94); background: radial-gradient(circle, rgba(229,15,58,.45), rgba(229,15,58,.12)); }
+.pad .ok-label { position: absolute; inset: 0; display: grid; place-items: center; font-size: 15px; font-weight: 600; letter-spacing: .2em; color: rgba(255,255,255,.75); pointer-events: none; }
+.chev { position: absolute; color: rgba(255,255,255,.4); pointer-events: none; transition: color .15s, transform .2s var(--ease); }
+.chev.up { top: 7%; left: 50%; transform: translateX(-50%); }
+.chev.down { bottom: 7%; left: 50%; transform: translateX(-50%) rotate(180deg); }
+.chev.left { left: 7%; top: 50%; transform: translateY(-50%) rotate(-90deg); }
+.chev.right { right: 7%; top: 50%; transform: translateY(-50%) rotate(90deg); }
+.chev.flash { color: #fff; filter: drop-shadow(0 0 10px var(--accent-2)); }
+.chev.up.flash { transform: translateX(-50%) translateY(-5px); }
+.chev.down.flash { transform: translateX(-50%) rotate(180deg) translateY(-5px); }
+.chev.left.flash { transform: translateY(-50%) rotate(-90deg) translateY(-5px); }
+.chev.right.flash { transform: translateY(-50%) rotate(90deg) translateY(-5px); }
+.ripple { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; background: radial-gradient(circle, rgba(255,59,92,.45), transparent 70%); pointer-events: none; animation: ripple .55s var(--ease) forwards; }
+@keyframes ripple { from { transform: scale(.3); opacity: 1; } to { transform: scale(2.2); opacity: 0; } }
+.trail { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: rgba(255,255,255,.18); box-shadow: 0 0 30px rgba(255,59,92,.6); pointer-events: none; opacity: 0; transition: opacity .2s; }
+.trail.on { opacity: 1; }
+.hint { text-align: center; font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+.keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+.key { height: 64px; border-radius: 20px; background: var(--glass); border: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; color: rgba(255,255,255,.75); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); transition: transform .12s, background .2s; }
+.key:active, .key.active { transform: scale(.94); background: rgba(255,255,255,.14); }
+
+/* ---------- Recherche ---------- */
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; padding: 20px 20px calc(var(--sb) + 20px); background: rgba(20,20,26,.92); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border-top: 1px solid var(--line); border-radius: 26px 26px 0 0; transform: translateY(110%); transition: transform .45s var(--ease); }
+.sheet.open { transform: none; }
+.sheet-top { position: fixed; inset: 0; z-index: 9; background: rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .3s; }
+.sheet.open + .sheet-top { opacity: 1; pointer-events: auto; }
+.sheet h3 { font-size: 17px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.sheet h3 button { color: var(--accent-2); font-size: 16px; font-weight: 600; }
+.search-box { display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 52px; border-radius: 16px; background: rgba(255,255,255,.08); border: 1px solid var(--line); }
+.search-box input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: #fff; font: 17px -apple-system, system-ui, sans-serif; -webkit-user-select: text; user-select: text; }
+.search-box input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.search-box input::placeholder { color: rgba(255,255,255,.4); }
+.sheet p { margin-top: 10px; font-size: 13px; color: var(--muted); }
+
+/* ---------- Lecteur ---------- */
+.view-player { justify-content: center; gap: 22px; }
+.np-art { width: 100%; aspect-ratio: 16/9; border-radius: 18px; background: #111 center/cover; box-shadow: 0 30px 70px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.06); position: relative; overflow: hidden; }
+.np-art.no-art { background: radial-gradient(70% 90% at 30% 20%, rgba(229,15,58,.45), transparent 60%), radial-gradient(60% 80% at 90% 100%, rgba(90,30,140,.5), transparent 60%), #0d0b12; }
+.np-art.no-art::before { content: ''; position: absolute; inset: 0; background: url(/icon.png) center / 34% no-repeat; opacity: .9; filter: drop-shadow(0 0 30px rgba(229,15,58,.6)); }
+.np-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.55), transparent 50%); }
+.np-badge { position: absolute; left: 14px; bottom: 12px; z-index: 1; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: .08em; }
+.eq { display: flex; gap: 2px; align-items: flex-end; height: 12px; }
+.eq i { width: 3px; background: var(--accent-2); border-radius: 2px; animation: eq .9s ease-in-out infinite; }
+.eq i:nth-child(2) { animation-delay: -.3s; } .eq i:nth-child(3) { animation-delay: -.6s; }
+@keyframes eq { 0%,100% { height: 30%; } 50% { height: 100%; } }
+.paused .eq i { animation-play-state: paused; }
+.np-title { font-size: 24px; font-weight: 700; letter-spacing: -.01em; line-height: 1.15; }
+.np-sub { font-size: 15px; color: var(--muted); margin-top: 4px; }
+.seek { position: relative; height: 30px; display: flex; align-items: center; touch-action: none; }
+.seek .track { position: absolute; left: 0; right: 0; height: 6px; border-radius: 6px; background: rgba(255,255,255,.18); overflow: hidden; transition: height .2s; }
+.seek.drag .track { height: 10px; }
+.seek .fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); width: 0; }
+.seek .knob { position: absolute; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.5); transition: transform .2s; }
+.seek.drag .knob { transform: scale(1.3); }
+.times { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: -6px; }
+.ctrls { display: flex; align-items: center; justify-content: center; gap: 34px; }
+.ctrl { width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; color: #fff; transition: transform .12s, background .2s; position: relative; }
+.ctrl small { position: absolute; font-size: 10px; font-weight: 700; top: 50%; left: 50%; transform: translate(-50%, -38%); }
+.ctrl:active { transform: scale(.9); background: rgba(255,255,255,.1); }
+.ctrl.big { width: 84px; height: 84px; background: #fff; color: #000; box-shadow: 0 14px 40px rgba(255,255,255,.18); }
+.ctrl.big:active { background: #ddd; }
+.chips { display: flex; gap: 10px; justify-content: center; min-height: 46px; flex-wrap: wrap; }
+.chip { height: 46px; padding: 0 18px; border-radius: 999px; display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; background: var(--glass); border: 1px solid var(--line); animation: chipIn .4s var(--ease); }
+.chip.hot { background: #fff; color: #000; border-color: #fff; box-shadow: 0 10px 30px rgba(255,255,255,.2); }
+@keyframes chipIn { from { opacity: 0; transform: translateY(8px) scale(.95); } }
+.vol { display: flex; align-items: center; gap: 14px; color: var(--muted); }
+.vol input { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 6px; background: linear-gradient(90deg, #fff var(--v, 50%), rgba(255,255,255,.18) var(--v, 50%)); outline: 0; }
+.vol input::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+.stop { align-self: center; display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; padding: 10px 16px; border-radius: 999px; }
+.stop:active { background: var(--glass); }
+
+/* ---------- Connexion ---------- */
+.overlay { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 40px; text-align: center; background: rgba(5,5,7,.86); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); opacity: 0; pointer-events: none; transition: opacity .4s; }
+.overlay.show { opacity: 1; pointer-events: auto; }
+.overlay h2 { font-size: 22px; }
+.overlay p { color: var(--muted); font-size: 15px; line-height: 1.5; max-width: 320px; }
+.spinner { width: 42px; height: 42px; border-radius: 50%; border: 3px solid rgba(255,255,255,.12); border-top-color: var(--accent-2); animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.btn { height: 48px; padding: 0 22px; border-radius: 14px; background: #fff; color: #000; font-weight: 600; }
+.haptic { position: fixed; left: -100px; top: -100px; opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="backdrop"></div>
+<div class="art-bg" id="artBg"></div>
+
+<div class="app is-nav" id="app">
+  <header>
+    <svg class="logo" viewBox="0 0 320 92" aria-label="NOCTA">
+      <defs>
+        <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff3b5c"/><stop offset=".55" stop-color="#e50f3a"/><stop offset="1" stop-color="#99001f"/></linearGradient>
+        <path id="lp" d="M8,80 Q160,58 312,80"/>
+      </defs>
+      <text fill="url(#lg)" font-family="-apple-system, Inter, system-ui, sans-serif" font-weight="900" font-size="78" letter-spacing="-3"><textPath href="#lp" startOffset="50%" text-anchor="middle">NOCTA</textPath></text>
+    </svg>
+    <div class="pill" id="pill"><span class="dot"></span><span id="pillText">Connexion…</span></div>
+  </header>
+
+  <!-- Navigation dans l'app -->
+  <section class="view view-nav">
+    <div class="pad-wrap">
+      <div class="pad" id="pad">
+        <svg class="chev up" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>
+        <svg class="chev down" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>
+        <svg class="chev left" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>
+        <svg class="chev right" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>
+        <div class="ok-label">OK</div>
+        <div class="trail" id="trail"></div>
+      </div>
+    </div>
+    <p class="hint">Glisse pour te déplacer · touche le centre pour valider</p>
+    <div class="keys">
+      <button class="key" data-k="back">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>Retour
+      </button>
+      <button class="key" data-k="home">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Accueil
+      </button>
+      <button class="key" id="searchBtn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Rechercher
+      </button>
+    </div>
+  </section>
+
+  <!-- Lecture en cours -->
+  <section class="view view-player" id="player">
+    <div class="np-art" id="npArt"><div class="np-badge"><span class="eq"><i></i><i></i><i></i></span><span id="npState">EN LECTURE</span></div></div>
+    <div>
+      <div class="np-title" id="npTitle"></div>
+      <div class="np-sub" id="npSub"></div>
+    </div>
+    <div>
+      <div class="seek" id="seek"><div class="track"><div class="fill" id="seekFill"></div></div><div class="knob" id="seekKnob"></div></div>
+      <div class="times"><span id="tCur">0:00</span><span id="tRem">-0:00</span></div>
+    </div>
+    <div class="ctrls">
+      <button class="ctrl" data-k="left" aria-label="Reculer de 10 secondes">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><small>10</small>
+      </button>
+      <button class="ctrl big" data-k="playpause" aria-label="Lecture / pause" id="ppBtn"></button>
+      <button class="ctrl" data-k="right" aria-label="Avancer de 10 secondes">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg><small>10</small>
+      </button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="vol">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/></svg>
+      <input type="range" min="0" max="100" id="vol">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
+    </div>
+    <button class="stop" data-k="back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>Arrêter la lecture
+    </button>
+  </section>
+</div>
+
+<div class="sheet" id="sheet">
+  <h3>Rechercher sur NOCTA <button id="sheetDone">OK</button></h3>
+  <div class="search-box">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="q" type="search" placeholder="Titres, personnes, genres" autocomplete="off" autocorrect="off" enterkeyhint="search">
+  </div>
+  <p>Les résultats s'affichent sur le PC pendant que tu tapes.</p>
+</div>
+<div class="sheet-top" id="sheetTop"></div>
+
+<div class="overlay show" id="overlay">
+  <div class="spinner" id="spin"></div>
+  <h2 id="ovTitle">Connexion à NOCTA…</h2>
+  <p id="ovText">Vérifie que NOCTA est ouvert sur ton PC et que ton téléphone est sur le même Wi-Fi.</p>
+  <button class="btn" id="retry" hidden>Réessayer</button>
+</div>
+
+<label class="haptic" id="hapticLabel"><input type="checkbox" switch id="hapticInput"></label>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const app = $('app');
+  const params = new URLSearchParams(location.search);
+  let token = params.get('k') || '';
+  try { if (token) localStorage.setItem('nocta-k', token); else token = localStorage.getItem('nocta-k') || ''; } catch {}
+
+  // ---------- Retour haptique (vibration sur Android, petit « tic » sur iPhone) ----------
+  const haptic = () => {
+    try { if (navigator.vibrate) { navigator.vibrate(8); return; } $('hapticLabel').click(); } catch {}
+  };
+
+  // ---------- Connexion ----------
+  let ws = null, retry = 0, retryTimer = null, alive = false, dead = false;
+  const overlay = (show, title, text, canRetry) => {
+    $('overlay').classList.toggle('show', show);
+    if (title) $('ovTitle').textContent = title;
+    if (text) $('ovText').textContent = text;
+    $('retry').hidden = !canRetry;
+    $('spin').hidden = !!canRetry;
+  };
+  const setPill = (on) => {
+    $('pill').classList.toggle('is-on', on);
+    $('pillText').textContent = on ? 'Connecté' : 'Connexion…';
+  };
+  function connect() {
+    clearTimeout(retryTimer);
+    if (!token) { dead = true; overlay(true, 'Code manquant', 'Ouvre NOCTA sur ton PC, clique sur l’icône téléphone en haut et scanne le QR code.', false); $('spin').hidden = true; return; }
+    try { ws && ws.close(); } catch {}
+    ws = new WebSocket(`ws://${location.host}/ws?k=${encodeURIComponent(token)}`);
+    ws.onopen = () => { alive = true; retry = 0; dead = false; setPill(true); overlay(false); };
+    ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch { return; } if (m.t === 'state') render(m); };
+    ws.onclose = (e) => {
+      alive = false; setPill(false);
+      if (e.code === 4001) {
+        dead = true;
+        overlay(true, 'Code expiré', 'Le code d’appairage a changé. Rescanne le QR code affiché dans NOCTA (icône téléphone en haut).', false);
+        $('spin').hidden = true;
+        return;
+      }
+      overlay(true, 'Connexion à NOCTA…', 'Vérifie que NOCTA est ouvert sur ton PC et que ton téléphone est sur le même Wi-Fi.', retry > 4);
+      retryTimer = setTimeout(connect, Math.min(5000, 500 * 2 ** retry++));
+    };
+  }
+  const send = (msg) => { if (alive && ws.readyState === 1) ws.send(JSON.stringify(msg)); };
+  const key = (k) => { haptic(); send({ t: 'key', k }); };
+  $('retry').onclick = () => { retry = 0; connect(); };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && !alive && !dead) { retry = 0; connect(); } });
+
+  // Garde l'écran allumé pendant qu'on s'en sert
+  let lock = null;
+  const keepAwake = async () => { try { if ('wakeLock' in navigator && !document.hidden) lock = await navigator.wakeLock.request('screen'); } catch {} };
+  document.addEventListener('visibilitychange', keepAwake);
+  keepAwake();
+
+  // ---------- Pavé tactile ----------
+  const pad = $('pad'), trail = $('trail');
+  const flash = (dir) => {
+    const c = pad.querySelector(`.chev.${dir}`);
+    c.classList.add('flash');
+    setTimeout(() => c.classList.remove('flash'), 180);
+  };
+  const ripple = (x, y) => {
+    const r = document.createElement('div');
+    r.className = 'ripple'; r.style.left = x + 'px'; r.style.top = y + 'px';
+    pad.appendChild(r); setTimeout(() => r.remove(), 600);
+  };
+  const STEP = 56;
+  let touch = null;
+  const local = (e) => { const b = pad.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top, w: b.width, h: b.height }; };
+  pad.addEventListener('pointerdown', (e) => {
+    pad.setPointerCapture(e.pointerId);
+    const p = local(e);
+    touch = { x0: p.x, y0: p.y, ax: p.x, ay: p.y, moved: false, t: Date.now() };
+    trail.style.left = p.x + 'px'; trail.style.top = p.y + 'px'; trail.classList.add('on');
+  });
+  pad.addEventListener('pointermove', (e) => {
+    if (!touch) return;
+    const p = local(e);
+    trail.style.left = p.x + 'px'; trail.style.top = p.y + 'px';
+    const dx = p.x - touch.ax, dy = p.y - touch.ay;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < (touch.moved ? STEP : 30)) return;
+    const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    touch.moved = true; touch.ax = p.x; touch.ay = p.y;
+    flash(dir); key(dir);
+  });
+  const end = (e) => {
+    if (!touch) return;
+    trail.classList.remove('on');
+    const p = local(e);
+    if (!touch.moved && Date.now() - touch.t < 600) {
+      // Touché : centre = OK, bords = direction (comme un pavé cliquable)
+      const nx = (p.x - p.w / 2) / (p.w / 2), ny = (p.y - p.h / 2) / (p.h / 2);
+      if (Math.hypot(nx, ny) < 0.5) {
+        pad.classList.add('press-ok'); setTimeout(() => pad.classList.remove('press-ok'), 160);
+        ripple(p.x, p.y); key('ok');
+      } else {
+        const dir = Math.abs(nx) > Math.abs(ny) ? (nx > 0 ? 'right' : 'left') : (ny > 0 ? 'down' : 'up');
+        ripple(p.x, p.y); flash(dir); key(dir);
+      }
+    }
+    touch = null;
+  };
+  pad.addEventListener('pointerup', end);
+  pad.addEventListener('pointercancel', () => { touch = null; trail.classList.remove('on'); });
+
+  document.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => key(b.dataset.k)));
+
+  // ---------- Recherche ----------
+  const sheet = $('sheet'), q = $('q');
+  let qTimer = null;
+  const openSheet = (v) => {
+    sheet.classList.toggle('open', v);
+    if (v) { q.value = ''; setTimeout(() => q.focus(), 60); } else q.blur();
+  };
+  $('searchBtn').onclick = () => { haptic(); openSheet(true); };
+  $('sheetDone').onclick = () => openSheet(false);
+  $('sheetTop').onclick = () => openSheet(false);
+  q.addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(() => send({ t: 'text', v: q.value }), 220); });
+  q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { send({ t: 'text', v: q.value }); openSheet(false); } });
+
+  // ---------- Lecteur ----------
+  const fmt = (s) => {
+    s = Math.max(0, Math.round(s || 0));
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = String(s % 60).padStart(2, '0');
+    return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`;
+  };
+  const ICON_PLAY = '<svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg>';
+  const ICON_PAUSE = '<svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><rect x="5.5" y="4" width="4.5" height="16" rx="1.2"/><rect x="14" y="4" width="4.5" height="16" rx="1.2"/></svg>';
+  const ICON_SKIP = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4.5v15l10-7.5z"/><rect x="16" y="4.5" width="3" height="15" rx="1"/></svg>';
+  let P = null, base = { t: 0, at: 0 }, dragging = false, volDragging = false, volTimer = null, lastArt = null, lastChips = '';
+  const seekEl = $('seek');
+  const curTime = () => (P && !P.paused && P.started ? base.t + (Date.now() - base.at) / 1000 : base.t);
+  const paint = (t) => {
+    if (!P) return;
+    const d = P.duration || 0, f = d ? Math.min(1, t / d) : 0;
+    $('seekFill').style.width = f * 100 + '%';
+    $('seekKnob').style.left = f * 100 + '%';
+    $('tCur').textContent = fmt(t);
+    $('tRem').textContent = '-' + fmt(d - t);
+  };
+  setInterval(() => { if (P && !dragging) paint(curTime()); }, 250);
+
+  const seekAt = (e) => { const b = seekEl.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)) * (P ? P.duration : 0); };
+  seekEl.addEventListener('pointerdown', (e) => { if (!P || !P.duration) return; dragging = true; seekEl.setPointerCapture(e.pointerId); seekEl.classList.add('drag'); paint(seekAt(e)); });
+  seekEl.addEventListener('pointermove', (e) => { if (dragging) paint(seekAt(e)); });
+  seekEl.addEventListener('pointerup', (e) => {
+    if (!dragging) return;
+    dragging = false; seekEl.classList.remove('drag');
+    const t = seekAt(e);
+    base = { t, at: Date.now() }; haptic(); send({ t: 'seek', v: t });
+  });
+
+  const vol = $('vol');
+  const paintVol = () => vol.style.setProperty('--v', vol.value + '%');
+  vol.addEventListener('input', () => {
+    volDragging = true; paintVol();
+    clearTimeout(volTimer);
+    volTimer = setTimeout(() => send({ t: 'volume', v: Number(vol.value) }), 60);
+  });
+  vol.addEventListener('change', () => { send({ t: 'volume', v: Number(vol.value) }); setTimeout(() => { volDragging = false; }, 800); });
+
+  function render(m) {
+    const isPlayer = m.mode === 'player' && m.player;
+    app.classList.toggle('is-player', !!isPlayer);
+    app.classList.toggle('is-nav', !isPlayer);
+    if (isPlayer && sheet.classList.contains('open')) openSheet(false);
+    if (!isPlayer) { P = null; return; }
+    P = m.player;
+    if (Math.abs(curTime() - P.time) > 1.5 || P.paused) base = { t: P.time, at: Date.now() };
+    $('npTitle').textContent = P.title || 'Lecture';
+    $('npSub').textContent = P.subtitle || '';
+    $('npState').textContent = P.started ? (P.paused ? 'EN PAUSE' : 'EN LECTURE') : 'CHARGEMENT';
+    $('player').classList.toggle('paused', !!P.paused || !P.started);
+    $('ppBtn').innerHTML = P.paused ? ICON_PLAY : ICON_PAUSE;
+    if ((P.art || '') !== lastArt) {
+      lastArt = P.art || '';
+      const url = lastArt ? `url("${lastArt.replace(/"/g, '%22')}")` : 'none';
+      $('npArt').style.backgroundImage = lastArt ? url : '';
+      $('npArt').classList.toggle('no-art', !lastArt);
+      $('artBg').style.backgroundImage = url;
+    }
+    if (!volDragging && document.activeElement !== vol) { vol.value = P.volume; paintVol(); }
+    const chips = JSON.stringify([P.skip, P.next]);
+    if (chips !== lastChips) {
+      lastChips = chips;
+      const box = $('chips');
+      box.innerHTML = '';
+      if (P.skip) box.insertAdjacentHTML('beforeend', `<button class="chip hot" data-a="skip">${ICON_SKIP} ${P.skip === 'recap' ? 'Passer le résumé' : 'Passer l’intro'}</button>`);
+      if (P.next) box.insertAdjacentHTML('beforeend', `<button class="chip" data-a="next">${ICON_SKIP} Épisode suivant</button>`);
+      box.querySelectorAll('[data-a]').forEach((b) => b.addEventListener('click', () => key(b.dataset.a)));
+    }
+    if (!dragging) paint(curTime());
+  }
+
+  connect();
+})();
+</script>
+</body>
+</html>

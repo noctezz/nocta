@@ -78,7 +78,7 @@ export function Hero({ type }: { type?: string }) {
           </div>
           {item.description && <p className="hero-desc">{item.description}</p>}
           <div className="hero-actions">
-            <button className="btn btn-white btn-lg" onClick={() => quickPlay(item)}>
+            <button className="btn btn-white btn-lg" data-nav-default onClick={() => quickPlay(item)}>
               <Play size={26} fill="currentColor" /> Lecture
             </button>
             <button className="btn btn-glass btn-lg" onClick={() => openDetail({ type: item.type, id: item.id, preview: item })}>

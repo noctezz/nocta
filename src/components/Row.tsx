@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FocusEvent } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import type { MetaPreview, ProgressEntry } from '../lib/types';
 import type { CardVariant } from '../lib/ui';
@@ -121,6 +121,16 @@ export function Row({ def, title: givenTitle, items: given, variant: givenVarian
     setPage((x) => (x + d + pages) % pages);
   };
 
+  // Sélection au clavier / à la télécommande : la rangée suit la carte sélectionnée
+  const onFocus = (e: FocusEvent<HTMLDivElement>) => {
+    const card = (e.target as HTMLElement).closest('.card');
+    const idx = card && trackRef.current ? [...trackRef.current.children].indexOf(card) : -1;
+    if (idx < 0) return;
+    const target = Math.floor(idx / perRow);
+    if (target !== p) { setMoved(true); setPage(target); }
+    if (pageable && idx >= list.length - perRow) loadMore();
+  };
+
   const seeAll = () => def && openBrowse({ key: def.key, title, load: (skip) => def.load(skip), pageable, loadAll: def.loadAll });
 
   return (
@@ -138,15 +148,15 @@ export function Row({ def, title: givenTitle, items: given, variant: givenVarian
       </div>
       <div className="row-viewport">
         {moved && pages > 1 && (
-          <button className="row-arrow left" onClick={() => go(-1)} aria-label="Précédent"><ChevronLeft size={40} /></button>
+          <button className="row-arrow left" tabIndex={-1} onClick={() => go(-1)} aria-label="Précédent"><ChevronLeft size={40} /></button>
         )}
-        <div className="row-track" ref={trackRef} style={{ transform: `translate3d(${-p * perRow * step}px,0,0)` }}>
+        <div className="row-track" ref={trackRef} onFocus={onFocus} style={{ transform: `translate3d(${-p * perRow * step}px,0,0)` }}>
           {items
             ? list.map((m, i) => <Card key={m.id} item={m} variant={variant} rank={i + 1} entry={entries?.[m.id]} />)
             : Array.from({ length: perRow + 1 }, (_, i) => <div key={i} className="card skeleton" />)}
         </div>
         {(pages > 1 || pageable) && (
-          <button className="row-arrow right" onClick={() => go(1)} aria-label="Suivant" disabled={loadingMore}>
+          <button className="row-arrow right" tabIndex={-1} onClick={() => go(1)} aria-label="Suivant" disabled={loadingMore}>
             {loadingMore ? <Loader2 className="spin" size={30} /> : <ChevronRight size={40} />}
           </button>
         )}
