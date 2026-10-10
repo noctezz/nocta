@@ -654,3 +654,109 @@ html.overlay-mode, html.overlay-mode body { background: transparent !important; 
 .catalogs-addon-head { display: flex; align-items: center; gap: 12px; padding: 0 var(--pad); margin-bottom: 18px; }
 .catalogs-addon-head h2 { font-size: 22px; font-weight: 800; }
 .addon-logo.small { width: 34px; height: 34px; border-radius: 8px; }
+
+/* Affiche du titre à la place de la vignette de qualité */
+.stream-poster { position: relative; width: 48px; height: 72px; flex: none; border-radius: 6px; overflow: hidden; background: #26262d; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45); }
+.stream-poster img, .stream-poster .card-fallback { width: 100%; height: 100%; object-fit: cover; }
+.stream-res {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 0 3px; text-align: center; font-size: 10px; font-weight: 800;
+  letter-spacing: 0.02em; color: #fff; background: linear-gradient(0deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.35));
+}
+.stream-res.q-2160 { color: #ffd166; }
+.stream:hover .stream-poster { transform: scale(1.04); }
+.stream-poster { transition: transform 0.25s var(--ease); }
+
+/* ============================================================
+   Thèmes saisonniers
+   ============================================================ */
+.seasonal-layer { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.app-season { z-index: 26; opacity: 0.75; }
+.gate-season { z-index: 0; }
+.gate-top, .gate-center { position: relative; z-index: 1; }
+.loading-season { position: absolute; z-index: 0; opacity: 0.8; }
+.intro-season { position: absolute; z-index: 1; }
+
+/* Logo décoré */
+.logo-wrap { position: relative; display: inline-block; line-height: 0; }
+.logo-decor { position: absolute; pointer-events: none; }
+.logo-hat { left: -3%; top: -46%; width: 24%; transform: rotate(-16deg); filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)); }
+.logo-halloween .logo-hat { left: 0; top: -58%; width: 22%; transform: rotate(-12deg); }
+
+/* Intro saisonnière */
+.intro-tagline {
+  margin-top: 26px; text-align: center; text-transform: uppercase; font-weight: 700; font-size: 15px; color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 0 18px var(--accent);
+}
+.intro-halloween { background: radial-gradient(ellipse at center 60%, #1a0b24 0%, #000 70%); }
+.intro-christmas { background: radial-gradient(ellipse at center 60%, #10221a 0%, #000 70%); }
+.intro-fog {
+  position: absolute; left: -10%; right: -10%; bottom: -10%; height: 45%; z-index: 1; pointer-events: none;
+  background: radial-gradient(ellipse at 30% 100%, rgba(120, 60, 160, 0.35), transparent 60%), radial-gradient(ellipse at 75% 100%, rgba(255, 110, 20, 0.22), transparent 55%);
+  filter: blur(20px); animation: fog-drift 6s ease-in-out infinite alternate;
+}
+@keyframes fog-drift { from { transform: translateX(-3%); } to { transform: translateX(3%); } }
+
+/* ---------- Halloween ---------- */
+html[data-season='halloween'] {
+  --accent: #ff6a00;
+  --accent-2: #ff9f1c;
+}
+html[data-season='halloween'] .hero-vignette {
+  background:
+    linear-gradient(77deg, rgba(10, 2, 18, 0.82) 0%, rgba(30, 6, 40, 0.3) 45%, transparent 75%),
+    linear-gradient(180deg, transparent 50%, rgba(30, 8, 30, 0.55) 78%, var(--bg) 100%);
+}
+html[data-season='halloween'] .hero::after {
+  content: ''; position: absolute; left: -5%; right: -5%; bottom: 8%; height: 30%; pointer-events: none;
+  background: radial-gradient(ellipse at 20% 100%, rgba(110, 50, 150, 0.35), transparent 60%), radial-gradient(ellipse at 80% 100%, rgba(255, 100, 20, 0.18), transparent 55%);
+  filter: blur(24px); animation: fog-drift 9s ease-in-out infinite alternate;
+}
+html[data-season='halloween'] .hero::before {
+  /* toile d'araignée dans le coin */
+  content: ''; position: absolute; top: 60px; right: 0; width: 220px; height: 220px; z-index: 2; pointer-events: none; opacity: 0.35;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' fill='none' stroke='white' stroke-width='1.2'%3E%3Cpath d='M200 0 L40 0M200 0 L60 90M200 0 L120 150M200 0 L200 160M200 0 L170 60'/%3E%3Cpath d='M170 0 Q178 18 192 22 Q196 30 200 32M140 0 Q152 34 180 44 Q194 52 200 66M110 0 Q126 52 162 70 Q190 86 200 100M80 0 Q100 70 146 98 Q184 118 200 134'/%3E%3C/svg%3E") no-repeat top right / contain;
+}
+html[data-season='halloween'] .loading-vignette { background: radial-gradient(ellipse at center, rgba(40, 10, 50, 0.2) 0%, rgba(10, 0, 15, 0.8) 65%, #000 100%); }
+html[data-season='halloween'] .theme-card.is-on { border-color: var(--accent); }
+
+/* ---------- Noël ---------- */
+html[data-season='christmas'] {
+  --accent: #e0102f;
+  --accent-2: #ff4d5e;
+  --gold: #f4d58d;
+}
+html[data-season='christmas'] .hero-vignette {
+  background:
+    linear-gradient(77deg, rgba(0, 8, 4, 0.8) 0%, rgba(0, 0, 0, 0.25) 45%, transparent 75%),
+    linear-gradient(180deg, transparent 55%, rgba(8, 20, 14, 0.5) 78%, var(--bg) 100%);
+}
+/* Guirlande lumineuse sous la barre de navigation */
+html[data-season='christmas'] .navbar::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -10px; height: 14px; pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 45%, #ff4d5e 0 3px, transparent 4.5px) 0 0 / 120px 14px repeat-x,
+    radial-gradient(circle at 50% 45%, #2dc653 0 3px, transparent 4.5px) 30px 0 / 120px 14px repeat-x,
+    radial-gradient(circle at 50% 45%, #f4d58d 0 3px, transparent 4.5px) 60px 0 / 120px 14px repeat-x,
+    radial-gradient(circle at 50% 45%, #4cc9ff 0 3px, transparent 4.5px) 90px 0 / 120px 14px repeat-x;
+  filter: drop-shadow(0 0 4px rgba(255, 220, 150, 0.9));
+  animation: twinkle 2.4s steps(2) infinite;
+}
+html[data-season='christmas'] .navbar::before {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 8px; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8'%3E%3Cpath d='M0 1 Q30 8 60 1 Q90 8 120 1' fill='none' stroke='%23123b22' stroke-width='1.5'/%3E%3C/svg%3E") 0 0 / 120px 8px repeat-x;
+}
+@keyframes twinkle { 0% { opacity: 1; } 50% { opacity: 0.55; } 100% { opacity: 1; } }
+html[data-season='christmas'] .loading-vignette { background: radial-gradient(ellipse at center, rgba(10, 30, 20, 0.15) 0%, rgba(0, 8, 4, 0.78) 65%, #000 100%); }
+
+/* Réglage du thème */
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.theme-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 16px; border-radius: 12px; text-align: left;
+  background: var(--bg-3); border: 2px solid transparent; transition: border-color 0.2s, transform 0.2s;
+}
+.theme-card:hover { transform: translateY(-2px); }
+.theme-card.is-on { border-color: #fff; }
+.theme-card small { color: var(--muted); font-size: 12px; }
+.theme-icon { font-size: 26px; margin-bottom: 4px; }
+.theme-halloween { background: linear-gradient(135deg, rgba(255, 106, 0, 0.18), rgba(90, 24, 154, 0.25)), var(--bg-3); }
+.theme-christmas { background: linear-gradient(135deg, rgba(224, 16, 47, 0.2), rgba(27, 127, 59, 0.22)), var(--bg-3); }

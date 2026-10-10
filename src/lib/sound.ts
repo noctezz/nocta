@@ -11,7 +11,7 @@ function impulse(ctx: AudioContext, seconds: number, decay: number) {
   return buf;
 }
 
-export function playIntroSound(volume = 0.9) {
+export function playIntroSound(volume = 0.9, theme: 'none' | 'halloween' | 'christmas' = 'none') {
   let ctx: AudioContext;
   try { ctx = new AudioContext(); } catch { return; }
 
@@ -106,6 +106,82 @@ export function playIntroSound(volume = 0.9) {
   thump(t0, 1, 1);
   thump(t0 + 0.34, 0.86, 1.15);
   swell(t0 + 0.6);
+
+  // ---------- Touches saisonnières ----------
+  if (theme === 'christmas') {
+    // Grelots : rafales de bruit filtré dans les aigus, secouées
+    for (let i = 0; i < 14; i++) {
+      const t = t0 + 0.55 + i * 0.105 + (i % 2 ? 0.02 : 0);
+      const n = ctx.createBufferSource();
+      n.buffer = noiseBuf;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 6500 + (i % 3) * 900;
+      bp.Q.value = 6;
+      const g = ctx.createGain();
+      const lvl = 0.5 * (1 - i / 18);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(lvl, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+      n.connect(bp).connect(g);
+      g.connect(master); g.connect(reverb);
+      n.start(t); n.stop(t + 0.15);
+    }
+    // Carillon : arpège cristallin sur la nappe
+    [1046.5, 1318.5, 1568, 2093].forEach((f, i) => {
+      const t = t0 + 1.25 + i * 0.16;
+      for (const mult of [1, 2.76]) {
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.value = f * mult;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(mult === 1 ? 0.12 : 0.03, t + 0.004);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+        o.connect(g); g.connect(master); g.connect(reverb);
+        o.start(t); o.stop(t + 1.7);
+      }
+    });
+  } else if (theme === 'halloween') {
+    // Thérémine fantomatique avec vibrato
+    const t = t0 + 0.7;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(220, t);
+    o.frequency.exponentialRampToValueAtTime(330, t + 0.9);
+    o.frequency.exponentialRampToValueAtTime(207.65, t + 2.4);
+    const vib = ctx.createOscillator();
+    vib.frequency.value = 5.5;
+    const vibAmt = ctx.createGain();
+    vibAmt.gain.value = 9;
+    vib.connect(vibAmt).connect(o.frequency);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.09, t + 0.5);
+    g.gain.setValueAtTime(0.09, t + 1.8);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 3);
+    o.connect(g); g.connect(master); g.connect(reverb);
+    o.start(t); vib.start(t); o.stop(t + 3.1); vib.stop(t + 3.1);
+    // Vent sourd
+    const windLen = 3.4;
+    const wb = ctx.createBuffer(1, ctx.sampleRate * windLen, ctx.sampleRate);
+    const wd = wb.getChannelData(0);
+    for (let i = 0; i < wd.length; i++) wd[i] = Math.random() * 2 - 1;
+    const wsrc = ctx.createBufferSource();
+    wsrc.buffer = wb;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'bandpass';
+    lp.Q.value = 1.2;
+    lp.frequency.setValueAtTime(300, t0);
+    lp.frequency.linearRampToValueAtTime(900, t0 + 1.6);
+    lp.frequency.linearRampToValueAtTime(350, t0 + windLen);
+    const wg = ctx.createGain();
+    wg.gain.setValueAtTime(0.0001, t0);
+    wg.gain.exponentialRampToValueAtTime(0.12, t0 + 1.2);
+    wg.gain.exponentialRampToValueAtTime(0.0001, t0 + windLen);
+    wsrc.connect(lp).connect(wg).connect(master);
+    wsrc.start(t0); wsrc.stop(t0 + windLen);
+  }
   setTimeout(() => ctx.close().catch(() => {}), 5500);
 }
 

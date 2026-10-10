@@ -9,6 +9,8 @@ import { StreamPicker } from './components/StreamPicker';
 import { Player } from './components/Player';
 import { MpvBridge } from './components/MpvBridge';
 import { LoadingScreen } from './components/LoadingScreen';
+import { SeasonalLayer } from './components/SeasonalLayer';
+import { useSeasonTheme } from './lib/theme';
 import { Home } from './pages/Home';
 import { Browse } from './pages/Browse';
 import { MyList } from './pages/MyList';
@@ -72,6 +74,10 @@ export default function App() {
   const picker = useStore((s) => s.picker);
   const player = useStore((s) => s.player);
   const endIntro = useCallback(() => setIntro(false), []);
+  const season = useSeasonTheme();
+
+  // Thème saisonnier appliqué à toute l'interface (couleurs, décors CSS)
+  useEffect(() => { document.documentElement.dataset.season = season; }, [season]);
 
   // Rafraîchit les manifests des addons au démarrage
   useEffect(() => {
@@ -137,6 +143,7 @@ export default function App() {
               {page === 'catalogs' && <Catalogs />}
             </main>
             <HoverPreview />
+            {!player && <SeasonalLayer theme={season} density={0.7} className="app-season" />}
           </motion.div>
         )}
       </AnimatePresence>

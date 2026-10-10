@@ -5,7 +5,7 @@ import { getStreams, streamQuality, streamSize, type StreamGroup } from '../lib/
 import { useLatest } from '../lib/useLatest';
 import { useStore } from '../lib/store';
 import { errMsg, resolveStream, streamToDesc } from '../lib/playback';
-import { backdropOf, useBusy } from '../lib/ui';
+import { backdropOf, posterOf, useBusy } from '../lib/ui';
 import type { Stream } from '../lib/types';
 
 interface Row { stream: Stream; addon: string; key: string }
@@ -47,6 +47,7 @@ export function StreamPicker() {
     return ['all', ...['4K', '1440p', '1080p', '720p', '480p'].filter((q) => set.has(q))];
   }, [rows]);
 
+  const poster = posterOf(picker.meta);
   const shown = filter === 'all' ? rows : rows.filter((r) => streamQuality(r.stream).label === filter);
   const noStreamAddon = groups && groups.length === 0;
 
@@ -159,7 +160,10 @@ export function StreamPicker() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(i * 0.02, 0.3) }}
               >
-                <div className={`stream-q q-${q.res || 0}`}>{q.label || '—'}</div>
+                <div className="stream-poster">
+                  {poster ? <img src={poster} alt="" loading="lazy" draggable={false} /> : <div className="card-fallback" />}
+                  {q.label && <span className={`stream-res q-${q.res}`}>{q.label}</span>}
+                </div>
                 <div className="stream-info">
                   <div className="stream-name">
                     {(s.name || r.addon).split('\n').join(' · ')}

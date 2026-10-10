@@ -6,6 +6,8 @@ import { playClick } from '../lib/sound';
 import { Avatar } from './Avatar';
 import { Logo } from './Logo';
 import { ProfileEditor } from './ProfileEditor';
+import { SeasonalLayer } from './SeasonalLayer';
+import { useSeasonTheme } from '../lib/theme';
 
 export function ProfileGate() {
   const profiles = useStore((s) => s.profiles);
@@ -13,6 +15,7 @@ export function ProfileGate() {
   const [manage, setManage] = useState(false);
   const [editing, setEditing] = useState<string | 'new' | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
+  const season = useSeasonTheme();
 
   const pick = (id: string) => {
     if (manage) return setEditing(id);
@@ -23,6 +26,7 @@ export function ProfileGate() {
 
   return (
     <motion.div className="gate" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <SeasonalLayer theme={season} className="gate-season" />
       <div className="gate-top drag"><Logo height={34} /></div>
 
       <motion.div

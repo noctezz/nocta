@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import type { MetaPreview } from '../lib/types';
 import { backdropOf, logoOf } from '../lib/ui';
+import { useSeasonTheme } from '../lib/theme';
+import { SeasonalLayer } from './SeasonalLayer';
 
 export interface LoadingInfo {
   meta?: MetaPreview;
@@ -15,6 +17,7 @@ export interface LoadingInfo {
 /** Écran de chargement plein écran : visuel du titre, logo, épisode et progression */
 export function LoadingScreen({ info, onBack, transparent }: { info: LoadingInfo; onBack?: () => void; transparent?: boolean }) {
   const [logoOk, setLogoOk] = useState(true);
+  const season = useSeasonTheme();
   const bg = info.meta ? backdropOf(info.meta) : undefined;
   const logo = info.meta && logoOk ? logoOf(info.meta) : undefined;
   const hasProgress = info.progress != null && info.progress > 0;
@@ -28,6 +31,7 @@ export function LoadingScreen({ info, onBack, transparent }: { info: LoadingInfo
     >
       {bg && <div className="loading-bg" style={{ backgroundImage: `url("${bg}")` }} />}
       <div className="loading-vignette" />
+      <SeasonalLayer theme={season} density={0.8} className="loading-season" />
 
       {onBack && (
         <button className="player-btn loading-back" onClick={onBack} aria-label="Retour">

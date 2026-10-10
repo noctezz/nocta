@@ -100,6 +100,7 @@ const DEFAULT_SETTINGS: Settings = {
   subtitleSize: 100,
   preferredSubLang: 'fre',
   playerEngine: 'mpv',
+  seasonalTheme: 'auto',
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);

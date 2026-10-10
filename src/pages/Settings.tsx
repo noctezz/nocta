@@ -9,6 +9,13 @@ const ENCODERS: Record<string, string> = {
   h264_amf: 'Carte graphique AMD (AMF)',
 };
 
+const THEMES: { id: 'auto' | 'off' | 'halloween' | 'christmas'; label: string; hint: string; icon: string }[] = [
+  { id: 'auto', label: 'Automatique', hint: 'Halloween en octobre, Noël en décembre', icon: '🗓️' },
+  { id: 'halloween', label: 'Halloween', hint: 'Toute l\'année', icon: '🎃' },
+  { id: 'christmas', label: 'Noël', hint: 'Toute l\'année', icon: '🎄' },
+  { id: 'off', label: 'Désactivé', hint: 'Le NOCTA classique', icon: '🌙' },
+];
+
 export function Settings() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
@@ -20,6 +27,24 @@ export function Settings() {
   return (
     <div className="page page-padded narrow">
       <h1 className="page-title">Paramètres</h1>
+
+      <section className="settings-card">
+        <h2>Thème saisonnier</h2>
+        <p className="muted">Couleurs, logo, animations et intro aux couleurs de la saison.</p>
+        <div className="theme-grid">
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              className={`theme-card theme-${t.id} ${settings.seasonalTheme === t.id ? 'is-on' : ''}`}
+              onClick={() => update({ seasonalTheme: t.id })}
+            >
+              <span className="theme-icon">{t.icon}</span>
+              <strong>{t.label}</strong>
+              <small>{t.hint}</small>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="settings-card">
         <h2>Lecture</h2>

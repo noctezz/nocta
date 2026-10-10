@@ -120,6 +120,8 @@ export interface Settings {
   subtitleSize: number;
   preferredSubLang: string;
   playerEngine: 'mpv' | 'web';
+  /** Thème saisonnier : auto (selon la date), désactivé, ou forcé */
+  seasonalTheme: 'auto' | 'off' | 'halloween' | 'christmas';
 }
 
 export interface PlayRequest {

@@ -40,6 +40,10 @@ complet d'un coup, sans chargement infini.
 Chaque rangée a un lien **Tout voir ›** : toute la catégorie en grille, chargée à l'infini quand tu descends,
 sans doublons. Les rangées elles-mêmes chargent la suite quand tu arrives au bout avec la flèche.
 
+**Thèmes saisonniers** (*Paramètres → Thème saisonnier*) : Halloween 🎃 et Noël 🎄. Ils changent les couleurs,
+le logo (chapeau de sorcière ou bonnet de Noël), l'intro (rubans, son, message), et ajoutent braises et chauves-souris
+ou neige et guirlande. Au choix : *Automatique* (octobre / décembre), toujours Halloween, toujours Noël, ou désactivé.
+
 Tu peux aussi lire une vidéo de ton PC : bouton dossier dans la barre du haut, ou glisser-déposer
 le fichier n'importe où dans la fenêtre.
 
