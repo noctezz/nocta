@@ -1,0 +1,60 @@
+{
+  "name": "nocta",
+  "productName": "NOCTA",
+  "version": "0.1.0",
+  "description": "NOCTA — ton streaming perso, style Netflix, avec addons Stremio et TorBox.",
+  "private": true,
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "concurrently -k -n vite,electron -c red,gray \"vite\" \"wait-on tcp:127.0.0.1:5173 && cross-env NOCTA_DEV=1 electron .\"",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build",
+    "start": "vite build && electron .",
+    "dist": "vite build && electron-builder --win"
+  },
+  "dependencies": {
+    "@ffprobe-installer/ffprobe": "^2.1.2",
+    "ffmpeg-static": "^5.3.0"
+  },
+  "devDependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^10.0.6",
+    "cross-env": "^10.0.0",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "framer-motion": "^14.1.0",
+    "lucide-react": "^1.54.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "wait-on": "^9.5.1",
+    "zustand": "^5.0.15"
+  },
+  "build": {
+    "appId": "app.nocta.player",
+    "productName": "NOCTA",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**",
+      "node_modules/@ffprobe-installer/**"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
