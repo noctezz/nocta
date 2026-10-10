@@ -15,6 +15,7 @@ import { MyList } from './pages/MyList';
 import { Search } from './pages/Search';
 import { Addons } from './pages/Addons';
 import { Settings } from './pages/Settings';
+import { CatalogView } from './pages/CatalogView';
 import { useStore } from './lib/store';
 import { fetchManifest, installAddon } from './lib/addons';
 import { errMsg } from './lib/playback';
@@ -131,6 +132,7 @@ export default function App() {
               {page === 'search' && <Search />}
               {page === 'addons' && <Addons />}
               {page === 'settings' && <Settings />}
+              {page === 'browse' && <CatalogView />}
             </main>
             <HoverPreview />
           </motion.div>

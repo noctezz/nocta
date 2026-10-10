@@ -10,7 +10,7 @@ export function Browse({ type }: { type: 'movie' | 'series' }) {
     <div className="page">
       <Hero type={type} />
       <div className="rows">
-        {rows.map((r) => <Row key={r.key} title={r.title} load={r.load} variant={r.variant} />)}
+        {rows.map((r) => <Row key={r.key} def={r} />)}
       </div>
     </div>
   );

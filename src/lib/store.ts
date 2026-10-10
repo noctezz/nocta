@@ -2,7 +2,10 @@ import { create } from 'zustand';
 import { CINEMETA_FALLBACK, CINEMETA_URL, OPENSUBTITLES_URL } from './addons';
 import type { Avatar, InstalledAddon, Meta, MetaPreview, PlayRequest, Profile, ProgressEntry, Settings } from './types';
 
-export type Page = 'home' | 'series' | 'movies' | 'mylist' | 'search' | 'addons' | 'settings';
+export type Page = 'home' | 'series' | 'movies' | 'mylist' | 'search' | 'addons' | 'settings' | 'browse';
+
+/** Une catégorie complète à parcourir (« Tout voir ») */
+export interface BrowseDef { key: string; title: string; load: (skip: number) => Promise<MetaPreview[]>; pageable: boolean; from: Page }
 
 interface PersistedData {
   version: 1;
@@ -20,6 +23,7 @@ interface State extends PersistedData {
   detail: { type: string; id: string; preview?: MetaPreview } | null;
   picker: { meta: Meta | MetaPreview; type: string; videoId: string; season?: number; episode?: number; episodeTitle?: string } | null;
   player: PlayRequest | null;
+  browse: BrowseDef | null;
   mpvAvailable: boolean;
   toasts: Toast[];
 
@@ -40,6 +44,7 @@ interface State extends PersistedData {
   closePicker: () => void;
   play: (r: PlayRequest) => void;
   closePlayer: () => void;
+  openBrowse: (b: Omit<BrowseDef, 'from'>) => void;
   toast: (text: string, tone?: Toast['tone']) => void;
   dismissToast: (id: number) => void;
 }
@@ -129,6 +134,7 @@ export const useStore = create<State>((set, get) => ({
   detail: null,
   picker: null,
   player: null,
+  browse: null,
   mpvAvailable: false,
   toasts: [],
 
@@ -177,6 +183,7 @@ export const useStore = create<State>((set, get) => ({
     picker: null,
   })),
   closePlayer: () => set({ player: null }),
+  openBrowse: (b) => set((s) => ({ browse: { ...b, from: s.page === 'browse' ? (s.browse?.from || 'home') : s.page }, page: 'browse' })),
 
   toast: (text, tone = 'info') => {
     const id = Date.now() + Math.random();

@@ -116,6 +116,17 @@ export async function getCatalog(addon: InstalledAddon, type: string, id: string
   return ((d && d.metas) || []).filter((m: MetaPreview) => m && m.id && m.name);
 }
 
+/** Le catalogue accepte-t-il la pagination (extra « skip ») ? */
+export function supportsSkip(c?: CatalogDef): boolean {
+  if (!c) return false;
+  return (c.extra || []).some((e) => e.name === 'skip') || (c.extraSupported || []).includes('skip');
+}
+
+/** Une page de catalogue : skip = nombre d'éléments déjà récupérés */
+export function getCatalogPage(addon: InstalledAddon, type: string, id: string, extra: Record<string, string> = {}, skip = 0) {
+  return getCatalog(addon, type, id, skip > 0 ? { ...extra, skip: String(skip) } : extra);
+}
+
 export async function getMeta(addons: InstalledAddon[], type: string, id: string): Promise<Meta | null> {
   for (const a of addons.filter((a) => supports(a, 'meta', type, id))) {
     try {

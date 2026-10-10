@@ -629,3 +629,19 @@ html.overlay-mode, html.overlay-mode body { background: transparent !important; 
 .installed { display: inline-flex; align-items: center; gap: 6px; color: var(--green); font-weight: 600; font-size: 14px; }
 .badge-verified { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; background: rgba(0, 194, 255, 0.14); color: #4cc9ff; vertical-align: middle; }
 .badge-verified.official { background: rgba(229, 15, 58, 0.16); color: var(--accent-2); }
+
+/* ---------- « Tout voir » ---------- */
+.row-title-link { cursor: pointer; display: inline-flex; align-items: center; gap: 10px; }
+.see-all {
+  display: inline-flex; align-items: center; gap: 2px; font-size: 13px; font-weight: 700; color: #54b9c5;
+  opacity: 0; transform: translateX(-12px); transition: opacity 0.3s var(--ease), transform 0.45s var(--ease);
+}
+.row:hover .see-all { opacity: 1; transform: translateX(0); }
+.row-title-link:hover .see-all { color: #7fdbe6; }
+.row-arrow:disabled { opacity: 1; }
+.catalog-head { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+.catalog-head .page-title { margin: 0; }
+.catalog-view .grid { gap: 3vw 0.6vw; }
+.catalog-sentinel { height: 1px; }
+.catalog-end { text-align: center; color: var(--muted); padding: 50px 0 10px; font-size: 14px; }
+.back-top { position: fixed; right: 32px; bottom: 32px; z-index: 25; background: rgba(20, 20, 24, 0.9); }

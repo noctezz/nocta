@@ -1,13 +1,13 @@
 import { useMemo } from 'react';
 import { Hero } from '../components/Hero';
 import { Row } from '../components/Row';
-import { browsableCatalogs, catalogTitle, getCatalog, GENRE_FR } from '../lib/addons';
+import { browsableCatalogs, catalogTitle, getCatalog, getCatalogPage, GENRE_FR, supportsSkip } from '../lib/addons';
 import { useProfile, useStore } from '../lib/store';
 import type { InstalledAddon, MetaPreview } from '../lib/types';
 
 const HOME_GENRES = ['Action', 'Comedy', 'Sci-Fi', 'Thriller', 'Animation', 'Horror', 'Crime', 'Documentary'];
 
-interface RowDef { key: string; title: string; load: () => Promise<MetaPreview[]>; variant?: 'top10' }
+export interface RowDef { key: string; title: string; load: (skip?: number) => Promise<MetaPreview[]>; pageable?: boolean; variant?: 'top10' }
 
 function genreRows(addon: InstalledAddon, type: string, catalogId: string, genres: string[]): RowDef[] {
   const cat = addon.manifest.catalogs?.find((c) => c.type === type && c.id === catalogId);
@@ -15,7 +15,8 @@ function genreRows(addon: InstalledAddon, type: string, catalogId: string, genre
   return genres.filter((g) => opts.includes(g)).map((g) => ({
     key: `${addon.url}|${type}|${catalogId}|${g}`,
     title: `${GENRE_FR[g] || g}${type === 'series' ? ' · Séries' : ''}`,
-    load: () => getCatalog(addon, type, catalogId, { genre: g }),
+    load: (skip = 0) => getCatalogPage(addon, type, catalogId, { genre: g }, skip),
+    pageable: supportsSkip(cat),
   }));
 }
 
@@ -37,7 +38,8 @@ export function useRows(type?: string, genres = HOME_GENRES): RowDef[] {
     const interleaved: RowDef[] = cats.map(({ addon, catalog }) => ({
       key: `${addon.url}|${catalog.type}|${catalog.id}`,
       title: catalogTitle(addon, catalog),
-      load: () => getCatalog(addon, catalog.type, catalog.id),
+      load: (skip = 0) => getCatalogPage(addon, catalog.type, catalog.id, {}, skip),
+      pageable: supportsSkip(catalog),
     }));
     const cinemeta = addons.find((a) => a.manifest.id === 'com.linvo.cinemeta');
     const gRows: RowDef[] = cinemeta
@@ -75,7 +77,7 @@ export function Home() {
           />
         )}
         {profile && profile.myList.length > 0 && <Row title="Ma liste" items={profile.myList} />}
-        {rows.map((r) => <Row key={r.key} title={r.title} load={r.load} variant={r.variant} />)}
+        {rows.map((r) => <Row key={r.key} def={r} />)}
       </div>
     </div>
   );

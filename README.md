@@ -33,6 +33,9 @@ npm run dev
 Le bouton agrandir (ou `F11`) passe en vrai plein écran, et le mode est retenu au prochain lancement.
 Pour quitter : menu du profil (en haut à droite), puis **Quitter NOCTA**.
 
+Chaque rangée a un lien **Tout voir ›** : toute la catégorie en grille, chargée à l'infini quand tu descends,
+sans doublons. Les rangées elles-mêmes chargent la suite quand tu arrives au bout avec la flèche.
+
 Tu peux aussi lire une vidéo de ton PC : bouton dossier dans la barre du haut, ou glisser-déposer
 le fichier n'importe où dans la fenêtre.
 
