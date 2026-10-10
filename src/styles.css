@@ -593,8 +593,7 @@ input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 14p
    ============================================================ */
 html.overlay-mode, html.overlay-mode body { background: transparent !important; overflow: hidden; }
 .overlay-root { position: fixed; inset: 0; }
-/* alpha quasi nul mais non nul : la fenêtre reçoit bien la souris (Windows) */
-.overlay-root.player { background: rgba(0, 0, 0, 0.01); }
+.overlay-root.player { background: transparent; }
 .overlay-hit { position: absolute; inset: 0; }
 .overlay-root .player-top { background: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent); }
 .win-btns { margin-left: auto; display: flex; gap: 4px; }

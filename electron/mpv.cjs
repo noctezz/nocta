@@ -63,12 +63,15 @@ class MpvSession {
       fullscreenable: false, skipTaskbar: true, hasShadow: false, ...bounds,
     };
 
-    // Fenêtre hôte : aucune page web, mpv y dessine directement
-    this.host = new BaseWindow({ ...common, parent: this.main, backgroundColor: '#000000' });
-    // Fenêtre d'interface transparente par-dessus la vidéo
+    // Windows : une seule fenêtre transparente. mpv y dessine dans une fenêtre
+    // enfant et Chromium compose l'interface PAR-DESSUS (DirectComposition) ;
+    // la vidéo apparaît là où la page est transparente.
+    // Ailleurs (X11) : fenêtre hôte dédiée à mpv + interface transparente au-dessus.
+    this.single = process.platform === 'win32';
+    if (!this.single) this.host = new BaseWindow({ ...common, parent: this.main, backgroundColor: '#000000' });
     this.overlay = new BrowserWindow({
       ...common,
-      parent: this.host,
+      parent: this.single ? this.main : this.host,
       transparent: true,
       backgroundColor: '#00000000',
       focusable: true,
@@ -85,7 +88,7 @@ class MpvSession {
       this.main.on(ev, this.onSync);
     }
 
-    this.host.showInactive();
+    if (this.host) this.host.showInactive();
     this.overlay.show();
     this.overlay.focus();
 
@@ -96,7 +99,7 @@ class MpvSession {
     const subSize = Math.round(44 * ((req.subtitleSize || 100) / 100));
     const args = [
       '--no-config',
-      `--wid=${handleOf(this.host)}`,
+      `--wid=${handleOf(this.host || this.overlay)}`,
       `--input-ipc-server=${pipe}`,
       '--idle=yes', '--keep-open=yes', '--force-window=yes',
       '--osc=no', '--osd-level=0', '--osd-bar=no',
@@ -109,7 +112,10 @@ class MpvSession {
       `--sub-font-size=${subSize}`, '--sub-bold=yes', '--sub-border-size=2.6', '--sub-shadow-offset=1.5',
       '--sub-margin-y=48', '--sub-ass-override=no',
       '--terminal=no', '--msg-level=all=warn', '--title=NOCTA',
+      `--log-file=${path.join(app.getPath('userData'), 'mpv.log')}`,
     ];
+    // La souris traverse la vidéo pour atteindre l'interface (mpv ≥ 0.38, fourni avec l'app)
+    if (this.single) args.push('--input-cursor-passthrough=yes');
     if (req.startAt && req.startAt > 5) args.push(`--start=${Math.max(0, req.startAt - 3).toFixed(1)}`);
     args.push('--', req.src);
 
@@ -225,14 +231,14 @@ class MpvSession {
   syncBounds() {
     if (this.closed) return;
     const b = this.main.getContentBounds();
-    this.host.setBounds(b);
+    if (this.host) this.host.setBounds(b);
     this.overlay.setBounds(b);
     // Les transitions plein écran se terminent parfois après l'événement
     clearTimeout(this.syncTimer);
     this.syncTimer = setTimeout(() => {
       if (this.closed) return;
       const b2 = this.main.getContentBounds();
-      this.host.setBounds(b2);
+      if (this.host) this.host.setBounds(b2);
       this.overlay.setBounds(b2);
     }, 350);
   }

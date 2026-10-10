@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('nocta', {
   },
   openVideoDialog: () => ipcRenderer.invoke('dialog:openVideo'),
   pathForFile: (file) => webUtils.getPathForFile(file),
+  openLogs: () => ipcRenderer.invoke('app:openLogs'),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
   win: {
     toggleFullscreen: () => ipcRenderer.invoke('win:toggleFullscreen'),

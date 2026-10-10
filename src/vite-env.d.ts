@@ -38,6 +38,7 @@ interface NoctaBridge {
   openVideoDialog: () => Promise<string | null>;
   pathForFile: (file: File) => string;
   openExternal: (url: string) => Promise<void>;
+  openLogs: () => Promise<string>;
   win: {
     toggleFullscreen: () => Promise<boolean>;
     setFullscreen: (v: boolean) => Promise<boolean>;

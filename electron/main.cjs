@@ -120,6 +120,7 @@ ipcMain.handle('dialog:openVideo', async () => {
   return r.canceled ? null : r.filePaths[0];
 });
 
+ipcMain.handle('app:openLogs', () => shell.openPath(app.getPath('userData')));
 ipcMain.handle('shell:openExternal', (_e, url) => shell.openExternal(url));
 
 ipcMain.handle('win:toggleFullscreen', () => {

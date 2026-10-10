@@ -135,6 +135,9 @@ export function Settings() {
         </label>
       </section>
 
+      <p className="muted small">
+        Un souci de lecture ? <a onClick={() => window.nocta?.openLogs()}>Ouvrir le dossier des journaux</a> (fichier mpv.log).
+      </p>
       <p className="muted small">NOCTA v0.1 · usage personnel</p>
     </div>
   );
