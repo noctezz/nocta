@@ -75,9 +75,4 @@ jobs:
           files: |
             release/NOCTA-Setup.exe
             release/NOCTA-Portable.exe
-          body: |
-            **NOCTA-Setup.exe** : installeur (raccourci bureau, mises à jour faciles), recommandé.
-            **NOCTA-Portable.exe** : se lance directement, sans installation.
-
-            Windows peut afficher « Windows a protégé votre ordinateur » (app non signée) :
-            clique sur *Informations complémentaires*, puis *Exécuter quand même*.
+          body_path: GUIDE.md
