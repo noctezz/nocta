@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "build": "vite build",
     "start": "vite build && electron .",
-    "dist": "vite build && electron-builder --win"
+    "dist": "vite build && electron-builder --win --publish never"
   },
   "dependencies": {
     "@ffprobe-installer/ffprobe": "^2.1.2",
@@ -50,11 +50,39 @@
       "node_modules/@ffprobe-installer/**"
     ],
     "win": {
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "shortcutName": "NOCTA",
+      "artifactName": "NOCTA-Setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "NOCTA-Portable.${ext}"
+    },
+    "linux": {
+      "target": "dir"
     }
+  },
+  "author": {
+    "name": "noctezz"
   }
 }
