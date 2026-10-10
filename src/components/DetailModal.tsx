@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Check, Play, Plus, X } from 'lucide-react';
 import { getMeta, GENRE_FR } from '../lib/addons';
 import { useLatest } from '../lib/useLatest';
+import { TrailerPreview } from './TrailerPreview';
 import { useProfile, useStore } from '../lib/store';
 import { backdropOf, logoOf, resumeEntry, year } from '../lib/ui';
 import { episodeLabel, formatTime, slimMeta, sortedEpisodes } from '../lib/playback';
@@ -13,6 +14,7 @@ export function DetailModal() {
   const close = useStore((s) => s.closeDetail);
   const addons = useStore((s) => s.addons);
   const openPicker = useStore((s) => s.openPicker);
+  const picker = useStore((s) => s.picker);
   const toggleMyList = useStore((s) => s.toggleMyList);
   const profile = useProfile();
   const [meta, setMeta] = useState<Meta | null>((detail.preview as Meta) || null);
@@ -86,6 +88,7 @@ export function DetailModal() {
 
         <div className="detail-hero">
           <img src={backdropOf(meta)} alt="" draggable={false} />
+          <TrailerPreview meta={meta} paused={!!picker} />
           <div className="detail-hero-fade" />
           <div className="detail-hero-content">
             {logo && logoOk

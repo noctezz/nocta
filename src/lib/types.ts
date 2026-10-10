@@ -122,6 +122,8 @@ export interface Settings {
   playerEngine: 'mpv' | 'web';
   /** Thème saisonnier : auto (selon la date), désactivé, ou forcé */
   seasonalTheme: 'auto' | 'off' | 'halloween' | 'christmas';
+  /** Bande-annonce lancée automatiquement dans les fiches */
+  autoplayTrailers: boolean;
 }
 
 export interface PlayRequest {

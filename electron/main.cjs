@@ -205,6 +205,14 @@ ipcMain.handle('win:setFullscreen', (_e, v) => { win.setFullScreen(!!v); return 
 
 app.whenReady().then(async () => {
   await media.start();
+  electronSession.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://www.youtube-nocookie.com/*', 'https://www.youtube.com/*'] },
+    (details, cb) => {
+      const headers = { ...details.requestHeaders };
+      if (!headers.Referer && !headers.referer) headers.Referer = 'https://nocta.app/';
+      cb({ requestHeaders: headers });
+    },
+  );
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

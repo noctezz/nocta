@@ -8,7 +8,7 @@ const csp: Plugin = {
   transformIndexHtml: (html) =>
     html.replace(
       '<head>',
-      `<head>\n    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data: blob:; media-src * blob: data:; connect-src *; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'" />`,
+      `<head>\n    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data: blob:; media-src * blob: data:; connect-src *; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src https://www.youtube-nocookie.com https://www.youtube.com; script-src 'self'" />`,
     ),
 };
 

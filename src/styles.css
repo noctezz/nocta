@@ -760,3 +760,12 @@ html[data-season='christmas'] .loading-vignette { background: radial-gradient(el
 .theme-icon { font-size: 26px; margin-bottom: 4px; }
 .theme-halloween { background: linear-gradient(135deg, rgba(255, 106, 0, 0.18), rgba(90, 24, 154, 0.25)), var(--bg-3); }
 .theme-christmas { background: linear-gradient(135deg, rgba(224, 16, 47, 0.2), rgba(27, 127, 59, 0.22)), var(--bg-3); }
+
+/* ---------- Bande-annonce dans la fiche ---------- */
+.trailer { position: absolute; inset: 0; overflow: hidden; opacity: 0; transition: opacity 1.2s var(--ease); pointer-events: none; }
+.trailer.is-visible { opacity: 1; }
+/* agrandi pour masquer les bords et le titre YouTube */
+.trailer iframe { position: absolute; left: 50%; top: 50%; width: 140%; height: 140%; transform: translate(-50%, -50%); border: 0; }
+.trailer-btn { position: absolute; right: 48px; bottom: 26%; z-index: 3; background: rgba(0, 0, 0, 0.35); }
+.detail-hero-fade, .detail-hero-content { z-index: 2; }
+.detail-hero-content { position: absolute; }

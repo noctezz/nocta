@@ -101,6 +101,7 @@ const DEFAULT_SETTINGS: Settings = {
   preferredSubLang: 'fre',
   playerEngine: 'mpv',
   seasonalTheme: 'auto',
+  autoplayTrailers: true,
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);

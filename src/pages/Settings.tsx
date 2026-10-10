@@ -64,6 +64,13 @@ export function Settings() {
         </label>
         <label className="setting">
           <div>
+            <strong>Bandes-annonces dans les fiches</strong>
+            <span>Lance la bande-annonce (sans le son) quand tu ouvres un film ou une série.</span>
+          </div>
+          <input type="checkbox" className="switch" checked={settings.autoplayTrailers !== false} onChange={(e) => update({ autoplayTrailers: e.target.checked })} />
+        </label>
+        <label className="setting">
+          <div>
             <strong>Épisode suivant automatique</strong>
             <span>Lance l'épisode suivant 5 secondes après la fin.</span>
           </div>
