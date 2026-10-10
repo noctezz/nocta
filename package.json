@@ -47,7 +47,8 @@
     ],
     "asarUnpack": [
       "node_modules/ffmpeg-static/**",
-      "node_modules/@ffprobe-installer/**"
+      "node_modules/@ffprobe-installer/**",
+      "electron/intro-worker.cjs"
     ],
     "win": {
       "target": [

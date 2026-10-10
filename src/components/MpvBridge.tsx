@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { getMeta, getSubtitles } from '../lib/addons';
 import { useStore } from '../lib/store';
 import { useLatest } from '../lib/useLatest';
+import { detectIntro } from '../lib/autoplay';
 import { episodeTitleOf, errMsg, nextEpisode, recordProgress, resolveNextEpisode, slimMeta } from '../lib/playback';
 import type { Meta, PlayRequest } from '../lib/types';
 
@@ -43,7 +44,8 @@ export function MpvBridge() {
       p.info({
         autoplayNext: settings.autoplayNext,
         autoSkipIntro: settings.autoSkipIntro,
-        intro: r.type === 'series' && r.meta ? st().introMarks?.[r.meta.id] || null : null,
+        // Générique de cet épisode (détecté) sinon celui appris pour la série
+        intro: r.type === 'series' && r.meta ? st().introMarks?.[r.videoId || ''] || st().introMarks?.[r.meta.id] || null : null,
         next: null,
         extSubs: [],
       });
@@ -55,6 +57,13 @@ export function MpvBridge() {
         metaRef.current = meta;
         const nx = meta && r.videoId ? nextEpisode(meta, r.videoId) : null;
         if (alive()) p.info({ next: nx ? { label: episodeTitleOf(nx) } : null });
+        // Analyse audio du générique, une fois la lecture bien lancée
+        setTimeout(() => {
+          if (!alive() || reqRef.current.videoId !== r.videoId) return;
+          detectIntro(r, meta, (mark) => {
+            if (alive() && reqRef.current.videoId === r.videoId) p.info({ intro: mark });
+          }).catch(() => {});
+        }, 12000);
       }
     };
 
@@ -69,7 +78,10 @@ export function MpvBridge() {
       // Générique repéré dans le lecteur (saut manuel) : mémorisé pour toute la série
       p.on('player:intro', (mark: { start: number; end: number } | null) => {
         const r = reqRef.current;
-        if (r.type === 'series' && r.meta) st().setIntroMark(r.meta.id, mark);
+        if (r.type === 'series' && r.meta) {
+          st().setIntroMark(r.meta.id, mark);
+          if (r.videoId) st().setIntroMark(r.videoId, mark);
+        }
       }),
       p.on('player:state', (s: { time: number; duration: number }) => {
         stateRef.current = s;

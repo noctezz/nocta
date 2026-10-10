@@ -137,6 +137,8 @@ export interface Settings {
   preferFrench: boolean;
   /** Passer automatiquement le générique (sinon : bouton) */
   autoSkipIntro: boolean;
+  /** Détection du générique par analyse audio */
+  introDetection: boolean;
 }
 
 export interface PlayRequest {

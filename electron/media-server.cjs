@@ -246,4 +246,4 @@ function capabilities() {
   });
 }
 
-module.exports = { start, stop, probe, capabilities, keyframeBefore, port: () => serverPort };
+module.exports = { FFMPEG, inputArgs, start, stop, probe, capabilities, keyframeBefore, port: () => serverPort };

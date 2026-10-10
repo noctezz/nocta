@@ -35,6 +35,10 @@ contextBridge.exposeInMainWorld('nocta', {
   pathForFile: (file) => webUtils.getPathForFile(file),
   openLogs: () => ipcRenderer.invoke('app:openLogs'),
   quit: () => ipcRenderer.invoke('app:quit'),
+  intro: {
+    detect: (job) => ipcRenderer.invoke('intro:detect', job),
+    has: (seriesId, videoId) => ipcRenderer.invoke('intro:has', seriesId, videoId),
+  },
   addons: {
     openWindow: (url) => ipcRenderer.invoke('addons:openWindow', url),
     onInstall: (cb) => {

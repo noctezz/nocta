@@ -233,6 +233,17 @@ export function Player() {
 
   useEffect(() => window.nocta?.win.onFullscreen(setFullscreen), []);
 
+  // Lecture en plein écran ; l'état d'avant est rétabli en quittant le lecteur
+  const prevFullscreen = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!window.nocta) return;
+    window.nocta.win.isFullscreen().then((was) => {
+      if (prevFullscreen.current == null) prevFullscreen.current = was;
+      if (!was) window.nocta!.win.setFullscreen(true).then(setFullscreen);
+      else setFullscreen(true);
+    });
+  }, []);
+
   const pickAudio = (index: number) => {
     setAudioIdx(index);
     setPanel(null);
@@ -257,7 +268,7 @@ export function Player() {
   const close = useCallback(() => {
     saveRef.current();
     updateSettings({ volume });
-    if (fullscreen) window.nocta?.win.setFullscreen(false);
+    if (prevFullscreen.current === false) window.nocta?.win.setFullscreen(false);
     closePlayer();
   }, [closePlayer, fullscreen, updateSettings, volume]);
 

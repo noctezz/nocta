@@ -40,6 +40,11 @@ interface NoctaBridge {
   openExternal: (url: string) => Promise<void>;
   openLogs: () => Promise<string>;
   quit: () => Promise<void>;
+  intro: {
+    detect: (job: { seriesId: string; a: { id: string; src?: string }; b?: { id: string; src?: string } }) =>
+      Promise<Record<string, { start: number; end: number }>>;
+    has: (seriesId: string, videoId: string) => Promise<boolean>;
+  };
   addons: {
     openWindow: (url: string) => Promise<void>;
     onInstall: (cb: (manifestUrl: string) => void) => () => void;

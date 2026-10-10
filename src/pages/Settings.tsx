@@ -76,6 +76,13 @@ export function Settings() {
         </label>
         <label className="setting">
           <div>
+            <strong>Détection du générique</strong>
+            <span>Compare le son du début des épisodes pour trouver le générique de n'importe quelle série. Les premières minutes de l'épisode voisin sont téléchargées en arrière-plan.</span>
+          </div>
+          <input type="checkbox" className="switch" checked={settings.introDetection !== false} onChange={(e) => update({ introDetection: e.target.checked })} />
+        </label>
+        <label className="setting">
+          <div>
             <strong>Passer le générique automatiquement</strong>
             <span>Sinon, un bouton « Passer l'intro » s'affiche. NOCTA lit les chapitres du fichier et retient le générique quand tu le passes à la main.</span>
           </div>
@@ -85,7 +92,7 @@ export function Settings() {
           <div className="setting">
             <div>
               <strong>Génériques mémorisés</strong>
-              <span>{introCount} série{introCount > 1 ? 's' : ''}</span>
+              <span>{introCount} épisode{introCount > 1 ? 's' : ''} ou série{introCount > 1 ? 's' : ''}</span>
             </div>
             <button className="btn-outline" onClick={() => useStore.setState({ introMarks: {} })}>Oublier</button>
           </div>

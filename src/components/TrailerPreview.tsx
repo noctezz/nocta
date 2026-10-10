@@ -19,7 +19,7 @@ export function trailerIdOf(meta: Meta): string | null {
  * Bande-annonce qui remplace l'image de la fiche après un court délai, comme sur Netflix :
  * sans son par défaut, bouton son, rejouer à la fin.
  */
-export function TrailerPreview({ meta, paused }: { meta: Meta; paused?: boolean }) {
+export function TrailerPreview({ meta, paused, delay = 1500, compact = false }: { meta: Meta; paused?: boolean; delay?: number; compact?: boolean }) {
   const enabled = useStore((s) => s.settings.autoplayTrailers !== false);
   const ytId = trailerIdOf(meta);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -35,9 +35,9 @@ export function TrailerPreview({ meta, paused }: { meta: Meta; paused?: boolean 
     setVisible(false);
     setEnded(false);
     if (!ytId || !enabled) return;
-    const t = setTimeout(() => setStarted(true), 1500);
+    const t = setTimeout(() => setStarted(true), delay);
     return () => clearTimeout(t);
-  }, [ytId, enabled, round]);
+  }, [ytId, enabled, round, delay]);
 
   // Événements du lecteur YouTube (API iframe via postMessage)
   useEffect(() => {
@@ -90,15 +90,15 @@ export function TrailerPreview({ meta, paused }: { meta: Meta; paused?: boolean 
       )}
       {started && visible && !ended && (
         <button
-          className="round trailer-btn"
-          onClick={() => { post(muted ? 'unMute' : 'mute'); setMuted(!muted); }}
+          className={`round trailer-btn ${compact ? 'is-compact' : ''}`}
+          onClick={(e) => { e.stopPropagation(); post(muted ? 'unMute' : 'mute'); setMuted(!muted); }}
           title={muted ? 'Activer le son' : 'Couper le son'}
         >
           {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
         </button>
       )}
       {ended && (
-        <button className="round trailer-btn" onClick={() => { setMuted(true); setRound((r) => r + 1); }} title="Revoir la bande-annonce">
+        <button className={`round trailer-btn ${compact ? 'is-compact' : ''}`} onClick={(e) => { e.stopPropagation(); setMuted(true); setRound((r) => r + 1); }} title="Revoir la bande-annonce">
           <RotateCcw size={18} />
         </button>
       )}

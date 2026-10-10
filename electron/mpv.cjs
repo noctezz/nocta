@@ -92,6 +92,17 @@ class MpvSession {
     this.overlay.show();
     this.overlay.focus();
 
+    // Lecture toujours en vrai plein écran (sans barre des tâches) ; l'état d'avant
+    // est rétabli à la fermeture
+    this.prevFullscreen = this.main.isFullScreen();
+    if (!this.prevFullscreen && process.platform !== 'darwin') this.main.setFullScreen(true);
+    setTimeout(this.onSync, 450);
+    // L'interface au premier plan passe au-dessus de la barre des tâches tant qu'elle a le focus
+    const onTop = (v) => { if (!this.closed && !this.overlay.isDestroyed()) this.overlay.setAlwaysOnTop(v && this.main.isFullScreen(), 'screen-saver'); };
+    this.overlay.on('focus', () => onTop(true));
+    this.overlay.on('blur', () => onTop(false));
+    onTop(true);
+
     const pipe = process.platform === 'win32'
       ? `\\\\.\\pipe\\nocta-mpv-${process.pid}-${++counter}`
       : path.join(app.getPath('temp'), `nocta-mpv-${process.pid}-${++counter}.sock`);
@@ -262,7 +273,15 @@ class MpvSession {
     setTimeout(() => { try { proc && !proc.killed && proc.kill(); } catch {} }, 800);
     if (this.overlay && !this.overlay.isDestroyed()) this.overlay.destroy();
     if (this.host && !this.host.isDestroyed()) this.host.destroy();
-    if (!this.main.isDestroyed()) this.main.focus();
+    if (!this.main.isDestroyed()) {
+      if (this.prevFullscreen === false && this.main.isFullScreen()) this.main.setFullScreen(false);
+      this.main.focus();
+      // Windows laisse parfois la barre des tâches visible au retour : on la refait passer derrière
+      if (this.main.isFullScreen()) {
+        this.main.setAlwaysOnTop(true, 'screen-saver');
+        setTimeout(() => { if (!this.main.isDestroyed()) { this.main.setAlwaysOnTop(false); this.main.focus(); } }, 250);
+      }
+    }
     if (!this.silent) this.sendMain('player:closed', { ...this.last, error });
     if (this.onStopped) this.onStopped();
   }

@@ -59,8 +59,10 @@ le fichier n'importe où dans la fenêtre.
 - **Écran de chargement** : visuel du titre, logo, épisode et progression .
 - Pistes audio, sous-titres internes et des addons, réglage de synchro audio et sous-titres (±0,1 s),
   vitesse, plein écran, reprise, épisode suivant automatique avec la même source.
-- **Passer l'intro / le résumé** : d'après les chapitres du fichier ; quand tu passes un générique à la main,
-  NOCTA le retient pour les autres épisodes de la série (option : passer automatiquement).
+- **Passer l'intro / le résumé** : détection automatique du générique par **empreinte audio** (comme Intro Skipper
+  de Jellyfin : le son du début de deux épisodes est comparé, le passage commun est le générique), chapitres du
+  fichier, et générique appris quand tu le passes à la main. Option : passer automatiquement.
+- Lecture toujours en plein écran (l'état d'avant est rétabli en quittant le lecteur).
 - Lecteur de secours (Chromium + ffmpeg), sélectionnable dans *Paramètres → Lecture*.
 - Raccourcis : `Espace` lecture/pause · `←/→` ±10 s · `↑/↓` volume · `F` plein écran · `M` muet ·
   `N` épisode suivant · `Échap` retour.
@@ -72,6 +74,7 @@ electron/
   main.cjs          fenêtre, IPC
   preload.cjs       pont sécurisé vers l'interface
   mpv.cjs           lecteur mpv intégré (fenêtre vidéo + interface transparente)
+  intro.cjs         détection du générique (empreinte audio, cache) + intro-worker.cjs (calculs)
   media-server.cjs  serveur local : fichiers, remux/transcodage ffmpeg, sous-titres → WebVTT
   store.cjs         sauvegarde des profils/réglages (dossier utilisateur)
 src/

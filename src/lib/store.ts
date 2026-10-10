@@ -110,6 +110,7 @@ const DEFAULT_SETTINGS: Settings = {
   maxResolution: 1080,
   preferFrench: true,
   autoSkipIntro: false,
+  introDetection: true,
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);

@@ -2,7 +2,7 @@ import { getMeta, getStreams, streamQuality } from './addons';
 import { errMsg, nextEpisode, resolveStream, slimMeta, sortedEpisodes, episodeTitleOf, streamToDesc } from './playback';
 import { useStore } from './store';
 import { useBusy } from './ui';
-import type { Meta, MetaPreview, Settings, Stream, Video } from './types';
+import type { Meta, MetaPreview, PlayRequest, Settings, Stream, Video } from './types';
 
 /** Ce qu'on veut regarder : un film, ou un épisode précis */
 export interface PlayTarget {
@@ -121,3 +121,42 @@ export async function playNextFor(metaPreview: MetaPreview, videoId: string) {
 }
 
 export { nextEpisode };
+
+/** URL lisible de la meilleure source d'un épisode (même « bingeGroup » si possible), sans rien lancer */
+export async function bestSourceUrl(type: string, videoId: string, bingeGroup?: string): Promise<string | null> {
+  const groups = await getStreams(useStore.getState().addons, type, videoId);
+  const all = groups.flatMap((g) => g.streams).filter((s) => s.url);
+  const same = bingeGroup ? all.find((s) => s.behaviorHints?.bingeGroup === bingeGroup) : undefined;
+  const best = same || rankStreams(all.map((stream) => ({ stream })))[0]?.stream;
+  return best?.url || null;
+}
+
+/**
+ * Détecte le générique de l'épisode en cours en comparant son audio à celui d'un épisode voisin.
+ * Les plages trouvées sont mémorisées par épisode (le suivant est donc prêt d'avance).
+ */
+export async function detectIntro(req: PlayRequest, meta: Meta | null, onFound: (mark: { start: number; end: number }) => void) {
+  const st = useStore.getState();
+  if (!window.nocta?.intro || !st.settings.introDetection) return;
+  if (req.type !== 'series' || !req.meta || !req.videoId || !meta) return;
+  const seriesId = req.meta.id;
+  const known = st.introMarks?.[req.videoId];
+  if (known) return onFound(known);
+
+  const eps = sortedEpisodes(meta).filter((v) => v.season! > 0);
+  const i = eps.findIndex((v) => v.id === req.videoId);
+  const neighbor = eps[i + 1] || eps[i - 1];
+  let b: { id: string; src?: string } | undefined;
+  if (neighbor) {
+    b = { id: neighbor.id };
+    if (!(await window.nocta.intro.has(seriesId, neighbor.id))) {
+      b.src = (await bestSourceUrl('series', neighbor.id, req.stream?.bingeGroup).catch(() => null)) || undefined;
+    }
+  }
+  const src = req.stream?.localPath || req.src;
+  const found = await window.nocta.intro.detect({ seriesId, a: { id: req.videoId, src }, b });
+  const marks = { ...(useStore.getState().introMarks || {}) };
+  for (const [id, m] of Object.entries(found)) marks[id] = m;
+  useStore.setState({ introMarks: marks });
+  if (found[req.videoId]) onFound(found[req.videoId]);
+}

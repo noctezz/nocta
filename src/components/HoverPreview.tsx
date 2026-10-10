@@ -3,7 +3,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, Play, Plus, X } from 'lucide-react';
 import { useProfile, useStore } from '../lib/store';
 import { backdropOf, logoOf, quickPlay, useHover, year } from '../lib/ui';
-import { GENRE_FR } from '../lib/addons';
+import { GENRE_FR, getMeta } from '../lib/addons';
+import { TrailerPreview } from './TrailerPreview';
+import type { Meta } from '../lib/types';
 import { formatTime } from '../lib/playback';
 
 /** Popup qui "grandit" depuis la vignette survolée */
@@ -14,6 +16,17 @@ export function HoverPreview() {
   const removeProgress = useStore((s) => s.removeProgress);
   const openDetail = useStore((s) => s.openDetail);
   const [logoOk, setLogoOk] = useState(true);
+  const addons = useStore((s) => s.addons);
+  const [full, setFull] = useState<Meta | null>(null);
+
+  // Fiche complète (pour la bande-annonce) dès que l'aperçu s'ouvre
+  useEffect(() => {
+    setFull(null);
+    if (!item) return;
+    let alive = true;
+    getMeta(addons, item.type, item.id).then((m) => { if (alive && m) setFull({ ...item, ...m }); }).catch(() => {});
+    return () => { alive = false; };
+  }, [item, addons]);
 
   useEffect(() => {
     setLogoOk(true);
@@ -50,6 +63,7 @@ export function HoverPreview() {
         >
           <div className="hover-img" onClick={() => { hide(); openDetail({ type: item.type, id: item.id, preview: item }); }}>
             <img src={backdropOf(item)} alt="" draggable={false} />
+            {full && full.id === item.id && <TrailerPreview meta={full} delay={700} compact />}
             {logo && logoOk
               ? <img className="hover-logo" src={logo} alt={item.name} onError={() => setLogoOk(false)} />
               : <div className="hover-title">{item.name}</div>}

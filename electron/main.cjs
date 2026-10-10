@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const store = require('./store.cjs');
 const media = require('./media-server.cjs');
 const { MpvSession, mpvBinary } = require('./mpv.cjs');
+const intro = require('./intro.cjs');
 
 const isDev = !!process.env.NOCTA_DEV;
 let win;
@@ -131,6 +132,9 @@ ipcMain.handle('player:info', (_e, info) => session && session.setInfo(info));
 ipcMain.handle('player:ready', () => session && session.ready());
 ipcMain.handle('player:next', () => session && session.sendMain('player:next'));
 ipcMain.handle('player:intro', (_e, mark) => session && session.sendMain('player:intro', mark));
+// Détection du générique par empreinte audio
+ipcMain.handle('intro:detect', (_e, job) => intro.detect(job));
+ipcMain.handle('intro:has', (_e, seriesId, videoId) => intro.hasFp(seriesId, videoId));
 ipcMain.handle('player:fullscreen', () => { win.setFullScreen(!win.isFullScreen()); return !win.isFullScreen(); });
 ipcMain.handle('player:minimize', () => win.minimize());
 
