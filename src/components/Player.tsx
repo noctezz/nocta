@@ -342,7 +342,7 @@ export function Player() {
       if (!match) { setNextBusy(null); return toPicker(); }
       const desc = streamToDesc(match);
       const src = await resolveStream(desc, { season: next.season, episode: ep }, (u) =>
-        setNextBusy(`TorBox prépare l'épisode… ${u.progress}%`));
+        setNextBusy(`Préparation de l'épisode… ${u.progress}%`));
       removeProgress(req.meta!.id);
       play({
         src, title: fullMeta.name, subtitle: epTitle, meta: slimMeta(fullMeta), type: 'series',

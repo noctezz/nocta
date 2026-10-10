@@ -22,35 +22,20 @@ export type ResolveUpdate = { status: 'downloading'; progress: number; state: st
 
 /**
  * Transforme un descripteur de flux en URL lisible.
- * - url directe -> telle quelle
- * - infoHash    -> via TorBox (attend la fin du téléchargement si besoin)
+ * Les addons débrid (Comet, Torrentio + débrideur…) fournissent des liens directs.
  */
 export async function resolveStream(
   desc: StreamDesc,
-  ctx: { season?: number; episode?: number },
-  onUpdate?: (u: ResolveUpdate) => void,
-  signal?: { cancelled: boolean },
+  _ctx: { season?: number; episode?: number },
+  _onUpdate?: (u: ResolveUpdate) => void,
+  _signal?: { cancelled: boolean },
 ): Promise<string> {
   if (desc.localPath) return desc.localPath;
   if (desc.url) return desc.url;
-  if (!desc.infoHash) throw new Error('Flux non supporté');
-  const key = useStore.getState().settings.torboxKey;
-  if (!key) throw new Error('Ajoute ta clé API TorBox dans les Paramètres pour lire ce flux');
-  if (!window.nocta) throw new Error('TorBox nécessite l\'application de bureau');
-
-  let torrentId: number | undefined;
-  for (let i = 0; i < 400; i++) {
-    if (signal?.cancelled) throw new Error('Annulé');
-    const r = await window.nocta.torbox('resolve', key, {
-      infoHash: desc.infoHash, fileIdx: desc.fileIdx, filename: desc.filename,
-      season: ctx.season, episode: ctx.episode, torrentId,
-    }).catch((e) => { throw new Error(errMsg(e)); });
-    if (r.status === 'ready') return r.url as string;
-    torrentId = r.torrentId;
-    onUpdate?.({ status: 'downloading', progress: r.progress, state: r.state });
-    await new Promise((res) => setTimeout(res, 3000));
+  if (desc.infoHash) {
+    throw new Error('Ce flux est un torrent brut : utilise un addon débrid (comme Comet avec ta clé) qui fournit des liens directs');
   }
-  throw new Error('TorBox met trop de temps à préparer ce fichier');
+  throw new Error('Flux non supporté');
 }
 
 export function episodeLabel(v: { season?: number; episode?: number; number?: number }) {

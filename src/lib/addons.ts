@@ -210,3 +210,80 @@ export function streamSize(s: Stream): string {
   if (b) return b > 1e9 ? `${(b / 1e9).toFixed(1)} GB` : `${Math.round(b / 1e6)} MB`;
   return '';
 }
+
+// ---------- Installation & catalogue d'addons ----------
+
+/** Installe (ou met à jour) un addon à partir de l'URL de son manifest */
+export async function installAddon(raw: string): Promise<{ manifest: Manifest; updated: boolean }> {
+  const { useStore } = await import('./store');
+  const u = normalizeManifestUrl(raw);
+  const manifest = await fetchManifest(u);
+  const st = useStore.getState();
+  const exists = st.addons.findIndex((a) => a.manifest.id === manifest.id);
+  st.setAddons(exists >= 0
+    ? st.addons.map((a, i) => (i === exists ? { url: u, manifest } : a))
+    : [...st.addons, { url: u, manifest }]);
+  return { manifest, updated: exists >= 0 };
+}
+
+export type AddonCategory = 'stream' | 'catalog' | 'meta' | 'subtitles' | 'other';
+
+export interface CatalogAddon {
+  url: string;
+  manifest: Manifest & { behaviorHints?: { configurable?: boolean; configurationRequired?: boolean; adult?: boolean; p2p?: boolean } };
+  official: boolean;
+  category: AddonCategory;
+}
+
+export function addonCategory(m: Manifest): AddonCategory {
+  const res = new Set((m.resources || []).map((r) => (typeof r === 'string' ? r : r.name)));
+  if (res.has('stream')) return 'stream';
+  if (res.has('subtitles')) return 'subtitles';
+  if (res.has('meta')) return 'meta';
+  if (res.has('catalog')) return 'catalog';
+  return 'other';
+}
+
+export const configureUrlOf = (manifestUrl: string) => manifestUrl.replace(/\/manifest\.json(\?.*)?$/, '/configure');
+
+/**
+ * Catalogue d'addons officiel de Stremio (ressource addon_catalog de Cinemeta) :
+ * addons officiels + addons communautaires vérifiés. Sans doublons.
+ */
+export async function getAddonCatalog(addons: InstalledAddon[]): Promise<CatalogAddon[]> {
+  const sources: { url: string; official: boolean }[] = [];
+  for (const a of addons) {
+    if (!supports(a, 'addon_catalog')) continue;
+    const defs: { type: string; id: string }[] = (a.manifest as any).addonCatalogs?.length
+      ? (a.manifest as any).addonCatalogs
+      : [{ type: 'all', id: 'official' }, { type: 'all', id: 'community' }];
+    for (const d of defs) {
+      sources.push({ url: `${baseOf(a.url)}/addon_catalog/${encodeURIComponent(d.type)}/${encodeURIComponent(d.id)}.json`, official: /official/i.test(d.id) });
+    }
+  }
+  if (!sources.length) {
+    const base = baseOf(CINEMETA_URL);
+    sources.push({ url: `${base}/addon_catalog/all/official.json`, official: true }, { url: `${base}/addon_catalog/all/community.json`, official: false });
+  }
+  const results = await Promise.allSettled(sources.map((s) => cachedJson(s.url)));
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+  const out: CatalogAddon[] = [];
+  // Les officiels d'abord : en cas de doublon, c'est eux qu'on garde
+  const order = sources.map((s, i) => ({ s, r: results[i] })).sort((x, y) => Number(y.s.official) - Number(x.s.official));
+  for (const { s, r } of order) {
+    if (r.status !== 'fulfilled') continue;
+    for (const item of (r.value && r.value.addons) || []) {
+      const m = item && item.manifest;
+      const url = item && item.transportUrl;
+      if (!m || !m.id || !m.name || !url || !/^https?:/.test(url)) continue;
+      if (m.behaviorHints?.adult) continue;
+      const nameKey = m.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (seenIds.has(m.id) || seenNames.has(nameKey)) continue;
+      seenIds.add(m.id);
+      seenNames.add(nameKey);
+      out.push({ url, manifest: m, official: s.official || !!item.flags?.official, category: addonCategory(m) });
+    }
+  }
+  return out;
+}

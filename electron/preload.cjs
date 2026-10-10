@@ -13,7 +13,6 @@ contextBridge.exposeInMainWorld('nocta', {
     capabilities: () => ipcRenderer.invoke('media:capabilities'),
     keyframe: (src, t) => ipcRenderer.invoke('media:keyframe', src, t),
   },
-  torbox: (method, ...args) => ipcRenderer.invoke('torbox:call', method, ...args),
   player: {
     available: () => ipcRenderer.invoke('player:available'),
     open: (req) => ipcRenderer.invoke('player:open', req),
@@ -34,9 +33,19 @@ contextBridge.exposeInMainWorld('nocta', {
   openVideoDialog: () => ipcRenderer.invoke('dialog:openVideo'),
   pathForFile: (file) => webUtils.getPathForFile(file),
   openLogs: () => ipcRenderer.invoke('app:openLogs'),
+  quit: () => ipcRenderer.invoke('app:quit'),
+  addons: {
+    openWindow: (url) => ipcRenderer.invoke('addons:openWindow', url),
+    onInstall: (cb) => {
+      const fn = (_e, url) => cb(url);
+      ipcRenderer.on('addons:install', fn);
+      return () => ipcRenderer.removeListener('addons:install', fn);
+    },
+  },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
   win: {
     toggleFullscreen: () => ipcRenderer.invoke('win:toggleFullscreen'),
+    isFullscreen: () => ipcRenderer.invoke('win:isFullscreen'),
     setFullscreen: (v) => ipcRenderer.invoke('win:setFullscreen', v),
     onFullscreen: (cb) => {
       const fn = (_e, v) => cb(v);

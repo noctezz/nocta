@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Eye, EyeOff, Loader2, XCircle } from 'lucide-react';
 import { useStore } from '../lib/store';
-import { errMsg } from '../lib/playback';
 import { playIntroSound } from '../lib/sound';
 
 const ENCODERS: Record<string, string> = {
@@ -15,54 +13,13 @@ export function Settings() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
   const mpvAvailable = useStore((s) => s.mpvAvailable);
-  const [key, setKey] = useState(settings.torboxKey);
-  const [show, setShow] = useState(false);
-  const [check, setCheck] = useState<{ state: 'idle' | 'loading' | 'ok' | 'err'; text?: string }>({ state: 'idle' });
   const [caps, setCaps] = useState<{ ffmpeg: boolean; encoders: string[] } | null>(null);
 
   useEffect(() => { window.nocta?.media.capabilities().then(setCaps); }, []);
 
-  const saveKey = async () => {
-    const k = key.trim();
-    update({ torboxKey: k });
-    if (!k) return setCheck({ state: 'idle' });
-    if (!window.nocta) return;
-    setCheck({ state: 'loading' });
-    try {
-      const me = await window.nocta.torbox('me', k);
-      const plan = ['Gratuit', 'Essential', 'Pro', 'Standard'][me?.plan] ?? `plan ${me?.plan}`;
-      setCheck({ state: 'ok', text: `Connecté : ${me?.email || 'compte TorBox'} · ${plan}` });
-    } catch (e) {
-      setCheck({ state: 'err', text: errMsg(e) });
-    }
-  };
-
   return (
     <div className="page page-padded narrow">
       <h1 className="page-title">Paramètres</h1>
-
-      <section className="settings-card">
-        <h2>TorBox</h2>
-        <p className="muted">
-          Ta clé API se trouve sur <a onClick={() => window.nocta?.openExternal('https://torbox.app/settings')}>torbox.app/settings</a>.
-          Elle reste stockée uniquement sur ton PC.
-        </p>
-        <div className="key-row">
-          <input
-            className="input"
-            type={show ? 'text' : 'password'}
-            placeholder="Clé API TorBox"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && saveKey()}
-          />
-          <button className="icon-btn" onClick={() => setShow(!show)}>{show ? <EyeOff size={18} /> : <Eye size={18} />}</button>
-          <button className="btn btn-red" onClick={saveKey}>Enregistrer & tester</button>
-        </div>
-        {check.state === 'loading' && <p className="status"><Loader2 className="spin" size={16} /> Vérification…</p>}
-        {check.state === 'ok' && <p className="status ok"><CheckCircle2 size={16} /> {check.text}</p>}
-        {check.state === 'err' && <p className="status err"><XCircle size={16} /> {check.text}</p>}
-      </section>
 
       <section className="settings-card">
         <h2>Lecture</h2>

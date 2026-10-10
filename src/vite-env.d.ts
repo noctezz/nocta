@@ -21,7 +21,6 @@ interface NoctaBridge {
     capabilities: () => Promise<{ ffmpeg: boolean; encoders: string[] }>;
     keyframe: (src: string, t: number) => Promise<number>;
   };
-  torbox: (method: string, ...args: any[]) => Promise<any>;
   player: {
     available: () => Promise<boolean>;
     open: (req: any) => Promise<{ ok: boolean; error?: string }>;
@@ -39,8 +38,14 @@ interface NoctaBridge {
   pathForFile: (file: File) => string;
   openExternal: (url: string) => Promise<void>;
   openLogs: () => Promise<string>;
+  quit: () => Promise<void>;
+  addons: {
+    openWindow: (url: string) => Promise<void>;
+    onInstall: (cb: (manifestUrl: string) => void) => () => void;
+  };
   win: {
     toggleFullscreen: () => Promise<boolean>;
+    isFullscreen: () => Promise<boolean>;
     setFullscreen: (v: boolean) => Promise<boolean>;
     onFullscreen: (cb: (v: boolean) => void) => () => void;
   };

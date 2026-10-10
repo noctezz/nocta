@@ -14,12 +14,10 @@ export function StreamPicker() {
   const picker = useLatest(useStore((s) => s.picker))!;
   const close = useStore((s) => s.closePicker);
   const addons = useStore((s) => s.addons);
-  const key = useStore((s) => s.settings.torboxKey);
   const play = useStore((s) => s.play);
   const setPage = useStore((s) => s.setPage);
   const closeDetail = useStore((s) => s.closeDetail);
   const [groups, setGroups] = useState<StreamGroup[] | null>(null);
-  const [cached, setCached] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<{ key: string; text: string } | null>(null);
   const [signal] = useState(() => ({ cancelled: false }));
   const [filter, setFilter] = useState<string>('all');
@@ -28,31 +26,21 @@ export function StreamPicker() {
 
   useEffect(() => {
     let alive = true;
-    getStreams(addons, picker.type, picker.videoId).then(async (g) => {
-      if (!alive) return;
-      setGroups(g);
-      const hashes = g.flatMap((x) => x.streams).map((s) => s.infoHash).filter(Boolean) as string[];
-      if (key && hashes.length && window.nocta) {
-        try {
-          const c: string[] = await window.nocta.torbox('checkCached', key, Array.from(new Set(hashes)));
-          if (alive) setCached(new Set(c));
-        } catch {}
-      }
-    });
+    getStreams(addons, picker.type, picker.videoId).then((g) => { if (alive) setGroups(g); });
     return () => { alive = false; };
-  }, [addons, picker.type, picker.videoId, key]);
+  }, [addons, picker.type, picker.videoId]);
 
   const rows: Row[] = useMemo(() => {
     if (!groups) return [];
     const all = groups.flatMap((g) => g.streams.map((s, i) => ({ stream: s, addon: g.addon.manifest.name, key: `${g.addon.url}#${i}` })));
     const score = (r: Row) => {
       const q = streamQuality(r.stream);
-      const isCached = r.stream.infoHash && cached.has(r.stream.infoHash.toLowerCase());
-      const direct = !!r.stream.url || /\[TB\+|⚡|cached|instant/i.test(`${r.stream.name}`);
-      return (isCached || direct ? 10000 : 0) + q.res;
+      // Liens directs (débrid en cache) d'abord, puis par qualité
+      const instant = /⚡|\+\]|cached|instant/i.test(`${r.stream.name} ${r.stream.title}`);
+      return (r.stream.url ? 10000 : 0) + (instant ? 5000 : 0) + q.res;
     };
     return all.sort((a, b) => score(b) - score(a));
-  }, [groups, cached]);
+  }, [groups]);
 
   const qualities = useMemo(() => {
     const set = new Set(rows.map((r) => streamQuality(r.stream).label).filter(Boolean));
@@ -74,10 +62,9 @@ export function StreamPicker() {
     const local = { cancelled: false };
     const base = { meta: picker.meta, title: picker.meta.name, subtitle: picker.episodeTitle };
     setBusy({ key: r.key, text: '' });
-    loading.set({ ...base, status: s.infoHash ? 'Connexion à TorBox…' : 'Préparation de la lecture…' }, local);
+    loading.set({ ...base, status: 'Préparation de la lecture…' }, local);
     try {
-      const src = await resolveStream(desc, { season: picker.season, episode: picker.episode }, (u) =>
-        loading.set({ ...base, status: 'TorBox télécharge le fichier…', progress: u.progress }), local);
+      const src = await resolveStream(desc, { season: picker.season, episode: picker.episode }, undefined, local);
       if (local.cancelled || signal.cancelled) return;
       loading.set({ ...base, status: 'Lancement du lecteur…' });
       closeDetail();
@@ -142,7 +129,7 @@ export function StreamPicker() {
             <div className="empty">
               <Puzzle size={40} />
               <h3>Aucun addon de sources installé</h3>
-              <p>Installe l'addon TorBox (ou un autre addon de streams) pour pouvoir lancer la lecture.</p>
+              <p>Installe un addon de sources (par exemple Comet configuré avec ton débrideur) pour lancer la lecture.</p>
               <button className="btn btn-white" onClick={() => { close(); closeDetail(); setPage('addons'); }}>Gérer les addons</button>
             </div>
           )}
@@ -159,7 +146,7 @@ export function StreamPicker() {
             const s = r.stream;
             const q = streamQuality(s);
             const size = streamSize(s);
-            const isCached = !!(s.infoHash && cached.has(s.infoHash.toLowerCase()));
+            const isCached = !!s.url && /⚡|\+\]|cached|instant/i.test(`${s.name} ${s.title}`);
             const lines = (s.title || s.description || '').split('\n').filter(Boolean);
             const isBusy = busy?.key === r.key;
             return (

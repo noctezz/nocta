@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { CINEMETA_FALLBACK, CINEMETA_URL, OPENSUBTITLES_URL } from './addons';
 import type { Avatar, InstalledAddon, Meta, MetaPreview, PlayRequest, Profile, ProgressEntry, Settings } from './types';
 
-export type Page = 'home' | 'series' | 'movies' | 'mylist' | 'search' | 'torbox' | 'addons' | 'settings';
+export type Page = 'home' | 'series' | 'movies' | 'mylist' | 'search' | 'addons' | 'settings';
 
 interface PersistedData {
   version: 1;
@@ -80,7 +80,6 @@ export const EMOJI_PRESETS: { emoji: string; bg: string }[] = [
 ];
 
 const DEFAULT_SETTINGS: Settings = {
-  torboxKey: '',
   introSound: true,
   encoder: 'libx264',
   autoplayNext: true,

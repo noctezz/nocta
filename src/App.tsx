@@ -15,9 +15,9 @@ import { MyList } from './pages/MyList';
 import { Search } from './pages/Search';
 import { Addons } from './pages/Addons';
 import { Settings } from './pages/Settings';
-import { TorboxLibrary } from './pages/TorboxLibrary';
 import { useStore } from './lib/store';
-import { fetchManifest } from './lib/addons';
+import { fetchManifest, installAddon } from './lib/addons';
+import { errMsg } from './lib/playback';
 import { playLocalFile } from './lib/playback';
 import { useBusy, useHover } from './lib/ui';
 
@@ -81,6 +81,14 @@ export default function App() {
       });
   }, []);
 
+  // Bouton « Install » cliqué dans une page de configuration d'addon
+  useEffect(() => window.nocta?.addons.onInstall((url) => {
+    const { toast } = useStore.getState();
+    installAddon(url)
+      .then(({ manifest, updated }) => toast(`${manifest.name} ${updated ? 'mis à jour' : 'installé'} ✓`, 'success'))
+      .catch((e) => toast(`Installation impossible : ${errMsg(e)}`, 'error'));
+  }), []);
+
   // Glisser-déposer une vidéo n'importe où = lecture immédiate
   useEffect(() => {
     const over = (e: DragEvent) => e.preventDefault();
@@ -121,7 +129,6 @@ export default function App() {
               {page === 'movies' && <Browse key="movies" type="movie" />}
               {page === 'mylist' && <MyList />}
               {page === 'search' && <Search />}
-              {page === 'torbox' && <TorboxLibrary />}
               {page === 'addons' && <Addons />}
               {page === 'settings' && <Settings />}
             </main>

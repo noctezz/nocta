@@ -494,7 +494,7 @@ input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 14p
 @keyframes fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* ============================================================
-   Addons / paramètres / TorBox
+   Addons / paramètres
    ============================================================ */
 .install-box { display: flex; align-items: center; gap: 12px; background: var(--bg-2); border: 1px solid var(--line); padding: 12px 12px 12px 18px; border-radius: 12px; color: var(--muted); }
 .install-box .btn { white-space: nowrap; }
@@ -604,3 +604,28 @@ html.overlay-mode, html.overlay-mode body { background: transparent !important; 
 .delay-row button { width: 28px; height: 28px; border-radius: 50%; background: #3a3a40; color: #fff; padding: 0; display: grid; place-items: center; font-size: 16px; }
 .delay-row button:hover { background: #55555c; }
 .delay-row em { font-style: normal; min-width: 52px; text-align: center; color: #fff; font-variant-numeric: tabular-nums; }
+
+/* Plein écran : plus de boutons de fenêtre à éviter à droite */
+.navbar.is-fullscreen { padding-right: var(--pad); }
+.nav-menu kbd { margin-left: auto; font-family: inherit; font-size: 10px; color: #888; border: 1px solid #444; border-radius: 4px; padding: 1px 5px; }
+.nav-menu .nav-quit { color: #b3b3b3; }
+.nav-menu .nav-quit:hover { color: var(--accent-2); text-decoration: none; }
+
+/* ---------- Découvrir des addons ---------- */
+.tabs a, .lead a { color: var(--text); }
+.discover-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+.discover-search { flex: 1; display: flex; align-items: center; gap: 10px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; color: var(--muted); }
+.discover-search:focus-within { border-color: #fff; }
+.discover-search input { flex: 1; background: none; border: 0; outline: none; padding: 12px 0; user-select: text; }
+.discover-chips { padding: 0 0 18px; }
+.discover-chips button span { opacity: 0.6; margin-left: 4px; font-size: 12px; }
+.discover-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.discover-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--line); transition: border-color 0.2s, transform 0.2s; }
+.discover-card:hover { border-color: rgba(255, 255, 255, 0.25); transform: translateY(-2px); }
+.discover-top { display: flex; gap: 14px; align-items: center; }
+.discover-desc { font-size: 13px; color: var(--muted); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.discover-actions { display: flex; gap: 8px; align-items: center; margin-top: auto; }
+.discover-actions .btn { padding: 7px 14px; font-size: 14px; }
+.installed { display: inline-flex; align-items: center; gap: 6px; color: var(--green); font-weight: 600; font-size: 14px; }
+.badge-verified { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; background: rgba(0, 194, 255, 0.14); color: #4cc9ff; vertical-align: middle; }
+.badge-verified.official { background: rgba(229, 15, 58, 0.16); color: var(--accent-2); }

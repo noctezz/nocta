@@ -1,9 +1,8 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session: electronSession } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const store = require('./store.cjs');
 const media = require('./media-server.cjs');
-const torbox = require('./torbox.cjs');
 const { MpvSession, mpvBinary } = require('./mpv.cjs');
 
 const isDev = !!process.env.NOCTA_DEV;
@@ -13,6 +12,15 @@ let session = null;
 function loadRenderer(w, query) {
   if (isDev) w.loadURL('http://127.0.0.1:5173/' + (query ? '?' + new URLSearchParams(query) : ''));
   else w.loadFile(path.join(__dirname, '..', 'dist', 'index.html'), query ? { query } : undefined);
+}
+
+// Mémorise le plein écran entre deux lancements
+const winStateFile = () => path.join(app.getPath('userData'), 'window.json');
+function readWinState() {
+  try { return JSON.parse(fs.readFileSync(winStateFile(), 'utf8')); } catch { return {}; }
+}
+function writeWinState(state) {
+  try { fs.writeFileSync(winStateFile(), JSON.stringify(state)); } catch {}
 }
 
 function createWindow() {
@@ -37,7 +45,25 @@ function createWindow() {
     },
   });
 
-  win.once('ready-to-show', () => win.show());
+  const state = readWinState();
+  win.once('ready-to-show', () => {
+    win.show();
+    if (state.fullscreen) win.setFullScreen(true);
+  });
+
+  // Bouton « agrandir » = vrai plein écran (sans la barre des tâches), comme une app TV
+  win.on('maximize', () => {
+    if (process.platform === 'darwin') return;
+    win.unmaximize();
+    win.setFullScreen(true);
+  });
+  // F11 bascule le plein écran
+  win.webContents.on('before-input-event', (e, input) => {
+    if (input.type === 'keyDown' && input.key === 'F11') {
+      e.preventDefault();
+      win.setFullScreen(!win.isFullScreen());
+    }
+  });
 
   // Liens externes -> navigateur système
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -45,8 +71,8 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  win.on('enter-full-screen', () => win.webContents.send('win:fullscreen', true));
-  win.on('leave-full-screen', () => win.webContents.send('win:fullscreen', false));
+  win.on('enter-full-screen', () => { win.webContents.send('win:fullscreen', true); writeWinState({ fullscreen: true }); });
+  win.on('leave-full-screen', () => { win.webContents.send('win:fullscreen', false); writeWinState({ fullscreen: false }); });
 
   win.on('closed', () => { if (session) session.stop(); });
   loadRenderer(win);
@@ -81,10 +107,6 @@ ipcMain.handle('media:probe', (_e, src) => media.probe(src));
 ipcMain.handle('media:capabilities', () => media.capabilities());
 ipcMain.handle('media:keyframe', (_e, src, t) => media.keyframeBefore(src, t));
 
-ipcMain.handle('torbox:call', (_e, method, ...args) => {
-  if (typeof torbox[method] !== 'function') throw new Error('Méthode TorBox inconnue: ' + method);
-  return torbox[method](...args);
-});
 
 // ---------- Lecteur mpv intégré ----------
 ipcMain.handle('player:available', () => !!mpvBinary());
@@ -119,6 +141,56 @@ ipcMain.handle('dialog:openVideo', async () => {
   });
   return r.canceled ? null : r.filePaths[0];
 });
+
+ipcMain.handle('app:quit', () => app.quit());
+ipcMain.handle('win:isFullscreen', () => win.isFullScreen());
+
+// ---------- Configuration / installation d'addons ----------
+// Ouvre la page de configuration d'un addon (ou stremio-addons.net) dans une fenêtre.
+// Les boutons « Install » de ces pages ouvrent un lien stremio://… : on l'intercepte
+// pour installer l'addon directement dans NOCTA.
+let addonsWin = null;
+function openAddonsWindow(url) {
+  if (addonsWin && !addonsWin.isDestroyed()) { addonsWin.loadURL(url); addonsWin.focus(); return; }
+  const ses = electronSession.fromPartition('persist:addons');
+  if (!ses.protocol.isProtocolHandled('stremio')) {
+    ses.protocol.handle('stremio', (req) => {
+      installFrom(req.url);
+      return new Response('<html><body style="background:#111"></body></html>', { headers: { 'content-type': 'text/html' } });
+    });
+  }
+  addonsWin = new BrowserWindow({
+    parent: win,
+    width: 1180,
+    height: 820,
+    backgroundColor: '#111111',
+    autoHideMenuBar: true,
+    title: 'NOCTA · Addons',
+    webPreferences: { partition: 'persist:addons', contextIsolation: true, nodeIntegration: false },
+  });
+  const intercept = (e, target) => {
+    if (/^stremio:/i.test(target)) { if (e) e.preventDefault(); installFrom(target); return true; }
+    return false;
+  };
+  addonsWin.webContents.on('will-navigate', (e, target) => intercept(e, target));
+  addonsWin.webContents.on('will-frame-navigate', (e) => intercept(e, e.url));
+  addonsWin.webContents.setWindowOpenHandler(({ url: target }) => {
+    if (intercept(null, target)) return { action: 'deny' };
+    addonsWin.loadURL(target);
+    return { action: 'deny' };
+  });
+  addonsWin.on('closed', () => { addonsWin = null; });
+  addonsWin.loadURL(url);
+}
+function installFrom(stremioUrl) {
+  const manifestUrl = stremioUrl.replace(/^stremio:\/\//i, 'https://');
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('addons:install', manifestUrl);
+    win.focus();
+  }
+  if (addonsWin && !addonsWin.isDestroyed()) addonsWin.close();
+}
+ipcMain.handle('addons:openWindow', (_e, url) => openAddonsWindow(url));
 
 ipcMain.handle('app:openLogs', () => shell.openPath(app.getPath('userData')));
 ipcMain.handle('shell:openExternal', (_e, url) => shell.openExternal(url));

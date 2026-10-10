@@ -81,7 +81,7 @@ export function MpvBridge() {
         recordProgress(cur, stateRef.current.time, stateRef.current.duration);
         try {
           p.info({ status: 'Recherche de l\'épisode suivant…' });
-          const nextReq = await resolveNextEpisode(meta, nx, cur, (u) => p.info({ status: `TorBox prépare l'épisode… ${u.progress} %` }));
+          const nextReq = await resolveNextEpisode(meta, nx, cur, (u) => p.info({ status: `Préparation de l'épisode… ${u.progress} %` }));
           if (!nextReq) {
             // Pas de source équivalente : retour au choix des sources
             p.close();

@@ -1,7 +1,7 @@
 # NOCTA
 
 Ton streaming perso façon Netflix : profils, intro « ta-doum », rangées animées, fiches détaillées,
-addons Stremio, TorBox et un lecteur vidéo maison qui lit les **MKV** (HEVC, AC3, DTS…).
+addons Stremio et un lecteur vidéo maison qui lit les **MKV** (HEVC, AC3, DTS…).
 
 Application de bureau **Electron + React + Vite**, pour un usage strictement personnel.
 
@@ -24,13 +24,14 @@ npm run dev
 
 1. **Profils** : choisis ou crée un profil. Pour l'avatar, prends un emoji du preset (32 au choix,
    fond personnalisable), colle n'importe quel emoji, ou importe ta propre photo (recadrée automatiquement).
-2. **TorBox** : *Paramètres → TorBox*, colle ta clé API (sur torbox.app/settings), puis clique sur
-   *Enregistrer & tester*.
-3. **Addons** : l'onglet *Addons* propose d'installer l'addon TorBox en un clic. Tu peux coller l'URL
-   de n'importe quel `manifest.json` d'addon Stremio (catalogues, sources, sous-titres).
-   Cinemeta (catalogue) et OpenSubtitles (sous-titres) sont installés d'office.
-4. Choisis un titre, puis **Lecture**, et sélectionne une source. Les sources marquées ⚡ *Instantané*
-   sont déjà en cache sur TorBox.
+2. **Addons → Découvrir** : le catalogue officiel de Stremio (addons officiels et vérifiés), trié par
+   catégorie (Sources, Catalogues, Métadonnées, Sous-titres). *Installer* en un clic, ou *Configurer* :
+   la page de l'addon s'ouvre, et son bouton « Install » l'ajoute directement à NOCTA (Comet, Torrentio…
+   avec ta clé de débrideur). Le bouton *stremio-addons.net* ouvre l'annuaire communautaire, qui marche pareil.
+3. Choisis un titre, puis **Lecture**, et sélectionne une source.
+
+Le bouton agrandir (ou `F11`) passe en vrai plein écran, et le mode est retenu au prochain lancement.
+Pour quitter : menu du profil (en haut à droite), puis **Quitter NOCTA**.
 
 Tu peux aussi lire une vidéo de ton PC : bouton dossier dans la barre du haut, ou glisser-déposer
 le fichier n'importe où dans la fenêtre.
@@ -41,7 +42,7 @@ le fichier n'importe où dans la fenêtre.
   sous-titres PGS/ASS compris. La synchro image/son est parfaite et le décodage passe par la carte
   graphique. L'interface NOCTA s'affiche par-dessus dans une fenêtre transparente.
   L'installeur Windows embarque mpv. En développement, place `mpv.exe` dans `vendor/mpv/` ou installe mpv.
-- **Écran de chargement** : visuel du titre, logo, épisode et progression (y compris pendant que TorBox prépare le fichier).
+- **Écran de chargement** : visuel du titre, logo, épisode et progression .
 - Pistes audio, sous-titres internes et des addons, réglage de synchro audio et sous-titres (±0,1 s),
   vitesse, plein écran, reprise, épisode suivant automatique avec la même source.
 - Lecteur de secours (Chromium + ffmpeg), sélectionnable dans *Paramètres → Lecture*.
@@ -56,11 +57,10 @@ electron/
   preload.cjs       pont sécurisé vers l'interface
   mpv.cjs           lecteur mpv intégré (fenêtre vidéo + interface transparente)
   media-server.cjs  serveur local : fichiers, remux/transcodage ffmpeg, sous-titres → WebVTT
-  torbox.cjs        API TorBox (cache, résolution des torrents, bibliothèque)
   store.cjs         sauvegarde des profils/réglages (dossier utilisateur)
 src/
   components/       Intro, profils, navbar, hero, rangées, popup, fiche, sources, lecteur
-  pages/            Accueil, Films, Séries, Ma liste, Recherche, TorBox, Addons, Paramètres
+  pages/            Accueil, Films, Séries, Ma liste, Recherche, Addons, Paramètres
   lib/              protocole addons Stremio, store, son d'intro (Web Audio), sous-titres
 ```
 

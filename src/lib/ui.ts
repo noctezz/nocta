@@ -47,7 +47,7 @@ export const useHover = create<HoverState>((set) => ({
   hide: () => set({ item: null, rect: null, entry: undefined }),
 }));
 
-// ---------- Chargement plein écran (résolution TorBox, reprise) ----------
+// ---------- Chargement plein écran (préparation, reprise) ----------
 
 interface BusyState {
   busy: LoadingInfo | null;
@@ -74,7 +74,7 @@ export async function resumeEntry(entry: ProgressEntry) {
   busy.set({ ...base, status: 'Reprise de la lecture…' }, signal);
   try {
     const src = await resolveStream(entry.stream, { season: entry.season, episode: entry.episode }, (u) =>
-      busy.set({ ...base, status: 'TorBox prépare le fichier…', progress: u.progress }),
+      busy.set({ ...base, status: 'Préparation du fichier…', progress: u.progress }),
     signal);
     if (signal.cancelled) return;
     st.play({

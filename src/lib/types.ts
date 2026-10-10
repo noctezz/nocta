@@ -113,7 +113,6 @@ export interface Profile {
 }
 
 export interface Settings {
-  torboxKey: string;
   introSound: boolean;
   encoder: string;
   autoplayNext: boolean;

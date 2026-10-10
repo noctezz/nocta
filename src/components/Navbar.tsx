@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, FolderOpen, Pencil, Search, Settings, X } from 'lucide-react';
+import { ChevronDown, FolderOpen, Maximize2, Minimize2, Pencil, Power, Search, Settings, X } from 'lucide-react';
 import { useProfile, useStore, type Page } from '../lib/store';
 import { playLocalFile } from '../lib/playback';
 import { Avatar } from './Avatar';
@@ -11,7 +11,6 @@ const LINKS: { page: Page; label: string }[] = [
   { page: 'series', label: 'Séries' },
   { page: 'movies', label: 'Films' },
   { page: 'mylist', label: 'Ma liste' },
-  { page: 'torbox', label: 'TorBox' },
   { page: 'addons', label: 'Addons' },
 ];
 
@@ -44,9 +43,14 @@ export function Navbar() {
   };
 
   const isMac = window.nocta?.platform === 'darwin';
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    window.nocta?.win.isFullscreen().then(setFullscreen);
+    return window.nocta?.win.onFullscreen(setFullscreen);
+  }, []);
 
   return (
-    <header className={`navbar drag ${solid ? 'is-solid' : ''} ${isMac ? 'is-mac' : ''}`}>
+    <header className={`navbar drag ${solid ? 'is-solid' : ''} ${isMac ? 'is-mac' : ''} ${fullscreen ? 'is-fullscreen' : ''}`}>
       <button className="nav-logo no-drag" onClick={() => { setSearch(''); setPage('home'); window.scrollTo({ top: 0 }); }}>
         <Logo height={30} />
       </button>
@@ -109,10 +113,20 @@ export function Navbar() {
                 <button onClick={() => { setMenu(false); setSearch(''); setPage('settings'); }}>
                   <Settings size={18} /> Paramètres
                 </button>
-                <hr />
-                <button className="center" onClick={() => { setMenu(false); selectProfile(null); }}>
-                  Changer de profil
-                </button>
+                {window.nocta && (
+                  <button onClick={() => { setMenu(false); window.nocta!.win.toggleFullscreen(); }}>
+                    {fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />} {fullscreen ? 'Quitter le plein écran' : 'Plein écran'}
+                    <kbd>F11</kbd>
+                  </button>
+                )}
+                {window.nocta && (
+                  <>
+                    <hr />
+                    <button className="nav-quit" onClick={() => window.nocta!.quit()}>
+                      <Power size={18} /> Quitter NOCTA
+                    </button>
+                  </>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
