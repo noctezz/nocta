@@ -2,10 +2,18 @@ import { create } from 'zustand';
 import { CINEMETA_FALLBACK, CINEMETA_URL, OPENSUBTITLES_URL } from './addons';
 import type { Avatar, InstalledAddon, Meta, MetaPreview, PlayRequest, Profile, ProgressEntry, Settings } from './types';
 
-export type Page = 'home' | 'series' | 'movies' | 'mylist' | 'search' | 'addons' | 'settings' | 'browse';
+export type Page = 'home' | 'series' | 'movies' | 'mylist' | 'search' | 'addons' | 'settings' | 'browse' | 'catalogs';
 
 /** Une catégorie complète à parcourir (« Tout voir ») */
-export interface BrowseDef { key: string; title: string; load: (skip: number) => Promise<MetaPreview[]>; pageable: boolean; from: Page }
+export interface BrowseDef {
+  key: string;
+  title: string;
+  load: (skip: number) => Promise<MetaPreview[]>;
+  pageable: boolean;
+  /** Si présent : tout le catalogue d'un coup, sans chargement infini */
+  loadAll?: () => Promise<MetaPreview[]>;
+  from: Page;
+}
 
 interface PersistedData {
   version: 1;

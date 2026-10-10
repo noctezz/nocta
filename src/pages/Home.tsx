@@ -1,13 +1,21 @@
 import { useMemo } from 'react';
 import { Hero } from '../components/Hero';
 import { Row } from '../components/Row';
-import { browsableCatalogs, catalogTitle, getCatalog, getCatalogPage, GENRE_FR, supportsSkip } from '../lib/addons';
+import { browsableCatalogs, catalogTitle, getCatalog, getCatalogPage, GENRE_FR, mainAddons, supportsSkip } from '../lib/addons';
 import { useProfile, useStore } from '../lib/store';
 import type { InstalledAddon, MetaPreview } from '../lib/types';
 
 const HOME_GENRES = ['Action', 'Comedy', 'Sci-Fi', 'Thriller', 'Animation', 'Horror', 'Crime', 'Documentary'];
 
-export interface RowDef { key: string; title: string; load: (skip?: number) => Promise<MetaPreview[]>; pageable?: boolean; variant?: 'top10' }
+export interface RowDef {
+  key: string;
+  title: string;
+  load: (skip?: number) => Promise<MetaPreview[]>;
+  pageable?: boolean;
+  variant?: 'top10';
+  /** « Tout voir » affiche le catalogue complet d'un coup (onglet Catalogues) */
+  loadAll?: () => Promise<MetaPreview[]>;
+}
 
 function genreRows(addon: InstalledAddon, type: string, catalogId: string, genres: string[]): RowDef[] {
   const cat = addon.manifest.catalogs?.find((c) => c.type === type && c.id === catalogId);
@@ -24,7 +32,7 @@ function genreRows(addon: InstalledAddon, type: string, catalogId: string, genre
 export function useRows(type?: string, genres = HOME_GENRES): RowDef[] {
   const addons = useStore((s) => s.addons);
   return useMemo(() => {
-    const cats = browsableCatalogs(addons, type);
+    const cats = browsableCatalogs(mainAddons(addons), type);
     const rows: RowDef[] = [];
     const first = cats.find((c) => c.catalog.type === (type || 'movie')) || cats[0];
     if (first) {

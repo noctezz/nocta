@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Info, Play } from 'lucide-react';
-import { browsableCatalogs, getCatalog, getMeta, GENRE_FR } from '../lib/addons';
+import { browsableCatalogs, getCatalog, getMeta, GENRE_FR, mainAddons } from '../lib/addons';
 import { useStore } from '../lib/store';
 import { backdropOf, logoOf, quickPlay, year } from '../lib/ui';
 import type { Meta, MetaPreview } from '../lib/types';
@@ -19,7 +19,7 @@ export function Hero({ type }: { type?: string }) {
     setItem(null);
     setImgLoaded(false);
     (async () => {
-      const cats = browsableCatalogs(addons, type);
+      const cats = browsableCatalogs(mainAddons(addons), type);
       for (const { addon, catalog } of cats.slice(0, 3)) {
         try {
           const list = (await getCatalog(addon, catalog.type, catalog.id)).slice(0, 12);

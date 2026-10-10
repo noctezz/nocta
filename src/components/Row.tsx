@@ -121,7 +121,7 @@ export function Row({ def, title: givenTitle, items: given, variant: givenVarian
     setPage((x) => (x + d + pages) % pages);
   };
 
-  const seeAll = () => def && openBrowse({ key: def.key, title, load: (skip) => def.load(skip), pageable });
+  const seeAll = () => def && openBrowse({ key: def.key, title, load: (skip) => def.load(skip), pageable, loadAll: def.loadAll });
 
   return (
     <section className={`row row-${variant}`} ref={ref} style={{ ['--per-row' as any]: perRow }}>

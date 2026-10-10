@@ -645,3 +645,12 @@ html.overlay-mode, html.overlay-mode body { background: transparent !important; 
 .catalog-sentinel { height: 1px; }
 .catalog-end { text-align: center; color: var(--muted); padding: 50px 0 10px; font-size: 14px; }
 .back-top { position: fixed; right: 32px; bottom: 32px; z-index: 25; background: rgba(20, 20, 24, 0.9); }
+
+/* ---------- Onglet Catalogues ---------- */
+.catalogs-page { padding-left: 0; padding-right: 0; }
+.catalogs-page > .page-title, .catalogs-page > .empty { margin-left: var(--pad); margin-right: var(--pad); }
+.catalogs-group { margin-bottom: 4vw; }
+.catalogs-group .rows { margin-top: 0; }
+.catalogs-addon-head { display: flex; align-items: center; gap: 12px; padding: 0 var(--pad); margin-bottom: 18px; }
+.catalogs-addon-head h2 { font-size: 22px; font-weight: 800; }
+.addon-logo.small { width: 34px; height: 34px; border-radius: 8px; }

@@ -52,16 +52,28 @@ export function CatalogView() {
     window.scrollTo({ top: 0 });
   }, [browse?.key]);
 
-  useEffect(() => { if (!items.length && !done) loadNext(); }, [items.length, done, loadNext]);
+  useEffect(() => {
+    if (!browse?.loadAll) return;
+    // Onglet Catalogues : le catalogue complet, exactement, sans défilement infini
+    let alive = true;
+    setLoading(true);
+    browse.loadAll()
+      .then((all) => { if (alive) { itemsRef.current = all; setItems(all); } })
+      .catch(() => {})
+      .finally(() => { if (alive) { setLoading(false); setDone(true); } });
+    return () => { alive = false; };
+  }, [browse]);
+
+  useEffect(() => { if (!browse?.loadAll && !items.length && !done) loadNext(); }, [browse, items.length, done, loadNext]);
 
   // Défilement infini : charge la suite quand le bas de la grille approche
   useEffect(() => {
     const el = sentinel.current;
-    if (!el) return;
+    if (!el || browse?.loadAll) return;
     const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) loadNext(); }, { rootMargin: '900px' });
     io.observe(el);
     return () => io.disconnect();
-  }, [loadNext, items.length]);
+  }, [loadNext, items.length, browse]);
 
   useEffect(() => {
     const onScroll = () => setShowTop(window.scrollY > 900);
@@ -76,7 +88,6 @@ export function CatalogView() {
       <div className="catalog-head">
         <button className="round" onClick={() => setPage(browse.from)} aria-label="Retour"><ArrowLeft size={20} /></button>
         <motion.h1 className="page-title" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>{browse.title}</motion.h1>
-        {items.length > 0 && <span className="muted">{items.length} titres{done ? '' : '…'}</span>}
       </div>
 
       <div className="grid">
@@ -94,7 +105,8 @@ export function CatalogView() {
       </div>
 
       <div ref={sentinel} className="catalog-sentinel" />
-      {done && items.length > 0 && <p className="catalog-end">Tu as tout vu dans cette catégorie.</p>}
+      {done && items.length > 0 && !browse.loadAll && <p className="catalog-end">Tu as tout vu dans cette catégorie.</p>}
+      {done && !loading && items.length === 0 && <div className="empty big"><h3>Ce catalogue est vide</h3></div>}
 
       {showTop && (
         <button className="round round-lg back-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Remonter">

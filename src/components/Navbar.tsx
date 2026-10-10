@@ -10,6 +10,7 @@ const LINKS: { page: Page; label: string }[] = [
   { page: 'home', label: 'Accueil' },
   { page: 'series', label: 'Séries' },
   { page: 'movies', label: 'Films' },
+  { page: 'catalogs', label: 'Catalogues' },
   { page: 'mylist', label: 'Ma liste' },
   { page: 'addons', label: 'Addons' },
 ];

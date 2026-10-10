@@ -182,6 +182,30 @@ export function browsableCatalogs(addons: InstalledAddon[], type?: string) {
   return out;
 }
 
+export const CINEMETA_ID = 'com.linvo.cinemeta';
+export const isCinemeta = (a: InstalledAddon) => a.manifest.id === CINEMETA_ID;
+
+/** Catalogues de base (Accueil, Films, Séries) : uniquement Cinemeta */
+export const mainAddons = (addons: InstalledAddon[]) => addons.filter(isCinemeta);
+/** Addons de catalogue ajoutés par l'utilisateur : affichés seulement dans l'onglet Catalogues */
+export const extraCatalogAddons = (addons: InstalledAddon[]) =>
+  addons.filter((a) => !isCinemeta(a) && browsableCatalogs([a]).length > 0);
+
+/** Récupère tout un catalogue (toutes ses pages), sans doublons */
+export async function getFullCatalog(addon: InstalledAddon, c: CatalogDef, max = 2000): Promise<MetaPreview[]> {
+  const out: MetaPreview[] = [];
+  const seen = new Set<string>();
+  let skip = 0;
+  for (let guard = 0; guard < 60 && out.length < max; guard++) {
+    const page = await getCatalogPage(addon, c.type, c.id, {}, skip);
+    let added = 0;
+    for (const m of page) if (!seen.has(m.id)) { seen.add(m.id); out.push(m); added++; }
+    if (!page.length || !added || !supportsSkip(c)) break;
+    skip += page.length;
+  }
+  return out;
+}
+
 export function searchableCatalogs(addons: InstalledAddon[]) {
   const out: { addon: InstalledAddon; catalog: CatalogDef }[] = [];
   for (const addon of addons) {

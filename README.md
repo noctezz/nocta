@@ -33,6 +33,10 @@ npm run dev
 Le bouton agrandir (ou `F11`) passe en vrai plein écran, et le mode est retenu au prochain lancement.
 Pour quitter : menu du profil (en haut à droite), puis **Quitter NOCTA**.
 
+Accueil, Films et Séries utilisent le catalogue de base (Cinemeta). Les addons de catalogue que tu installes
+(TMDB, Trakt, anime…) s'affichent **uniquement dans l'onglet Catalogues**, où « Tout voir » montre le catalogue
+complet d'un coup, sans chargement infini.
+
 Chaque rangée a un lien **Tout voir ›** : toute la catégorie en grille, chargée à l'infini quand tu descends,
 sans doublons. Les rangées elles-mêmes chargent la suite quand tu arrives au bout avec la flèche.
 
