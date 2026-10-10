@@ -110,7 +110,12 @@ export interface Profile {
   avatar: Avatar;
   myList: MetaPreview[];
   progress: Record<string, ProgressEntry>;
+  /** Vidéos vues (id d'épisode ou de film) → date */
+  watched?: Record<string, number>;
 }
+
+/** Plage de générique d'une série (secondes), apprise ou issue des chapitres */
+export interface IntroMark { start: number; end: number }
 
 export interface Settings {
   introSound: boolean;
@@ -124,6 +129,14 @@ export interface Settings {
   seasonalTheme: 'auto' | 'off' | 'halloween' | 'christmas';
   /** Bande-annonce lancée automatiquement dans les fiches */
   autoplayTrailers: boolean;
+  /** Lecture directe de la meilleure source (sans passer par la liste) */
+  autoPickSource: boolean;
+  /** Résolution maximale préférée pour le choix auto */
+  maxResolution: 2160 | 1080 | 720;
+  /** Préférer les sources en français (VF / MULTI / TRUEFRENCH) */
+  preferFrench: boolean;
+  /** Passer automatiquement le générique (sinon : bouton) */
+  autoSkipIntro: boolean;
 }
 
 export interface PlayRequest {

@@ -30,6 +30,7 @@ interface NoctaBridge {
     info: (info: any) => Promise<void>;
     next: () => Promise<void>;
     ready: () => Promise<void>;
+    intro: (mark: { start: number; end: number } | null) => Promise<void>;
     fullscreen: () => Promise<boolean>;
     minimize: () => Promise<void>;
     on: (channel: string, cb: (data: any) => void) => () => void;

@@ -769,3 +769,45 @@ html[data-season='christmas'] .loading-vignette { background: radial-gradient(el
 .trailer-btn { position: absolute; right: 48px; bottom: 26%; z-index: 3; background: rgba(0, 0, 0, 0.35); }
 .detail-hero-fade, .detail-hero-content { z-index: 2; }
 .detail-hero-content { position: absolute; }
+
+/* ============================================================
+   Vu / à suivre / passer l'intro
+   ============================================================ */
+.card-seen {
+  position: absolute; top: 8px; right: 8px; z-index: 2; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800;
+  background: rgba(0, 0, 0, 0.7); color: var(--green); backdrop-filter: blur(6px); border: 1px solid rgba(70, 211, 105, 0.4);
+}
+.btn-sub { font-size: 14px; font-weight: 600; opacity: 0.65; margin-left: 2px; }
+.round.is-watched { background: var(--green); border-color: var(--green); color: #000; }
+.watched-pill { display: inline-flex; align-items: center; gap: 6px; color: var(--green); font-weight: 700; font-size: 15px; margin-left: 6px; }
+.season-watched {
+  display: inline-flex; align-items: center; gap: 8px; margin-left: 14px; padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  color: #ccc; border: 1px solid #444; transition: all 0.2s;
+}
+.season-watched:hover { border-color: #fff; color: #fff; }
+.episodes-head { gap: 8px; }
+.episodes-head h3 { margin-right: auto; }
+.episode { cursor: pointer; }
+.episode.is-watched .episode-thumb img { filter: brightness(0.55) saturate(0.7); }
+.episode.is-watched .episode-info strong { color: #b3b3b3; }
+.episode-seen {
+  position: absolute; top: 6px; left: 6px; display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 999px;
+  font-size: 11px; font-weight: 800; background: var(--green); color: #000;
+}
+.up-next { margin-left: 10px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; background: var(--accent); color: #fff; vertical-align: middle; }
+.episode-tools { display: flex; align-items: center; gap: 6px; flex: none; }
+.ep-tool { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: #8c8c8c; transition: all 0.15s; opacity: 0; }
+.episode:hover .ep-tool, .ep-tool.is-on { opacity: 1; }
+.ep-tool:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
+.ep-tool.is-on { color: var(--green); }
+
+.skip-btn {
+  position: absolute; right: 40px; bottom: 150px; z-index: 5; display: inline-flex; align-items: center; gap: 10px; overflow: hidden;
+  padding: 13px 24px; border-radius: 6px; font-size: 17px; font-weight: 700; color: #fff;
+  background: rgba(20, 20, 24, 0.72); border: 1.5px solid rgba(255, 255, 255, 0.85); backdrop-filter: blur(8px);
+  transition: background 0.2s, transform 0.15s;
+}
+.skip-btn:hover { background: #fff; color: #000; }
+.skip-btn:active { transform: scale(0.97); }
+.skip-btn svg { position: relative; z-index: 1; }
+.skip-fill { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--accent); transform-origin: left; animation: fill linear forwards; }

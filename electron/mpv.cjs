@@ -10,7 +10,7 @@ const path = require('node:path');
 
 const OBSERVED = [
   'time-pos', 'duration', 'pause', 'paused-for-cache', 'cache-buffering-state', 'demuxer-cache-time',
-  'track-list', 'volume', 'mute', 'speed', 'eof-reached', 'aid', 'sid', 'sub-delay', 'audio-delay', 'seeking',
+  'track-list', 'volume', 'mute', 'speed', 'eof-reached', 'aid', 'sid', 'sub-delay', 'audio-delay', 'seeking', 'chapter-list',
 ];
 
 let binCache;

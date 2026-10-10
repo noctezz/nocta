@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('nocta', {
     info: (info) => ipcRenderer.invoke('player:info', info),
     next: () => ipcRenderer.invoke('player:next'),
     ready: () => ipcRenderer.invoke('player:ready'),
+    intro: (mark) => ipcRenderer.invoke('player:intro', mark),
     fullscreen: () => ipcRenderer.invoke('player:fullscreen'),
     minimize: () => ipcRenderer.invoke('player:minimize'),
     on: (channel, cb) => {

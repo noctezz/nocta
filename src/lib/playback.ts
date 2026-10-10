@@ -81,12 +81,26 @@ export function playLocalFile(path: string) {
   });
 }
 
-/** Enregistre (ou efface en fin de lecture) la progression du profil actif */
-export function recordProgress(req: PlayRequest, pos: number, duration: number) {
+/** Seuil à partir duquel une vidéo compte comme vue (générique de fin compris) */
+export const WATCHED_RATIO = 0.92;
+
+/**
+ * Enregistre la progression du profil actif. En fin de lecture : la vidéo est
+ * marquée « vue » et, pour une série, l'épisode suivant prend sa place dans « Reprendre ».
+ */
+export function recordProgress(req: PlayRequest, pos: number, duration: number, next?: Video | null) {
   const st = useStore.getState();
   if (!req.meta || !duration || duration < 60 || pos < 10) return;
-  if (pos / duration > 0.94) {
-    st.removeProgress(req.meta.id);
+  if (pos / duration > WATCHED_RATIO) {
+    st.setWatched([req.videoId || req.meta.id], true);
+    if (next) {
+      st.saveProgress(req.meta.id, {
+        meta: slimMeta(req.meta), videoId: next.id, season: next.season, episode: next.episode ?? next.number,
+        episodeTitle: episodeTitleOf(next), position: 0, duration: 0, updatedAt: Date.now(),
+      });
+    } else {
+      st.removeProgress(req.meta.id);
+    }
     return;
   }
   st.saveProgress(req.meta.id, {
@@ -118,10 +132,14 @@ export async function resolveNextEpisode(
   onUpdate?: (u: ResolveUpdate) => void,
 ): Promise<PlayRequest | null> {
   const group = current.stream?.bingeGroup;
-  if (!group) return null;
   const ep = next.episode ?? next.number;
   const groups = await getStreams(useStore.getState().addons, 'series', next.id);
-  const match = groups.flatMap((g) => g.streams).find((s) => s.behaviorHints?.bingeGroup === group);
+  const all = groups.flatMap((g) => g.streams);
+  let match = group ? all.find((s) => s.behaviorHints?.bingeGroup === group && s.url) : undefined;
+  if (!match && useStore.getState().settings.autoPickSource) {
+    const { rankStreams } = await import('./autoplay');
+    match = rankStreams(all.filter((s) => s.url).map((stream) => ({ stream })))[0]?.stream;
+  }
   if (!match) return null;
   const desc = streamToDesc(match);
   const src = await resolveStream(desc, { season: next.season, episode: ep }, onUpdate);

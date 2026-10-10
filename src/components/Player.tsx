@@ -8,7 +8,7 @@ import { useLatest } from '../lib/useLatest';
 import { LoadingScreen } from './LoadingScreen';
 import { useStore } from '../lib/store';
 import { getMeta, getStreams, getSubtitles, type SubtitleTrack } from '../lib/addons';
-import { episodeLabel, errMsg, formatTime, nextEpisode, resolveStream, slimMeta, streamToDesc } from '../lib/playback';
+import { episodeLabel, errMsg, formatTime, nextEpisode, recordProgress, resolveStream, slimMeta, streamToDesc } from '../lib/playback';
 import { langMatches, langName, parseVtt, type Cue } from '../lib/subs';
 import type { Meta, Video } from '../lib/types';
 
@@ -25,7 +25,6 @@ export function Player() {
   const closePlayer = useStore((s) => s.closePlayer);
   const play = useStore((s) => s.play);
   const openPicker = useStore((s) => s.openPicker);
-  const saveProgress = useStore((s) => s.saveProgress);
   const removeProgress = useStore((s) => s.removeProgress);
   const settings = useStore((s) => s.settings);
   const updateSettings = useStore((s) => s.updateSettings);
@@ -242,26 +241,11 @@ export function Player() {
   };
 
   // ---------- Sauvegarde de la progression ----------
+  const nextRef = useRef<Video | null>(null);
   const saveNow = useCallback(() => {
-    if (!req.meta || !duration || duration < 60) return;
-    const pos = offset + (videoRef.current?.currentTime || 0);
-    if (pos < 10) return;
-    if (pos / duration > 0.94) {
-      removeProgress(req.meta.id);
-      return;
-    }
-    saveProgress(req.meta.id, {
-      meta: slimMeta(req.meta),
-      videoId: req.videoId || req.meta.id,
-      season: req.season,
-      episode: req.episode,
-      episodeTitle: req.subtitle,
-      position: pos,
-      duration,
-      updatedAt: Date.now(),
-      stream: req.stream,
-    });
-  }, [req, duration, offset, saveProgress, removeProgress]);
+    if (!req.meta || !duration) return;
+    recordProgress(req, offset + (videoRef.current?.currentTime || 0), duration, nextRef.current);
+  }, [req, duration, offset]);
 
   const saveRef = useRef(saveNow);
   saveRef.current = saveNow;
@@ -355,6 +339,7 @@ export function Player() {
     }
   }, [next, fullMeta, nextBusy, req, addons, closePlayer, openPicker, play, removeProgress, toast]);
 
+  nextRef.current = next;
   const remaining = duration ? duration - absTime : Infinity;
   const showNextCard = !!next && remaining < 35 && duration > 300;
 

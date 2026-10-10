@@ -40,7 +40,13 @@ export function MpvBridge() {
     // Infos annexes envoyées à l'interface du lecteur : sous-titres, épisode suivant
     const sendExtras = async (r: PlayRequest) => {
       const settings = st().settings;
-      p.info({ autoplayNext: settings.autoplayNext, next: null, extSubs: [] });
+      p.info({
+        autoplayNext: settings.autoplayNext,
+        autoSkipIntro: settings.autoSkipIntro,
+        intro: r.type === 'series' && r.meta ? st().introMarks?.[r.meta.id] || null : null,
+        next: null,
+        extSubs: [],
+      });
       if (r.type && r.videoId) {
         getSubtitles(st().addons, r.type, r.videoId).then((extSubs) => { if (alive()) p.info({ extSubs }); }).catch(() => {});
       }
@@ -57,16 +63,23 @@ export function MpvBridge() {
       useStore.setState({ player: { ...reqRef.current, engine: 'web' } });
     };
 
+    const nextOf = () => (metaRef.current && reqRef.current.videoId ? nextEpisode(metaRef.current, reqRef.current.videoId) : null);
+
     const offs = [
+      // Générique repéré dans le lecteur (saut manuel) : mémorisé pour toute la série
+      p.on('player:intro', (mark: { start: number; end: number } | null) => {
+        const r = reqRef.current;
+        if (r.type === 'series' && r.meta) st().setIntroMark(r.meta.id, mark);
+      }),
       p.on('player:state', (s: { time: number; duration: number }) => {
         stateRef.current = s;
         if (Date.now() - lastSave > 5000) {
           lastSave = Date.now();
-          recordProgress(reqRef.current, s.time, s.duration);
+          recordProgress(reqRef.current, s.time, s.duration, nextOf());
         }
       }),
       p.on('player:closed', (s: { time: number; duration: number; error?: string }) => {
-        if (s.duration) recordProgress(reqRef.current, s.time, s.duration);
+        if (s.duration) recordProgress(reqRef.current, s.time, s.duration, nextOf());
         if (s.error && !s.time) return fallback(s.error);
         if (s.error) st().toast(s.error, 'error');
         st().closePlayer();
@@ -78,7 +91,8 @@ export function MpvBridge() {
         const nx = meta && cur.videoId ? nextEpisode(meta, cur.videoId) : null;
         if (!meta || !nx) return;
         busyRef.current = true;
-        recordProgress(cur, stateRef.current.time, stateRef.current.duration);
+        // Passer à l'épisode suivant = l'épisode en cours compte comme vu
+        if (cur.videoId) st().setWatched([cur.videoId], true);
         try {
           p.info({ status: 'Recherche de l\'épisode suivant…' });
           const nextReq = await resolveNextEpisode(meta, nx, cur, (u) => p.info({ status: `Préparation de l'épisode… ${u.progress} %` }));

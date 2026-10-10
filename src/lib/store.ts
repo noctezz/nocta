@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CINEMETA_FALLBACK, CINEMETA_URL, OPENSUBTITLES_URL } from './addons';
-import type { Avatar, InstalledAddon, Meta, MetaPreview, PlayRequest, Profile, ProgressEntry, Settings } from './types';
+import type { Avatar, InstalledAddon, Meta, MetaPreview, PlayRequest, Profile, ProgressEntry, Settings, IntroMark } from './types';
 
 export type Page = 'home' | 'series' | 'movies' | 'mylist' | 'search' | 'addons' | 'settings' | 'browse' | 'catalogs';
 
@@ -20,6 +20,8 @@ interface PersistedData {
   profiles: Profile[];
   addons: InstalledAddon[];
   settings: Settings;
+  /** Génériques appris par série (commun à tous les profils) */
+  introMarks?: Record<string, IntroMark>;
 }
 
 export interface Toast { id: number; text: string; tone?: 'info' | 'error' | 'success' }
@@ -43,6 +45,8 @@ interface State extends PersistedData {
   deleteProfile: (id: string) => void;
   toggleMyList: (m: MetaPreview) => void;
   saveProgress: (key: string, entry: ProgressEntry) => void;
+  setWatched: (videoIds: string[], watched: boolean) => void;
+  setIntroMark: (seriesId: string, mark: IntroMark | null) => void;
   removeProgress: (key: string) => void;
   setAddons: (a: InstalledAddon[]) => void;
   updateSettings: (s: Partial<Settings>) => void;
@@ -102,6 +106,10 @@ const DEFAULT_SETTINGS: Settings = {
   playerEngine: 'mpv',
   seasonalTheme: 'auto',
   autoplayTrailers: true,
+  autoPickSource: true,
+  maxResolution: 1080,
+  preferFrench: true,
+  autoSkipIntro: false,
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -174,6 +182,22 @@ export const useStore = create<State>((set, get) => ({
   saveProgress: (key, entry) => set((s) => ({
     profiles: updateProfile(s, (p) => ({ ...p, progress: { ...p.progress, [key]: entry } })),
   })),
+  setWatched: (ids, watched) => set((s) => ({
+    profiles: updateProfile(s, (p) => {
+      const next = { ...(p.watched || {}) };
+      for (const id of ids) {
+        if (watched) next[id] = Date.now();
+        else delete next[id];
+      }
+      return { ...p, watched: next };
+    }),
+  })),
+  setIntroMark: (seriesId, mark) => set((s) => {
+    const next = { ...(s.introMarks || {}) };
+    if (mark) next[seriesId] = mark;
+    else delete next[seriesId];
+    return { introMarks: next };
+  }),
   removeProgress: (key) => set((s) => ({
     profiles: updateProfile(s, (p) => {
       const { [key]: _drop, ...rest } = p.progress;
@@ -211,10 +235,10 @@ window.nocta?.player?.available().then((ok) => useStore.setState({ mpvAvailable:
 // Sauvegarde automatique (débouncée) des données persistantes
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 useStore.subscribe((s, prev) => {
-  if (s.profiles === prev.profiles && s.addons === prev.addons && s.settings === prev.settings) return;
+  if (s.profiles === prev.profiles && s.addons === prev.addons && s.settings === prev.settings && s.introMarks === prev.introMarks) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    const data: PersistedData = { version: 1, profiles: s.profiles, addons: s.addons, settings: s.settings };
+    const data: PersistedData = { version: 1, profiles: s.profiles, addons: s.addons, settings: s.settings, introMarks: s.introMarks };
     if (window.nocta) window.nocta.store.save(data);
     else try { localStorage.setItem('nocta-data', JSON.stringify(data)); } catch {}
   }, 400);

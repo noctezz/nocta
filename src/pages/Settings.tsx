@@ -20,6 +20,7 @@ export function Settings() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
   const mpvAvailable = useStore((s) => s.mpvAvailable);
+  const introCount = useStore((s) => Object.keys(s.introMarks || {}).length);
   const [caps, setCaps] = useState<{ ffmpeg: boolean; encoders: string[] } | null>(null);
 
   useEffect(() => { window.nocta?.media.capabilities().then(setCaps); }, []);
@@ -44,6 +45,51 @@ export function Settings() {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="settings-card">
+        <h2>Lecture automatique</h2>
+        <label className="setting">
+          <div>
+            <strong>Lancer directement la meilleure source</strong>
+            <span>« Lecture » démarre tout de suite, sans passer par la liste. La liste reste accessible avec le bouton ☰ de la fiche.</span>
+          </div>
+          <input type="checkbox" className="switch" checked={settings.autoPickSource} onChange={(e) => update({ autoPickSource: e.target.checked })} />
+        </label>
+        <label className="setting">
+          <div>
+            <strong>Qualité maximale</strong>
+            <span>La meilleure source au plus près de cette qualité (les liens instantanés passent en premier).</span>
+          </div>
+          <select className="select" value={settings.maxResolution} onChange={(e) => update({ maxResolution: Number(e.target.value) as 2160 | 1080 | 720 })}>
+            <option value={2160}>4K</option>
+            <option value={1080}>1080p</option>
+            <option value={720}>720p</option>
+          </select>
+        </label>
+        <label className="setting">
+          <div>
+            <strong>Préférer le français</strong>
+            <span>Priorité aux sources VF, TRUEFRENCH et MULTI.</span>
+          </div>
+          <input type="checkbox" className="switch" checked={settings.preferFrench} onChange={(e) => update({ preferFrench: e.target.checked })} />
+        </label>
+        <label className="setting">
+          <div>
+            <strong>Passer le générique automatiquement</strong>
+            <span>Sinon, un bouton « Passer l'intro » s'affiche. NOCTA lit les chapitres du fichier et retient le générique quand tu le passes à la main.</span>
+          </div>
+          <input type="checkbox" className="switch" checked={settings.autoSkipIntro} onChange={(e) => update({ autoSkipIntro: e.target.checked })} />
+        </label>
+        {introCount > 0 && (
+          <div className="setting">
+            <div>
+              <strong>Génériques mémorisés</strong>
+              <span>{introCount} série{introCount > 1 ? 's' : ''}</span>
+            </div>
+            <button className="btn-outline" onClick={() => useStore.setState({ introMarks: {} })}>Oublier</button>
+          </div>
+        )}
       </section>
 
       <section className="settings-card">

@@ -38,7 +38,15 @@ interface Info {
   status?: string;
   progress?: number;
   autoplayNext?: boolean;
+  autoSkipIntro?: boolean;
+  /** Générique mémorisé pour la série */
+  intro?: { start: number; end: number } | null;
 }
+
+interface Segment { kind: 'intro' | 'recap'; start: number; end: number }
+
+const RECAP_RE = /recap|previously|r[ée]sum[ée]|pr[ée]c[ée]demment/i;
+const INTRO_RE = /^(intro|opening|op|ouverture|g[ée]n[ée]rique( de d[ée]but)?|title( sequence)?|opening credits?)$|\bintro\b|\bopening\b/i;
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const bridge = () => window.nocta!.player;
@@ -69,6 +77,10 @@ export function MpvOverlay() {
   const [scrub, setScrub] = useState<number | null>(null);
   const [hoverX, setHoverX] = useState<{ x: number; t: number } | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [chapters, setChapters] = useState<{ title?: string; time: number }[]>([]);
+  const skipped = useRef(new Set<string>());
+  const learn = useRef<{ from: number; to: number; at: number } | null>(null);
+  const learnTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const addedSubs = useRef(new Map<string, true>());
   const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -83,6 +95,9 @@ export function MpvOverlay() {
         setCountdown(null);
         setTime(0);
         setInfo({});
+        setChapters([]);
+        skipped.current.clear();
+        learn.current = null;
         addedSubs.current.clear();
         if (p.volume != null) setVolume(Math.round(p.volume * 100));
       }),
@@ -99,6 +114,7 @@ export function MpvOverlay() {
           case 'mute': setMuted(!!value); break;
           case 'speed': if (typeof value === 'number') setSpeed(value); break;
           case 'track-list': setTracks(Array.isArray(value) ? value : []); break;
+          case 'chapter-list': setChapters(Array.isArray(value) ? value : []); break;
           case 'audio-delay': if (typeof value === 'number') setAudioDelay(value); break;
           case 'sub-delay': if (typeof value === 'number') setSubDelay(value); break;
           case 'eof-reached': setEof(!!value); break;
@@ -113,6 +129,40 @@ export function MpvOverlay() {
     return () => offs.forEach((o) => o());
   }, []);
 
+  const chapterSegments = useMemo(() => {
+    const out: Segment[] = [];
+    chapters.forEach((c, i) => {
+      const end = chapters[i + 1]?.time ?? duration;
+      const title = (c.title || '').trim();
+      if (!title || !end || end - c.time < 8 || end - c.time > 360) return;
+      if (RECAP_RE.test(title)) out.push({ kind: 'recap', start: c.time, end });
+      else if (INTRO_RE.test(title)) out.push({ kind: 'intro', start: c.time, end });
+    });
+    return out;
+  }, [chapters, duration]);
+  const chapterIntro = chapterSegments.some((x) => x.kind === 'intro');
+  const segments = useMemo(() => {
+    const out = [...chapterSegments];
+    if (!chapterIntro && info.intro && info.intro.end > info.intro.start) out.push({ kind: 'intro', ...info.intro });
+    return out;
+  }, [chapterSegments, chapterIntro, info.intro]);
+  const activeSeg = started ? segments.find((x) => time >= x.start - 1 && time < x.end - 3) : undefined;
+
+  const skipSegment = (seg: Segment) => {
+    skipped.current.add(`${seg.kind}-${seg.start}`);
+    learn.current = null;
+    cmd('seek', seg.end, 'absolute');
+  };
+
+  // Générique passé automatiquement si l'option est activée
+  useEffect(() => {
+    if (!activeSeg || activeSeg.kind !== 'intro' || !info.autoSkipIntro) return;
+    if (skipped.current.has(`${activeSeg.kind}-${activeSeg.start}`)) return;
+    skipSegment(activeSeg);
+    setFlash({ n: Date.now(), icon: 'fwd' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSeg, info.autoSkipIntro]);
+
   const pos = scrub ?? time;
   const remaining = duration ? duration - pos : Infinity;
 
@@ -122,8 +172,28 @@ export function MpvOverlay() {
     setFlash({ n: Date.now(), icon: paused ? 'play' : 'pause' });
   }, [paused]);
 
-  const seekTo = (t: number) => cmd('seek', Math.max(0, t), 'absolute');
+  /**
+   * Apprentissage du générique : quand tu sautes manuellement 25 s à 2 min 30 vers l'avant
+   * dans les 12 premières minutes, NOCTA retient la plage pour les autres épisodes.
+   */
+  const noteForwardJump = (from: number, to: number) => {
+    if (to <= from) return;
+    const now = Date.now();
+    const l = learn.current;
+    learn.current = l && now - l.at < 5000 && Math.abs(from - l.to) < 6 ? { from: l.from, to, at: now } : { from, to, at: now };
+    clearTimeout(learnTimer.current);
+    const { from: a, to: b } = learn.current;
+    if (a < 720 && b - a >= 25 && b - a <= 150 && !chapterIntro) {
+      learnTimer.current = setTimeout(() => bridge().intro({ start: Math.max(0, a - 2), end: b }), 4000);
+    }
+  };
+
+  const seekTo = (t: number) => {
+    noteForwardJump(time, t);
+    cmd('seek', Math.max(0, t), 'absolute');
+  };
   const skip = (d: number) => {
+    if (d > 0) noteForwardJump(time, time + d);
     cmd('seek', d, 'relative');
     setFlash({ n: Date.now(), icon: d > 0 ? 'fwd' : 'back' });
   };
@@ -266,6 +336,23 @@ export function MpvOverlay() {
               </button>
             </div>
           </div>
+
+          <AnimatePresence>
+            {activeSeg && !skipped.current.has(`${activeSeg.kind}-${activeSeg.start}`) && (
+              <motion.button
+                key={activeSeg.kind + activeSeg.start}
+                className="skip-btn"
+                onClick={() => skipSegment(activeSeg)}
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 30 }}
+                transition={{ duration: 0.3 }}
+              >
+                <SkipForward size={18} /> {activeSeg.kind === 'intro' ? "Passer l'intro" : 'Passer le résumé'}
+                <span className="skip-fill" style={{ animationDuration: `${Math.max(3, activeSeg.end - Math.max(time, activeSeg.start))}s` }} />
+              </motion.button>
+            )}
+          </AnimatePresence>
 
           <AnimatePresence>
             {info.next && (remaining < 35 || countdown != null || info.status) && duration > 300 && (

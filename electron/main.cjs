@@ -130,6 +130,7 @@ ipcMain.handle('player:close', () => session && session.stop());
 ipcMain.handle('player:info', (_e, info) => session && session.setInfo(info));
 ipcMain.handle('player:ready', () => session && session.ready());
 ipcMain.handle('player:next', () => session && session.sendMain('player:next'));
+ipcMain.handle('player:intro', (_e, mark) => session && session.sendMain('player:intro', mark));
 ipcMain.handle('player:fullscreen', () => { win.setFullScreen(!win.isFullScreen()); return !win.isFullScreen(); });
 ipcMain.handle('player:minimize', () => win.minimize());
 

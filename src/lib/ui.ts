@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { useStore } from './store';
 import { errMsg, resolveStream } from './playback';
+import { episodeTarget, nextUnwatched, playNextFor, playTarget } from './autoplay';
+import { getMeta } from './addons';
 import type { MetaPreview, ProgressEntry } from './types';
 import type { LoadingInfo } from '../components/LoadingScreen';
 
@@ -65,6 +67,8 @@ export const useBusy = create<BusyState>((set) => ({
 export async function resumeEntry(entry: ProgressEntry) {
   const st = useStore.getState();
   if (!entry.stream) {
+    // Épisode suivant mis de côté à la fin du précédent : on le lance directement
+    if (entry.videoId && entry.videoId !== entry.meta.id) return playNextFor(entry.meta, entry.videoId);
     st.openDetail({ type: entry.meta.type, id: entry.meta.id, preview: entry.meta });
     return;
   }
@@ -99,14 +103,17 @@ export async function resumeEntry(entry: ProgressEntry) {
   }
 }
 
-/** Bouton lecture d'une vignette : reprise si possible, sinon choix de la source */
-export function quickPlay(m: MetaPreview) {
+/** Bouton lecture : reprise si possible, sinon le film / le prochain épisode non vu */
+export async function quickPlay(m: MetaPreview) {
   const st = useStore.getState();
   const profile = st.profiles.find((p) => p.id === st.activeProfileId);
   const entry = profile?.progress[m.id];
   if (entry) return resumeEntry(entry);
-  if (m.type === 'movie') return st.openPicker({ meta: m, type: m.type, videoId: m.id });
-  st.openDetail({ type: m.type, id: m.id, preview: m });
+  if (m.type === 'movie') return playTarget({ meta: m, type: m.type, videoId: m.id });
+  const meta = await getMeta(st.addons, m.type, m.id);
+  const v = meta ? nextUnwatched(meta, profile?.watched) : null;
+  if (!meta || !v) return st.openDetail({ type: m.type, id: m.id, preview: m });
+  return playTarget(episodeTarget(meta, v));
 }
 
 export { errMsg };

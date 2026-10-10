@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ExternalLink, Loader2, Play, Puzzle, X, Zap } from 'lucide-react';
 import { getStreams, streamQuality, streamSize, type StreamGroup } from '../lib/addons';
 import { useLatest } from '../lib/useLatest';
+import { rankStreams } from '../lib/autoplay';
 import { useStore } from '../lib/store';
 import { errMsg, resolveStream, streamToDesc } from '../lib/playback';
 import { backdropOf, posterOf, useBusy } from '../lib/ui';
@@ -33,13 +34,8 @@ export function StreamPicker() {
   const rows: Row[] = useMemo(() => {
     if (!groups) return [];
     const all = groups.flatMap((g) => g.streams.map((s, i) => ({ stream: s, addon: g.addon.manifest.name, key: `${g.addon.url}#${i}` })));
-    const score = (r: Row) => {
-      const q = streamQuality(r.stream);
-      // Liens directs (débrid en cache) d'abord, puis par qualité
-      const instant = /⚡|\+\]|cached|instant/i.test(`${r.stream.name} ${r.stream.title}`);
-      return (r.stream.url ? 10000 : 0) + (instant ? 5000 : 0) + q.res;
-    };
-    return all.sort((a, b) => score(b) - score(a));
+    // Même classement que la lecture automatique : la 1re source est celle qu'elle choisirait
+    return rankStreams(all);
   }, [groups]);
 
   const qualities = useMemo(() => {

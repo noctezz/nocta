@@ -28,7 +28,10 @@ npm run dev
    catégorie (Sources, Catalogues, Métadonnées, Sous-titres). *Installer* en un clic, ou *Configurer* :
    la page de l'addon s'ouvre, et son bouton « Install » l'ajoute directement à NOCTA (Comet, Torrentio…
    avec ta clé de débrideur). Le bouton *stremio-addons.net* ouvre l'annuaire communautaire, qui marche pareil.
-3. Choisis un titre, puis **Lecture**, et sélectionne une source.
+3. Choisis un titre, puis **Lecture** : la meilleure source démarre directement (qualité max et préférence VF/MULTI
+   dans les Paramètres). Le bouton ☰ de la fiche ouvre la liste complète des sources.
+4. **Suivi** : les films et épisodes regardés jusqu'au bout sont marqués « Vu » (cochables à la main, saison entière
+   d'un clic). « Lecture » reprend au prochain épisode non vu, et l'épisode suivant apparaît dans « Reprendre ».
 
 Le bouton agrandir (ou `F11`) passe en vrai plein écran, et le mode est retenu au prochain lancement.
 Pour quitter : menu du profil (en haut à droite), puis **Quitter NOCTA**.
@@ -56,6 +59,8 @@ le fichier n'importe où dans la fenêtre.
 - **Écran de chargement** : visuel du titre, logo, épisode et progression .
 - Pistes audio, sous-titres internes et des addons, réglage de synchro audio et sous-titres (±0,1 s),
   vitesse, plein écran, reprise, épisode suivant automatique avec la même source.
+- **Passer l'intro / le résumé** : d'après les chapitres du fichier ; quand tu passes un générique à la main,
+  NOCTA le retient pour les autres épisodes de la série (option : passer automatiquement).
 - Lecteur de secours (Chromium + ffmpeg), sélectionnable dans *Paramètres → Lecture*.
 - Raccourcis : `Espace` lecture/pause · `←/→` ±10 s · `↑/↓` volume · `F` plein écran · `M` muet ·
   `N` épisode suivant · `Échap` retour.

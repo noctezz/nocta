@@ -9,6 +9,7 @@ export function Card({
   const ref = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const openDetail = useStore((s) => s.openDetail);
+  const seen = useStore((s) => !!s.profiles.find((p) => p.id === s.activeProfileId)?.watched?.[item.id]);
   const show = useHover((s) => s.show);
   const [logoOk, setLogoOk] = useState(true);
   const [imgOk, setImgOk] = useState(true);
@@ -48,6 +49,7 @@ export function Card({
         ) : (
           <div className="card-title">{item.name}</div>
         )}
+        {seen && variant !== 'continue' && <span className="card-seen" title="Déjà vu">✓ Vu</span>}
         {variant === 'continue' && (
           <div className="card-progress"><div style={{ width: `${pct}%` }} /></div>
         )}
