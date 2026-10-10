@@ -4,9 +4,16 @@ const fs = require('node:fs');
 const store = require('./store.cjs');
 const media = require('./media-server.cjs');
 const torbox = require('./torbox.cjs');
+const { MpvSession, mpvBinary } = require('./mpv.cjs');
 
 const isDev = !!process.env.NOCTA_DEV;
 let win;
+let session = null;
+
+function loadRenderer(w, query) {
+  if (isDev) w.loadURL('http://127.0.0.1:5173/' + (query ? '?' + new URLSearchParams(query) : ''));
+  else w.loadFile(path.join(__dirname, '..', 'dist', 'index.html'), query ? { query } : undefined);
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -41,11 +48,8 @@ function createWindow() {
   win.on('enter-full-screen', () => win.webContents.send('win:fullscreen', true));
   win.on('leave-full-screen', () => win.webContents.send('win:fullscreen', false));
 
-  if (isDev) {
-    win.loadURL('http://127.0.0.1:5173');
-  } else {
-    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
-  }
+  win.on('closed', () => { if (session) session.stop(); });
+  loadRenderer(win);
 }
 
 // ---------- IPC ----------
@@ -82,6 +86,31 @@ ipcMain.handle('torbox:call', (_e, method, ...args) => {
   return torbox[method](...args);
 });
 
+// ---------- Lecteur mpv intégré ----------
+ipcMain.handle('player:available', () => !!mpvBinary());
+ipcMain.handle('player:open', async (_e, req) => {
+  if (session) session.stop();
+  const s = new MpvSession(win, loadRenderer);
+  session = s;
+  s.onStopped = () => { if (session === s) session = null; };
+  try {
+    await s.start(req);
+    return { ok: true };
+  } catch (err) {
+    s.silent = true;
+    s.stop(String(err && err.message || err));
+    return { ok: false, error: String(err && err.message || err) };
+  }
+});
+ipcMain.handle('player:load', (_e, req) => session && session.load(req));
+ipcMain.handle('player:cmd', (_e, args) => session ? session.send(args).then((r) => r && r.data) : null);
+ipcMain.handle('player:close', () => session && session.stop());
+ipcMain.handle('player:info', (_e, info) => session && session.setInfo(info));
+ipcMain.handle('player:ready', () => session && session.ready());
+ipcMain.handle('player:next', () => session && session.sendMain('player:next'));
+ipcMain.handle('player:fullscreen', () => { win.setFullScreen(!win.isFullScreen()); return !win.isFullScreen(); });
+ipcMain.handle('player:minimize', () => win.minimize());
+
 ipcMain.handle('dialog:openVideo', async () => {
   const r = await dialog.showOpenDialog(win, {
     title: 'Ouvrir une vidéo',
@@ -109,5 +138,6 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   media.stop();
+  if (session) session.stop();
   if (process.platform !== 'darwin') app.quit();
 });

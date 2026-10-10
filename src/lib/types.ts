@@ -120,6 +120,7 @@ export interface Settings {
   volume: number;
   subtitleSize: number;
   preferredSubLang: string;
+  playerEngine: 'mpv' | 'web';
 }
 
 export interface PlayRequest {
@@ -133,4 +134,6 @@ export interface PlayRequest {
   episode?: number;
   stream?: StreamDesc;
   startAt?: number;
+  /** Moteur de lecture : mpv intégré (par défaut) ou lecteur web de secours */
+  engine?: 'mpv' | 'web';
 }

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
 import { Intro } from './components/Intro';
 import { ProfileGate } from './components/ProfileGate';
 import { Navbar } from './components/Navbar';
@@ -8,6 +7,8 @@ import { HoverPreview } from './components/HoverPreview';
 import { DetailModal } from './components/DetailModal';
 import { StreamPicker } from './components/StreamPicker';
 import { Player } from './components/Player';
+import { MpvBridge } from './components/MpvBridge';
+import { LoadingScreen } from './components/LoadingScreen';
 import { Home } from './pages/Home';
 import { Browse } from './pages/Browse';
 import { MyList } from './pages/MyList';
@@ -51,13 +52,11 @@ function BusyOverlay() {
   return (
     <AnimatePresence>
       {busy && (
-        <motion.div className="busy" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <Loader2 className="spin" size={44} />
-          <h3>{busy.label}</h3>
-          {busy.sub && <p>{busy.sub}</p>}
-          {busy.progress != null && <div className="bar"><div style={{ width: `${busy.progress}%` }} /></div>}
-          <button className="btn-outline" onClick={() => { if (cancel) cancel.cancelled = true; set(null, null); }}>Annuler</button>
-        </motion.div>
+        <LoadingScreen
+          key="busy"
+          info={busy}
+          onBack={() => { if (cancel) cancel.cancelled = true; set(null, null); }}
+        />
       )}
     </AnimatePresence>
   );
@@ -97,6 +96,9 @@ export default function App() {
     return () => { window.removeEventListener('dragover', over); window.removeEventListener('drop', drop); };
   }, []);
 
+  // Le lecteur a démarré : l'écran de chargement de la fenêtre principale disparaît
+  useEffect(() => { if (player) useBusy.getState().set(null, null); }, [player]);
+
   // Pas de défilement de la page derrière les fenêtres
   useEffect(() => {
     document.body.style.overflow = detail || picker || player || !activeProfileId ? 'hidden' : '';
@@ -130,7 +132,11 @@ export default function App() {
 
       <AnimatePresence>{detail && <DetailModal key={detail.id} />}</AnimatePresence>
       <AnimatePresence>{picker && <StreamPicker key={picker.videoId} />}</AnimatePresence>
-      <AnimatePresence>{player && <Player key={player.src + (player.videoId || '')} />}</AnimatePresence>
+      <AnimatePresence>
+        {player && (player.engine === 'mpv'
+          ? <MpvBridge key="mpv" />
+          : <Player key={player.src + (player.videoId || '')} />)}
+      </AnimatePresence>
       <BusyOverlay />
       <Toasts />
     </>

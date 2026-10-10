@@ -22,6 +22,19 @@ interface NoctaBridge {
     keyframe: (src: string, t: number) => Promise<number>;
   };
   torbox: (method: string, ...args: any[]) => Promise<any>;
+  player: {
+    available: () => Promise<boolean>;
+    open: (req: any) => Promise<{ ok: boolean; error?: string }>;
+    load: (req: any) => Promise<void>;
+    cmd: (...args: any[]) => Promise<any>;
+    close: () => Promise<void>;
+    info: (info: any) => Promise<void>;
+    next: () => Promise<void>;
+    ready: () => Promise<void>;
+    fullscreen: () => Promise<boolean>;
+    minimize: () => Promise<void>;
+    on: (channel: string, cb: (data: any) => void) => () => void;
+  };
   openVideoDialog: () => Promise<string | null>;
   pathForFile: (file: File) => string;
   openExternal: (url: string) => Promise<void>;

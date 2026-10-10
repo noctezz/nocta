@@ -5,7 +5,7 @@ import { getStreams, streamQuality, streamSize, type StreamGroup } from '../lib/
 import { useLatest } from '../lib/useLatest';
 import { useStore } from '../lib/store';
 import { errMsg, resolveStream, streamToDesc } from '../lib/playback';
-import { backdropOf } from '../lib/ui';
+import { backdropOf, useBusy } from '../lib/ui';
 import type { Stream } from '../lib/types';
 
 interface Row { stream: Stream; addon: string; key: string }
@@ -69,11 +69,17 @@ export function StreamPicker() {
       return;
     }
     const desc = streamToDesc(s);
-    setBusy({ key: r.key, text: s.infoHash ? 'Connexion à TorBox…' : 'Chargement…' });
+    // Écran de chargement plein écran (visuel du titre + épisode) jusqu'au lancement
+    const loading = useBusy.getState();
+    const local = { cancelled: false };
+    const base = { meta: picker.meta, title: picker.meta.name, subtitle: picker.episodeTitle };
+    setBusy({ key: r.key, text: '' });
+    loading.set({ ...base, status: s.infoHash ? 'Connexion à TorBox…' : 'Préparation de la lecture…' }, local);
     try {
       const src = await resolveStream(desc, { season: picker.season, episode: picker.episode }, (u) =>
-        setBusy({ key: r.key, text: `TorBox télécharge… ${u.progress}%` }), signal);
-      if (signal.cancelled) return;
+        loading.set({ ...base, status: 'TorBox télécharge le fichier…', progress: u.progress }), local);
+      if (local.cancelled || signal.cancelled) return;
+      loading.set({ ...base, status: 'Lancement du lecteur…' });
       closeDetail();
       play({
         src,
@@ -87,7 +93,9 @@ export function StreamPicker() {
         stream: desc,
       });
     } catch (e) {
-      if (!signal.cancelled) useStore.getState().toast(errMsg(e), 'error');
+      if (!local.cancelled && !signal.cancelled) useStore.getState().toast(errMsg(e), 'error');
+      loading.set(null, null);
+    } finally {
       setBusy(null);
     }
   };
@@ -176,7 +184,6 @@ export function StreamPicker() {
                     {size && <span className="tag">{size}</span>}
                     <span className="tag tag-dim">{r.addon}</span>
                   </div>
-                  {isBusy && <div className="stream-busy">{busy.text}</div>}
                 </div>
                 <div className="stream-go">
                   {isBusy ? <Loader2 className="spin" size={22} /> : s.externalUrl || s.ytId ? <ExternalLink size={20} /> : <Play size={20} fill="currentColor" />}

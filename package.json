@@ -80,7 +80,16 @@
     },
     "linux": {
       "target": "dir"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "vendor/mpv",
+        "to": "mpv",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   },
   "author": {
     "name": "noctezz"

@@ -135,7 +135,9 @@ function handle(req, res) {
       // HEVC copié en MP4 : Chromium (décodage matériel) attend le tag hvc1
       if (q.get('hevc') === '1') args.push('-tag:v', 'hvc1');
     }
-    args.push('-c:a', 'aac', '-ac', '2', '-b:a', '192k',
+    // aresample=async : recale l'audio sur l'horloge vidéo (évite les décalages image/son)
+    args.push('-af', 'aresample=async=1000:first_pts=0', '-c:a', 'aac', '-ac', '2', '-b:a', '192k',
+      '-avoid_negative_ts', 'make_zero', '-max_muxing_queue_size', '2048',
       '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov+default_base_moof', 'pipe:1');
     return pipeProcess(req, res, args, 'video/mp4');
   }

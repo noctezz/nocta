@@ -27,6 +27,30 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Download mpv (lecteur intégré)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          url=""
+          for repo in shinchiro/mpv-winbuild-cmake zhongfly/mpv-winbuild; do
+            url=$(gh api "repos/$repo/releases/latest" --jq '[.assets[] | select(.name | startswith("mpv-x86_64-") and endswith(".7z") and (contains("v3") | not) and (contains("dev") | not))][0].browser_download_url // empty' || true)
+            if [ -n "$url" ]; then echo "mpv depuis $repo"; break; fi
+          done
+          echo "URL: $url"
+          test -n "$url"
+          curl -fsSL -o mpv.7z "$url"
+          mkdir -p vendor/mpv
+          7z x mpv.7z -ovendor/mpv -y > /dev/null
+          if [ ! -f vendor/mpv/mpv.exe ]; then
+            exe=$(find vendor/mpv -name mpv.exe | head -1)
+            mv "$(dirname "$exe")"/* vendor/mpv/
+          fi
+          rm -rf vendor/mpv/doc vendor/mpv/installer vendor/mpv/updater.bat vendor/mpv/mpv.com 2>/dev/null || true
+          ls -la vendor/mpv
+          test -f vendor/mpv/mpv.exe
+
       - name: Version
         shell: bash
         run: npm version "0.1.${{ github.run_number }}" --no-git-tag-version

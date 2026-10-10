@@ -37,14 +37,14 @@ le fichier n'importe où dans la fenêtre.
 
 ## Le lecteur
 
-- Lecture directe quand Chromium sait lire le fichier (H.264/VP9/AV1 + AAC/Opus…).
-- Sinon, bascule automatique via **ffmpeg** (inclus) :
-  - **remux** : la vidéo est copiée telle quelle et seul l'audio est converti (AC3, DTS, TrueHD → AAC). Très léger.
-  - **transcodage** : la vidéo est réencodée en H.264 (HEVC non pris en charge, 10 bits…). Pour soulager
-    le processeur, choisis l'encodeur de ta carte graphique dans *Paramètres → Lecture*
-    (NVIDIA NVENC, Intel Quick Sync, AMD AMF).
-- Choix de la piste audio, sous-titres internes (SRT/ASS) et externes (addons), vitesse de lecture,
-  plein écran, reprise là où tu t'étais arrêté, épisode suivant automatique.
+- **mpv intégré** (comme Stremio) : mpv lit la vidéo directement, MKV, HEVC, AV1, DTS, TrueHD et
+  sous-titres PGS/ASS compris. La synchro image/son est parfaite et le décodage passe par la carte
+  graphique. L'interface NOCTA s'affiche par-dessus dans une fenêtre transparente.
+  L'installeur Windows embarque mpv. En développement, place `mpv.exe` dans `vendor/mpv/` ou installe mpv.
+- **Écran de chargement** : visuel du titre, logo, épisode et progression (y compris pendant que TorBox prépare le fichier).
+- Pistes audio, sous-titres internes et des addons, réglage de synchro audio et sous-titres (±0,1 s),
+  vitesse, plein écran, reprise, épisode suivant automatique avec la même source.
+- Lecteur de secours (Chromium + ffmpeg), sélectionnable dans *Paramètres → Lecture*.
 - Raccourcis : `Espace` lecture/pause · `←/→` ±10 s · `↑/↓` volume · `F` plein écran · `M` muet ·
   `N` épisode suivant · `Échap` retour.
 
@@ -54,6 +54,7 @@ le fichier n'importe où dans la fenêtre.
 electron/
   main.cjs          fenêtre, IPC
   preload.cjs       pont sécurisé vers l'interface
+  mpv.cjs           lecteur mpv intégré (fenêtre vidéo + interface transparente)
   media-server.cjs  serveur local : fichiers, remux/transcodage ffmpeg, sous-titres → WebVTT
   torbox.cjs        API TorBox (cache, résolution des torrents, bibliothèque)
   store.cjs         sauvegarde des profils/réglages (dossier utilisateur)

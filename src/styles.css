@@ -560,3 +560,48 @@ input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 14p
 .busy .btn-outline { margin-top: 12px; }
 
 .app main { min-height: 100vh; }
+
+/* ============================================================
+   Écran de chargement (avant la lecture)
+   ============================================================ */
+.loading-screen { position: fixed; inset: 0; z-index: 96; background: #000; overflow: hidden; display: grid; place-items: center; }
+.loading-bg {
+  position: absolute; inset: -4%; background-size: cover; background-position: center;
+  filter: blur(6px) saturate(1.1); opacity: 0.38; animation: loading-zoom 18s ease-out forwards;
+}
+@keyframes loading-zoom { from { transform: scale(1.12); } to { transform: scale(1); } }
+.loading-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.75) 65%, #000 100%);
+}
+.loading-back { position: absolute; top: 26px; left: 32px; z-index: 2; }
+.loading-center { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; padding: 0 24px; }
+.loading-logo { max-width: min(560px, 60vw); max-height: 200px; object-fit: contain; filter: drop-shadow(0 8px 30px rgba(0, 0, 0, 0.7)); }
+.loading-title { font-size: clamp(40px, 5.5vw, 84px); font-weight: 900; letter-spacing: -0.02em; line-height: 1; text-shadow: 0 6px 30px rgba(0, 0, 0, 0.7); }
+.loading-sub { font-size: clamp(16px, 1.5vw, 22px); color: #e5e5e5; font-weight: 500; }
+.loading-bar { position: relative; width: min(340px, 60vw); height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.18); overflow: hidden; margin-top: 18px; }
+.loading-bar-fill { height: 100%; background: var(--accent); box-shadow: 0 0 12px var(--accent); transition: width 0.5s var(--ease); }
+.loading-bar-indeterminate {
+  position: absolute; top: 0; bottom: 0; width: 35%; background: linear-gradient(90deg, transparent, var(--accent-2), var(--accent), transparent);
+  animation: loading-slide 1.3s ease-in-out infinite;
+}
+@keyframes loading-slide { from { left: -35%; } to { left: 100%; } }
+.loading-status { font-size: 13px; color: rgba(255, 255, 255, 0.6); letter-spacing: 0.04em; }
+
+/* ============================================================
+   Lecteur mpv : interface transparente posée sur la vidéo
+   ============================================================ */
+html.overlay-mode, html.overlay-mode body { background: transparent !important; overflow: hidden; }
+.overlay-root { position: fixed; inset: 0; }
+/* alpha quasi nul mais non nul : la fenêtre reçoit bien la souris (Windows) */
+.overlay-root.player { background: rgba(0, 0, 0, 0.01); }
+.overlay-hit { position: absolute; inset: 0; }
+.overlay-root .player-top { background: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent); }
+.win-btns { margin-left: auto; display: flex; gap: 4px; }
+.player-btn.small { width: 40px; height: 40px; }
+.mpv-backdrop { position: fixed; inset: 0; z-index: 90; background: #000; }
+.delay-row { display: flex; align-items: center; gap: 8px; padding: 12px 22px 0; margin-top: 8px; border-top: 1px solid #3a3a3a; font-size: 13px; color: #b3b3b3; }
+.delay-row span { flex: 1; }
+.delay-row button { width: 28px; height: 28px; border-radius: 50%; background: #3a3a40; color: #fff; padding: 0; display: grid; place-items: center; font-size: 16px; }
+.delay-row button:hover { background: #55555c; }
+.delay-row em { font-style: normal; min-width: 52px; text-align: center; color: #fff; font-variant-numeric: tabular-nums; }

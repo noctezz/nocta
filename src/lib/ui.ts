@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { useStore } from './store';
 import { errMsg, resolveStream } from './playback';
 import type { MetaPreview, ProgressEntry } from './types';
+import type { LoadingInfo } from '../components/LoadingScreen';
 
 export const isImdb = (id: string) => /^tt\d+/.test(id);
 
@@ -49,7 +50,7 @@ export const useHover = create<HoverState>((set) => ({
 // ---------- Chargement plein écran (résolution TorBox, reprise) ----------
 
 interface BusyState {
-  busy: { label: string; sub?: string; progress?: number } | null;
+  busy: LoadingInfo | null;
   cancel: { cancelled: boolean } | null;
   set: (b: BusyState['busy'], cancel?: BusyState['cancel']) => void;
 }
@@ -69,10 +70,11 @@ export async function resumeEntry(entry: ProgressEntry) {
   }
   const signal = { cancelled: false };
   const busy = useBusy.getState();
-  busy.set({ label: 'Reprise de la lecture…', sub: entry.meta.name }, signal);
+  const base = { meta: entry.meta, title: entry.meta.name, subtitle: entry.episodeTitle };
+  busy.set({ ...base, status: 'Reprise de la lecture…' }, signal);
   try {
     const src = await resolveStream(entry.stream, { season: entry.season, episode: entry.episode }, (u) =>
-      busy.set({ label: 'TorBox prépare le fichier…', sub: u.state, progress: u.progress }),
+      busy.set({ ...base, status: 'TorBox prépare le fichier…', progress: u.progress }),
     signal);
     if (signal.cancelled) return;
     st.play({

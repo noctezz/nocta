@@ -5,6 +5,7 @@ import {
   MessageSquareText, SkipForward, Volume1, Volume2, VolumeX,
 } from 'lucide-react';
 import { useLatest } from '../lib/useLatest';
+import { LoadingScreen } from './LoadingScreen';
 import { useStore } from '../lib/store';
 import { getMeta, getStreams, getSubtitles, type SubtitleTrack } from '../lib/addons';
 import { episodeLabel, errMsg, formatTime, nextEpisode, resolveStream, slimMeta, streamToDesc } from '../lib/playback';
@@ -45,6 +46,7 @@ export function Player() {
   const [mediaDuration, setMediaDuration] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [waiting, setWaiting] = useState(true);
+  const [started, setStarted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [controls, setControls] = useState(true);
   const [panel, setPanel] = useState<'tracks' | 'speed' | null>(null);
@@ -456,7 +458,7 @@ export function Player() {
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onWaiting={() => setWaiting(true)}
-        onPlaying={() => setWaiting(false)}
+        onPlaying={() => { setWaiting(false); setStarted(true); }}
         onCanPlay={() => setWaiting(false)}
         onError={() => ready && onError()}
         onEnded={onEnded}
@@ -468,8 +470,19 @@ export function Player() {
         {activeCues.map((c, i) => <div key={c.start + '-' + i} className="sub-line" dangerouslySetInnerHTML={{ __html: c.html }} />)}
       </div>
 
-      {/* Chargement */}
-      {(waiting || !ready) && !error && (
+      {/* Écran de chargement jusqu'à la première image */}
+      <AnimatePresence>
+        {!started && !error && (
+          <LoadingScreen
+            key="loading"
+            info={{ meta: req.meta, title: req.title, subtitle: req.subtitle, status: ready ? 'Chargement de la vidéo…' : 'Analyse du fichier…' }}
+            onBack={close}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Mise en mémoire tampon */}
+      {started && (waiting || !ready) && !error && (
         <div className="player-center">
           <div className="ring" />
         </div>

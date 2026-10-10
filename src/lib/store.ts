@@ -20,6 +20,7 @@ interface State extends PersistedData {
   detail: { type: string; id: string; preview?: MetaPreview } | null;
   picker: { meta: Meta | MetaPreview; type: string; videoId: string; season?: number; episode?: number; episodeTitle?: string } | null;
   player: PlayRequest | null;
+  mpvAvailable: boolean;
   toasts: Toast[];
 
   // actions
@@ -86,6 +87,7 @@ const DEFAULT_SETTINGS: Settings = {
   volume: 1,
   subtitleSize: 100,
   preferredSubLang: 'fre',
+  playerEngine: 'mpv',
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -128,6 +130,7 @@ export const useStore = create<State>((set, get) => ({
   detail: null,
   picker: null,
   player: null,
+  mpvAvailable: false,
   toasts: [],
 
   setPage: (page) => set({ page }),
@@ -170,7 +173,10 @@ export const useStore = create<State>((set, get) => ({
   closeDetail: () => set({ detail: null }),
   openPicker: (picker) => set({ picker }),
   closePicker: () => set({ picker: null }),
-  play: (player) => set({ player, picker: null }),
+  play: (r) => set((s) => ({
+    player: { ...r, engine: r.engine || (s.mpvAvailable && s.settings.playerEngine !== 'web' ? 'mpv' : 'web') },
+    picker: null,
+  })),
   closePlayer: () => set({ player: null }),
 
   toast: (text, tone = 'info') => {
@@ -183,6 +189,8 @@ export const useStore = create<State>((set, get) => ({
 
 export const useProfile = () =>
   useStore((s) => s.profiles.find((p) => p.id === s.activeProfileId) || null);
+
+window.nocta?.player?.available().then((ok) => useStore.setState({ mpvAvailable: ok })).catch(() => {});
 
 // Sauvegarde automatique (débouncée) des données persistantes
 let saveTimer: ReturnType<typeof setTimeout> | undefined;

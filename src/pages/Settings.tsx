@@ -14,6 +14,7 @@ const ENCODERS: Record<string, string> = {
 export function Settings() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
+  const mpvAvailable = useStore((s) => s.mpvAvailable);
   const [key, setKey] = useState(settings.torboxKey);
   const [show, setShow] = useState(false);
   const [check, setCheck] = useState<{ state: 'idle' | 'loading' | 'ok' | 'err'; text?: string }>({ state: 'idle' });
@@ -67,6 +68,20 @@ export function Settings() {
         <h2>Lecture</h2>
         <label className="setting">
           <div>
+            <strong>Lecteur vidéo</strong>
+            <span>
+              {mpvAvailable
+                ? 'mpv intégré (comme Stremio) : tous les formats, synchro parfaite, décodage matériel.'
+                : 'mpv introuvable : le lecteur de secours est utilisé.'}
+            </span>
+          </div>
+          <select className="select" value={settings.playerEngine} onChange={(e) => update({ playerEngine: e.target.value as 'mpv' | 'web' })}>
+            <option value="mpv">mpv intégré (recommandé)</option>
+            <option value="web">Lecteur de secours</option>
+          </select>
+        </label>
+        <label className="setting">
+          <div>
             <strong>Épisode suivant automatique</strong>
             <span>Lance l'épisode suivant 5 secondes après la fin.</span>
           </div>
@@ -94,7 +109,7 @@ export function Settings() {
         </label>
         <label className="setting">
           <div>
-            <strong>Transcodage</strong>
+            <strong>Transcodage (lecteur de secours)</strong>
             <span>
               Utilisé seulement quand la vidéo n'est pas lisible telle quelle (HEVC, 10 bits…).
               {caps && !caps.ffmpeg && ' ⚠ ffmpeg introuvable : lecture directe uniquement.'}

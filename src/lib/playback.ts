@@ -1,5 +1,6 @@
 import { useStore } from './store';
-import type { Meta, MetaPreview, Stream, StreamDesc, Video } from './types';
+import { getStreams } from './addons';
+import type { Meta, MetaPreview, PlayRequest, Stream, StreamDesc, Video } from './types';
 
 export function errMsg(e: unknown): string {
   const m = String((e as any)?.message || e);
@@ -93,4 +94,54 @@ export function playLocalFile(path: string) {
     title: name.replace(/\.[^.]+$/, ''),
     stream: { localPath: path },
   });
+}
+
+/** Enregistre (ou efface en fin de lecture) la progression du profil actif */
+export function recordProgress(req: PlayRequest, pos: number, duration: number) {
+  const st = useStore.getState();
+  if (!req.meta || !duration || duration < 60 || pos < 10) return;
+  if (pos / duration > 0.94) {
+    st.removeProgress(req.meta.id);
+    return;
+  }
+  st.saveProgress(req.meta.id, {
+    meta: slimMeta(req.meta),
+    videoId: req.videoId || req.meta.id,
+    season: req.season,
+    episode: req.episode,
+    episodeTitle: req.subtitle,
+    position: pos,
+    duration,
+    updatedAt: Date.now(),
+    stream: req.stream,
+  });
+}
+
+export function episodeTitleOf(v: Video) {
+  const ep = v.episode ?? v.number;
+  return `${episodeLabel(v)} « ${v.title || v.name || `Épisode ${ep}`} »`;
+}
+
+/**
+ * Prépare l'épisode suivant avec la même source (bingeGroup, comme Stremio).
+ * Renvoie null si aucune source équivalente : il faut alors passer par le choix des sources.
+ */
+export async function resolveNextEpisode(
+  meta: Meta,
+  next: Video,
+  current: PlayRequest,
+  onUpdate?: (u: ResolveUpdate) => void,
+): Promise<PlayRequest | null> {
+  const group = current.stream?.bingeGroup;
+  if (!group) return null;
+  const ep = next.episode ?? next.number;
+  const groups = await getStreams(useStore.getState().addons, 'series', next.id);
+  const match = groups.flatMap((g) => g.streams).find((s) => s.behaviorHints?.bingeGroup === group);
+  if (!match) return null;
+  const desc = streamToDesc(match);
+  const src = await resolveStream(desc, { season: next.season, episode: ep }, onUpdate);
+  return {
+    src, title: meta.name, subtitle: episodeTitleOf(next), meta: slimMeta(meta), type: 'series',
+    videoId: next.id, season: next.season, episode: ep, stream: desc, engine: current.engine,
+  };
 }
