@@ -278,14 +278,27 @@ export interface ChatItem {
 interface NoxState {
   open: boolean;
   busy: boolean;
+  /** Début de la réflexion en cours (pour afficher le temps écoulé) */
+  since: number;
   items: ChatItem[];
   history: Msg[];
   setOpen: (v: boolean) => void;
   reset: () => void;
+  /** Interrompt la réponse en cours */
+  stop: () => void;
   ask: (text: string) => Promise<void>;
 }
 
 let seq = 0;
+let run = 0; // chaque question a son numéro : une réponse arrivée après « Stop » est ignorée
+
+/** Appel à Gemini avec filet de sécurité : jamais d'attente infinie */
+function call(req: Parameters<NonNullable<typeof window.nocta>['assistant']['create']>[0]) {
+  return Promise.race([
+    window.nocta!.assistant.create(req),
+    new Promise<{ ok: false; error: string }>((r) => setTimeout(() => r({ ok: false, error: 'Gemini ne répond pas : réessaie dans un instant.' }), 100000)),
+  ]);
+}
 const ACT: Record<string, string> = {
   search_titles: '🔎', get_title_details: '🎬', check_language: '🇫🇷', play: '▶️', open_title: '📄', set_language: '🗣️', my_list: '➕', get_activity: '🕘',
 };
@@ -293,10 +306,16 @@ const ACT: Record<string, string> = {
 export const useNox = create<NoxState>((set, get) => ({
   open: false,
   busy: false,
+  since: 0,
   items: [],
   history: [],
   setOpen: (open) => set({ open }),
-  reset: () => set({ items: [], history: [] }),
+  reset: () => { run++; set({ items: [], history: [], busy: false }); },
+  stop: () => {
+    if (!get().busy) return;
+    run++;
+    set((s) => ({ busy: false, items: [...s.items, { id: ++seq, role: 'activity', text: '⏹️ Arrêté' }] }));
+  },
   ask: async (text) => {
     const q = text.trim();
     if (!q || get().busy) return;
@@ -308,7 +327,8 @@ export const useNox = create<NoxState>((set, get) => ({
     };
     const update = (id: number, t: string) => set((s) => ({ items: s.items.map((i) => (i.id === id ? { ...i, text: t } : i)) }));
     push('user', q);
-    set({ busy: true });
+    const me = ++run;
+    set({ busy: true, since: Date.now() });
     // Historique en ajout seul : jamais réécrit (les blocs de réflexion doivent revenir intacts)
     const history: Msg[] = [...get().history];
     const asked: Part = { text: `${screenContext()}\n\n${q}` };
@@ -318,7 +338,8 @@ export const useNox = create<NoxState>((set, get) => ({
     else history.push({ role: 'user', parts: [asked] });
     try {
       for (let turn = 0; turn < 8; turn++) {
-        const res = await window.nocta!.assistant.create({ apiKey, system: SYSTEM, tools: TOOLS, contents: history });
+        const res = await call({ apiKey, system: SYSTEM, tools: TOOLS, contents: history });
+        if (me !== run) return; // arrêté entre-temps : historique laissé tel qu'avant la question
         if (!res.ok || !res.content) { push('error', res.error || 'Pas de réponse'); break; }
         // Remis tel quel (signatures de réflexion comprises), sinon Gemini perd le fil des outils
         const parts: Part[] = res.content.parts || [];
@@ -345,12 +366,15 @@ export const useNox = create<NoxState>((set, get) => ({
             status('Oups, ça n\'a pas marché');
             out = { error: String((e as Error).message || e) };
           }
+          if (me !== run) return;
           results.push({ functionResponse: { name: call.name, ...(call.id ? { id: call.id } : {}), response: { result: out } } });
         }
         history.push({ role: 'user', parts: results });
       }
+    } catch (e) {
+      if (me === run) push('error', String((e as Error)?.message || e));
     } finally {
-      set({ history, busy: false });
+      if (me === run) set({ history, busy: false });
     }
   },
 }));

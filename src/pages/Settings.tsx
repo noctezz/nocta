@@ -83,7 +83,7 @@ function NoxSettings() {
     setBusy(true);
     const r = await window.nocta.assistant.testKey(k);
     setBusy(false);
-    setTest(r.ok ? { ok: true, text: `Nox est réveillé (${r.model})` } : { ok: false, text: r.error || 'Clé refusée' });
+    setTest(r.ok ? { ok: true, text: `Nox est réveillé : ${r.model} répond en ${((r.ms || 0) / 1000).toFixed(1).replace('.', ',')} s` } : { ok: false, text: r.error || 'Clé refusée' });
   };
   return (
     <section className="settings-card">

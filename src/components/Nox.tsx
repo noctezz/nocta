@@ -89,7 +89,15 @@ function suggestions(): string[] {
 
 /** Bouton chouette en bas à gauche + fenêtre de discussion */
 export function Nox() {
-  const { open, busy, items, setOpen, ask, reset } = useNox();
+  const { open, busy, since, items, setOpen, ask, reset, stop } = useNox();
+  // Temps de réflexion affiché (rassure quand Gemini prend son temps)
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!busy) return;
+    const t = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [busy]);
+  const waited = busy ? Math.floor((Date.now() - since) / 1000) : 0;
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
   const setPage = useStore((s) => s.setPage);
@@ -217,7 +225,7 @@ export function Nox() {
               <NoxOwl size={42} thinking={busy} />
               <div>
                 <strong>Nox</strong>
-                <small>{busy ? 'réfléchit…' : 'ton assistant ciné'}</small>
+                <small>{busy ? `réfléchit…${waited >= 3 ? ` ${waited} s` : ''}` : 'ton assistant ciné'}</small>
               </div>
               {items.length > 0 && <button className="nox-icon" onClick={reset} title="Nouvelle discussion"><RotateCcw size={16} /></button>}
               <button className="nox-icon" data-nav-back onClick={() => setOpen(false)} title="Fermer"><X size={18} /></button>
@@ -275,12 +283,14 @@ export function Nox() {
                       onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
                     />
                   )}
-                  {text.trim() && !recording && voice !== 'transcribing' ? (
+                  {busy ? (
+                    <button className="nox-mic" onClick={stop} aria-label="Arrêter" title="Arrêter la réponse"><Square size={14} fill="currentColor" /></button>
+                  ) : text.trim() && !recording && voice !== 'transcribing' ? (
                     <button className="nox-send" disabled={busy} onClick={() => send()} aria-label="Envoyer"><ArrowUp size={18} /></button>
                   ) : (
                     <button
                       className={`nox-mic ${recording ? 'is-on' : ''}`}
-                      disabled={busy || voice === 'transcribing'}
+                      disabled={voice === 'transcribing'}
                       onClick={talk}
                       aria-label={recording ? 'Terminer' : 'Parler à Nox'}
                       title={recording ? 'Terminer (Nox s\'arrête aussi tout seul quand tu as fini de parler)' : 'Parler à Nox'}

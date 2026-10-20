@@ -87,7 +87,7 @@ interface NoctaBridge {
     create: (req: { apiKey: string; system: string; tools: unknown; contents: unknown }) =>
       Promise<{ ok: boolean; content?: { role: string; parts: any[] }; finishReason?: string; model?: string; error?: string }>;
     transcribe: (req: { apiKey: string; audio: string; mime: string }) => Promise<{ ok: boolean; text?: string; error?: string }>;
-    testKey: (key: string) => Promise<{ ok: boolean; model?: string; error?: string }>;
+    testKey: (key: string) => Promise<{ ok: boolean; model?: string; ms?: number; error?: string }>;
   };
   update: {
     status: () => Promise<NoctaUpdateState>;
