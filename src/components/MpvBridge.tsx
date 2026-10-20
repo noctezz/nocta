@@ -48,7 +48,8 @@ export function MpvBridge() {
         autoplayNext: settings.autoplayNext,
         autoSkipIntro: settings.autoSkipIntro,
         langMode: langPrefsFor(r.meta?.id).vo ? 'vo' : 'vf',
-        autoFrenchSubs: settings.autoFrenchSubs !== false,
+        // Sous-titres FR dès que l'audio n'est pas en français (toujours actif)
+        autoFrenchSubs: true,
         // Générique de cet épisode (détecté) sinon celui appris pour la série
         intro: r.type === 'series' && r.meta ? st().introMarks?.[r.videoId || ''] || st().introMarks?.[r.meta.id] || null : null,
         next: null,

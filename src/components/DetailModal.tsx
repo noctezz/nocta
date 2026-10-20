@@ -150,7 +150,7 @@ export function DetailModal() {
             </div>
             <LangSwitch
               explicit={profile?.langPrefs?.[meta.id] || null}
-              fallback={preferFrench ? 'vf' : null}
+              fallback={preferFrench ? 'vf' : 'vo'}
               onChange={(mode) => {
                 setLangPref(meta.id, mode);
                 const label = mode === 'vo' ? 'VO sous-titrée en français' : mode === 'vf' ? 'VF' : 'réglage général';

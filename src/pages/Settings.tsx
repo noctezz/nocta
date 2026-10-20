@@ -68,12 +68,34 @@ function TorboxCleanup() {
   );
 }
 
+type Tab = 'essentiel' | 'avance';
+
+/** Interrupteur avec titre et explication */
+function Toggle({ title, hint, checked, onChange }: { title: string; hint: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="setting">
+      <div>
+        <strong>{title}</strong>
+        <span>{hint}</span>
+      </div>
+      <input type="checkbox" className="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    </label>
+  );
+}
+
 export function Settings() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
   const mpvAvailable = useStore((s) => s.mpvAvailable);
   const introCount = useStore((s) => Object.keys(s.introMarks || {}).length);
   const [caps, setCaps] = useState<{ ffmpeg: boolean; encoders: string[] } | null>(null);
+  const [tab, setTab] = useState<Tab>(() => {
+    try { return localStorage.getItem('nocta-settings-tab') === 'avance' ? 'avance' : 'essentiel'; } catch { return 'essentiel'; }
+  });
+  const pickTab = (t: Tab) => {
+    setTab(t);
+    try { localStorage.setItem('nocta-settings-tab', t); } catch {}
+  };
 
   useEffect(() => { window.nocta?.media.capabilities().then(setCaps); }, []);
 
@@ -81,188 +103,203 @@ export function Settings() {
     <div className="page page-padded narrow">
       <h1 className="page-title">Paramètres</h1>
 
-      <section className="settings-card">
-        <h2>Thème saisonnier</h2>
-        <p className="muted">Couleurs, logo, animations et intro aux couleurs de la saison.</p>
-        <div className="theme-grid">
-          {THEMES.map((t) => (
-            <button
-              key={t.id}
-              className={`theme-card theme-${t.id} ${settings.seasonalTheme === t.id ? 'is-on' : ''}`}
-              onClick={() => update({ seasonalTheme: t.id })}
-            >
-              <span className="theme-icon">{t.icon}</span>
-              <strong>{t.label}</strong>
-              <small>{t.hint}</small>
-            </button>
-          ))}
-        </div>
-      </section>
+      <div className="settings-tabs">
+        <button className={tab === 'essentiel' ? 'is-on' : ''} onClick={() => pickTab('essentiel')}>
+          <span>🍿</span> L'essentiel
+        </button>
+        <button className={tab === 'avance' ? 'is-on' : ''} onClick={() => pickTab('avance')}>
+          <span>🛠️</span> Avancé
+        </button>
+      </div>
 
-      <UpdateSettings />
-
-      <section className="settings-card">
-        <h2>Télécommande</h2>
-        <RemotePanel />
-      </section>
-
-      <section className="settings-card">
-        <h2>Lecture automatique</h2>
-        <label className="setting">
-          <div>
-            <strong>Lancer directement la meilleure source</strong>
-            <span>« Lecture » démarre tout de suite, sans passer par la liste. La liste reste accessible avec le bouton ☰ de la fiche.</span>
-          </div>
-          <input type="checkbox" className="switch" checked={settings.autoPickSource} onChange={(e) => update({ autoPickSource: e.target.checked })} />
-        </label>
-        <label className="setting">
-          <div>
-            <strong>Qualité maximale</strong>
-            <span>La meilleure source au plus près de cette qualité (les liens instantanés passent en premier).</span>
-          </div>
-          <select className="select" value={settings.maxResolution} onChange={(e) => update({ maxResolution: Number(e.target.value) as 2160 | 1080 | 720 })}>
-            <option value={2160}>4K</option>
-            <option value={1080}>1080p</option>
-            <option value={720}>720p</option>
-          </select>
-        </label>
-        <label className="setting">
-          <div>
-            <strong>Masquer la 4K et l'HDR</strong>
-            <span>Les sources 4K, HDR et Dolby Vision n'apparaissent plus et ne sont jamais lancées (sauf s'il n'existe rien d'autre).</span>
-          </div>
-          <input type="checkbox" className="switch" checked={settings.hideUhd !== false} onChange={(e) => update({ hideUhd: e.target.checked })} />
-        </label>
-        <label className="setting">
-          <div>
-            <strong>Préférer le français</strong>
-            <span>Priorité aux sources VF, TRUEFRENCH et MULTI.</span>
-          </div>
-          <input type="checkbox" className="switch" checked={settings.preferFrench} onChange={(e) => update({ preferFrench: e.target.checked })} />
-        </label>
-        {settings.preferFrench && (
-          <label className="setting">
-            <div>
-              <strong>Vérifier la vraie VF</strong>
-              <span>Avant de lancer, NOCTA ouvre le début des meilleures sources et regarde leurs pistes audio. Les torrents marqués VF ou MULTI sans vraie piste française passent derrière. Ajoute quelques secondes au lancement la première fois, puis c'est mémorisé.</span>
+      {tab === 'essentiel' && (
+        <>
+          <section className="settings-card">
+            <h2>Lecture</h2>
+            <p className="muted">Tu choisis un titre, tu appuies sur Lecture, NOCTA s'occupe du reste.</p>
+            <Toggle
+              title="Lancer directement la meilleure source"
+              hint="« Lecture » démarre tout de suite, sans passer par la liste. Le bouton ☰ de la fiche affiche quand même toutes les sources."
+              checked={settings.autoPickSource}
+              onChange={(v) => update({ autoPickSource: v })}
+            />
+            <div className="setting">
+              <div>
+                <strong>Langue par défaut</strong>
+                <span>Pour tous les films et séries. Tu peux la changer titre par titre sur leur fiche.</span>
+              </div>
+              <div className="seg">
+                <button className={settings.preferFrench ? 'is-on' : ''} onClick={() => update({ preferFrench: true })}>VF</button>
+                <button className={!settings.preferFrench ? 'is-on' : ''} onClick={() => update({ preferFrench: false })}>VO · sous-titres FR</button>
+              </div>
             </div>
-            <input type="checkbox" className="switch" checked={settings.verifyLanguage !== false} onChange={(e) => update({ verifyLanguage: e.target.checked })} />
-          </label>
-        )}
-        {settings.preferFrench && settings.verifyLanguage !== false && <TorboxCleanup />}
-        <label className="setting">
-          <div>
-            <strong>Sous-titres français automatiques</strong>
-            <span>Quand une vidéo n'a pas de piste française (ou que tu as choisi « VO · sous-titres FR » sur sa fiche), les sous-titres français s'activent tout seuls : ceux du fichier, sinon ceux de tes addons.</span>
-          </div>
-          <input type="checkbox" className="switch" checked={settings.autoFrenchSubs !== false} onChange={(e) => update({ autoFrenchSubs: e.target.checked })} />
-        </label>
-        <label className="setting">
-          <div>
-            <strong>Détection du générique</strong>
-            <span>Compare le son du début des épisodes pour trouver le générique de n'importe quelle série. Les premières minutes de l'épisode voisin sont téléchargées en arrière-plan.</span>
-          </div>
-          <input type="checkbox" className="switch" checked={settings.introDetection !== false} onChange={(e) => update({ introDetection: e.target.checked })} />
-        </label>
-        <label className="setting">
-          <div>
-            <strong>Passer le générique automatiquement</strong>
-            <span>Sinon, un bouton « Passer l'intro » s'affiche. NOCTA lit les chapitres du fichier et retient le générique quand tu le passes à la main.</span>
-          </div>
-          <input type="checkbox" className="switch" checked={settings.autoSkipIntro} onChange={(e) => update({ autoSkipIntro: e.target.checked })} />
-        </label>
-        {introCount > 0 && (
-          <div className="setting">
-            <div>
-              <strong>Génériques mémorisés</strong>
-              <span>{introCount} épisode{introCount > 1 ? 's' : ''} ou série{introCount > 1 ? 's' : ''}</span>
+            <Toggle
+              title="Masquer la 4K et l'HDR"
+              hint="Le meilleur 1080p, sans 4K, HDR ni Dolby Vision (sauf s'il n'existe rien d'autre)."
+              checked={settings.hideUhd !== false}
+              onChange={(v) => update({ hideUhd: v })}
+            />
+            <Toggle
+              title="Épisode suivant automatique"
+              hint="L'épisode suivant se lance 5 secondes après la fin."
+              checked={settings.autoplayNext}
+              onChange={(v) => update({ autoplayNext: v })}
+            />
+            <Toggle
+              title="Passer le générique automatiquement"
+              hint="Sinon, un bouton « Passer l'intro » s'affiche pendant le générique."
+              checked={settings.autoSkipIntro}
+              onChange={(v) => update({ autoSkipIntro: v })}
+            />
+          </section>
+
+          <section className="settings-card">
+            <h2>Confort</h2>
+            <Toggle
+              title="Bandes-annonces dans les fiches"
+              hint="La bande-annonce se lance (sans le son) quand tu ouvres un film ou une série."
+              checked={settings.autoplayTrailers !== false}
+              onChange={(v) => update({ autoplayTrailers: v })}
+            />
+            <label className="setting">
+              <div>
+                <strong>Son d'intro</strong>
+                <span>Le « ta-doum » au lancement de l'app.</span>
+              </div>
+              <button className="btn-outline" onClick={() => playIntroSound()}>Écouter</button>
+              <input type="checkbox" className="switch" checked={settings.introSound} onChange={(e) => update({ introSound: e.target.checked })} />
+            </label>
+            <label className="setting">
+              <div>
+                <strong>Taille des sous-titres</strong>
+                <span>{settings.subtitleSize} %</span>
+              </div>
+              <input type="range" min={60} max={180} step={10} value={settings.subtitleSize} onChange={(e) => update({ subtitleSize: Number(e.target.value) })} />
+            </label>
+            <div className="setting setting-col">
+              <div>
+                <strong>Thème saisonnier</strong>
+                <span>Couleurs, logo, animations et intro aux couleurs de la saison.</span>
+              </div>
+              <div className="theme-grid">
+                {THEMES.map((t) => (
+                  <button
+                    key={t.id}
+                    className={`theme-card theme-${t.id} ${settings.seasonalTheme === t.id ? 'is-on' : ''}`}
+                    onClick={() => update({ seasonalTheme: t.id })}
+                  >
+                    <span className="theme-icon">{t.icon}</span>
+                    <strong>{t.label}</strong>
+                    <small>{t.hint}</small>
+                  </button>
+                ))}
+              </div>
             </div>
-            <button className="btn-outline" onClick={() => useStore.setState({ introMarks: {} })}>Oublier</button>
-          </div>
-        )}
-      </section>
+          </section>
 
-      <section className="settings-card">
-        <h2>Lecture</h2>
-        <label className="setting">
-          <div>
-            <strong>Lecteur vidéo</strong>
-            <span>
-              {mpvAvailable
-                ? 'mpv intégré (comme Stremio) : tous les formats, synchro parfaite, décodage matériel.'
-                : 'mpv introuvable : le lecteur de secours est utilisé.'}
-            </span>
-          </div>
-          <select className="select" value={settings.playerEngine} onChange={(e) => update({ playerEngine: e.target.value as 'mpv' | 'web' })}>
-            <option value="mpv">mpv intégré (recommandé)</option>
-            <option value="web">Lecteur de secours</option>
-          </select>
-        </label>
-        <label className="setting">
-          <div>
-            <strong>Bandes-annonces dans les fiches</strong>
-            <span>Lance la bande-annonce (sans le son) quand tu ouvres un film ou une série.</span>
-          </div>
-          <input type="checkbox" className="switch" checked={settings.autoplayTrailers !== false} onChange={(e) => update({ autoplayTrailers: e.target.checked })} />
-        </label>
-        <label className="setting">
-          <div>
-            <strong>Épisode suivant automatique</strong>
-            <span>Lance l'épisode suivant 5 secondes après la fin.</span>
-          </div>
-          <input type="checkbox" className="switch" checked={settings.autoplayNext} onChange={(e) => update({ autoplayNext: e.target.checked })} />
-        </label>
-        <label className="setting">
-          <div>
-            <strong>Langue préférée</strong>
-            <span>Utilisée pour choisir la piste audio et trier les sous-titres.</span>
-          </div>
-          <select className="select" value={settings.preferredSubLang} onChange={(e) => update({ preferredSubLang: e.target.value })}>
-            <option value="fre">Français</option>
-            <option value="eng">Anglais</option>
-            <option value="spa">Espagnol</option>
-            <option value="ger">Allemand</option>
-            <option value="ita">Italien</option>
-          </select>
-        </label>
-        <label className="setting">
-          <div>
-            <strong>Taille des sous-titres</strong>
-            <span>{settings.subtitleSize} %</span>
-          </div>
-          <input type="range" min={60} max={180} step={10} value={settings.subtitleSize} onChange={(e) => update({ subtitleSize: Number(e.target.value) })} />
-        </label>
-        <label className="setting">
-          <div>
-            <strong>Transcodage (lecteur de secours)</strong>
-            <span>
-              Utilisé seulement quand la vidéo n'est pas lisible telle quelle (HEVC, 10 bits…).
-              {caps && !caps.ffmpeg && ' ⚠ ffmpeg introuvable : lecture directe uniquement.'}
-            </span>
-          </div>
-          <select className="select" value={settings.encoder} onChange={(e) => update({ encoder: e.target.value })}>
-            {Object.entries(ENCODERS)
-              .filter(([k]) => !caps || caps.encoders.includes(k) || k === 'libx264')
-              .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </label>
-      </section>
+          <section className="settings-card">
+            <h2>Télécommande</h2>
+            <RemotePanel />
+          </section>
 
-      <section className="settings-card">
-        <h2>Ambiance</h2>
-        <label className="setting">
-          <div>
-            <strong>Son d'intro</strong>
-            <span>Le « ta-doum » au lancement de l'app.</span>
-          </div>
-          <button className="btn-outline" onClick={() => playIntroSound()}>Écouter</button>
-          <input type="checkbox" className="switch" checked={settings.introSound} onChange={(e) => update({ introSound: e.target.checked })} />
-        </label>
-      </section>
+          <UpdateSettings />
+        </>
+      )}
 
-      <p className="muted small">
-        Un souci de lecture ? <a onClick={() => window.nocta?.openLogs()}>Ouvrir le dossier des journaux</a> (fichier mpv.log).
-      </p>
+      {tab === 'avance' && (
+        <>
+          <section className="settings-card">
+            <h2>Sources et TorBox</h2>
+            <Toggle
+              title={settings.preferFrench ? 'Vérifier la vraie VF' : 'Vérifier la vraie langue'}
+              hint="Avant de lancer, NOCTA ouvre les sources une par une et lit leurs vraies pistes audio, jusqu'à la première dans la bonne langue (VF, ou VO selon le titre). Les fausses VF sont écartées."
+              checked={settings.verifyLanguage !== false}
+              onChange={(v) => update({ verifyLanguage: v })}
+            />
+            {settings.verifyLanguage !== false && <TorboxCleanup />}
+            <label className="setting">
+              <div>
+                <strong>Qualité maximale</strong>
+                <span>La meilleure source au plus près de cette qualité (les liens instantanés passent en premier).</span>
+              </div>
+              <select className="select" value={settings.maxResolution} onChange={(e) => update({ maxResolution: Number(e.target.value) as 2160 | 1080 | 720 })}>
+                <option value={2160}>4K</option>
+                <option value={1080}>1080p</option>
+                <option value={720}>720p</option>
+              </select>
+            </label>
+          </section>
+
+          <section className="settings-card">
+            <h2>Générique</h2>
+            <Toggle
+              title="Détection du générique"
+              hint="Compare le son du début des épisodes pour trouver le générique de n'importe quelle série. Les premières minutes de l'épisode voisin sont téléchargées en arrière-plan."
+              checked={settings.introDetection !== false}
+              onChange={(v) => update({ introDetection: v })}
+            />
+            {introCount > 0 && (
+              <div className="setting">
+                <div>
+                  <strong>Génériques mémorisés</strong>
+                  <span>{introCount} épisode{introCount > 1 ? 's' : ''} ou série{introCount > 1 ? 's' : ''}</span>
+                </div>
+                <button className="btn-outline" onClick={() => useStore.setState({ introMarks: {} })}>Oublier</button>
+              </div>
+            )}
+          </section>
+
+          <section className="settings-card">
+            <h2>Lecteur</h2>
+            <label className="setting">
+              <div>
+                <strong>Lecteur vidéo</strong>
+                <span>
+                  {mpvAvailable
+                    ? 'mpv intégré (comme Stremio) : tous les formats, synchro parfaite, décodage matériel.'
+                    : 'mpv introuvable : le lecteur de secours est utilisé.'}
+                </span>
+              </div>
+              <select className="select" value={settings.playerEngine} onChange={(e) => update({ playerEngine: e.target.value as 'mpv' | 'web' })}>
+                <option value="mpv">mpv intégré (recommandé)</option>
+                <option value="web">Lecteur de secours</option>
+              </select>
+            </label>
+            <label className="setting">
+              <div>
+                <strong>Langue des pistes</strong>
+                <span>Piste audio choisie en VF, et ordre des sous-titres dans le menu du lecteur.</span>
+              </div>
+              <select className="select" value={settings.preferredSubLang} onChange={(e) => update({ preferredSubLang: e.target.value })}>
+                <option value="fre">Français</option>
+                <option value="eng">Anglais</option>
+                <option value="spa">Espagnol</option>
+                <option value="ger">Allemand</option>
+                <option value="ita">Italien</option>
+              </select>
+            </label>
+            <label className="setting">
+              <div>
+                <strong>Transcodage (lecteur de secours)</strong>
+                <span>
+                  Utilisé seulement quand la vidéo n'est pas lisible telle quelle (HEVC, 10 bits…).
+                  {caps && !caps.ffmpeg && ' ⚠ ffmpeg introuvable : lecture directe uniquement.'}
+                </span>
+              </div>
+              <select className="select" value={settings.encoder} onChange={(e) => update({ encoder: e.target.value })}>
+                {Object.entries(ENCODERS)
+                  .filter(([k]) => !caps || caps.encoders.includes(k) || k === 'libx264')
+                  .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </label>
+          </section>
+
+          <p className="muted small">
+            Un souci de lecture ? <a onClick={() => window.nocta?.openLogs()}>Ouvrir le dossier des journaux</a> (fichier mpv.log).
+          </p>
+        </>
+      )}
+
       <p className="muted small">NOCTA · usage personnel</p>
     </div>
   );

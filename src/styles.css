@@ -909,3 +909,13 @@ html[data-season='christmas'] .loading-vignette { background: radial-gradient(el
 .picker-filter { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 20px 10px; padding: 9px 14px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); font-size: 13px; color: var(--muted); }
 .picker-filter button { color: #fff; font-weight: 600; font-size: 13px; white-space: nowrap; }
 .picker-filter button:hover { text-decoration: underline; }
+.settings-tabs { display: inline-flex; gap: 4px; padding: 5px; margin-bottom: 22px; border-radius: 14px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); }
+.settings-tabs button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 10px; font-size: 15px; font-weight: 600; color: var(--muted); transition: background 0.2s, color 0.2s; }
+.settings-tabs button:hover { color: #fff; }
+.settings-tabs button.is-on { background: #fff; color: #000; }
+.seg { display: inline-flex; flex: none; gap: 3px; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); }
+.seg button { padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; color: #cfcfd4; white-space: nowrap; }
+.seg button.is-on { background: #fff; color: #000; }
+.setting.setting-col > .theme-grid { margin-top: 4px; }
+.setting > .seg { display: inline-flex; flex-direction: row; flex: none; gap: 3px; }
+.setting.setting-col > .theme-grid { display: grid; flex: none; }
