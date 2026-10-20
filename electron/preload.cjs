@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('nocta', {
     fullscreen: () => ipcRenderer.invoke('player:fullscreen'),
     minimize: () => ipcRenderer.invoke('player:minimize'),
     remoteState: (st) => ipcRenderer.invoke('player:remote', st),
+    subsync: (job) => ipcRenderer.invoke('player:subsync', job),
     on: (channel, cb) => {
       const fn = (_e, data) => cb(data);
       ipcRenderer.on(channel, fn);

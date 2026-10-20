@@ -64,6 +64,8 @@ interface NoctaBridge {
     fullscreen: () => Promise<boolean>;
     minimize: () => Promise<void>;
     remoteState: (st: { skip: 'intro' | 'recap' | null }) => Promise<void>;
+    subsync: (job: { src: string; url: string; duration: number }) =>
+      Promise<{ status: 'ok' | 'synced' | 'unsure'; file?: string; offset?: number; scale?: number }>;
     on: (channel: string, cb: (data: any) => void) => () => void;
   };
   openVideoDialog: () => Promise<string | null>;

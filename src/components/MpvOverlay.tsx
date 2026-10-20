@@ -219,6 +219,45 @@ export function MpvOverlay() {
 
   const selectAudio = (id: number) => { cmd('set_property', 'aid', id); };
   const selectSub = (id: number | 'no') => { cmd('set_property', 'sid', id); setPanel(null); };
+  const say = (text: string, ms = 4000) => {
+    setNotice(text);
+    if (ms) setTimeout(() => setNotice((n) => (n === text ? null : n)), ms);
+  };
+  const tracksRef = useRef(tracks);
+  tracksRef.current = tracks;
+  const initRef = useRef(init);
+  initRef.current = init;
+
+  /**
+   * Sous-titres français d'un addon (OpenSubtitles…) : NOCTA vérifie qu'ils sont bien calés
+   * sur la vidéo et les recale tout seul si besoin (décalage ou dérive).
+   */
+  const syncing = useRef(new Set<string>());
+  const autoSync = async (s: { url: string; lang: string; addon: string }) => {
+    if (!init?.src || !/^(fr|fre|fra)/i.test(s.lang) || syncing.current.has(s.url) || !bridge().subsync) return;
+    syncing.current.add(s.url);
+    const src = init.src;
+    say('Vérification de la synchro des sous-titres…', 0);
+    try {
+      const r = await bridge().subsync({ src, url: s.url, duration });
+      // Entre-temps, la vidéo ou les sous-titres choisis ont pu changer
+      const cur = tracksRef.current.find((t) => t.type === 'sub' && t.selected);
+      if (initRef.current?.src !== src || (cur && cur['external-filename'] !== s.url)) { setNotice(null); return; }
+      if (r.status === 'synced' && r.file) {
+        await cmd('sub-add', r.file, 'select', `${langName(s.lang)} · recalés par NOCTA`, s.lang);
+        const off = r.offset ?? 0;
+        const drift = Math.abs((r.scale ?? 1) - 1) > 0.001;
+        say(`Sous-titres recalés (${off >= 0 ? '+' : ''}${off.toFixed(1).replace('.', ',')} s${drift ? ', vitesse corrigée' : ''})`);
+      } else if (r.status === 'ok') {
+        say('Sous-titres bien synchronisés ✓');
+      } else {
+        setNotice(null);
+      }
+    } catch {
+      setNotice(null);
+    }
+  };
+
   const addExtSub = async (s: { url: string; lang: string; addon: string }) => {
     setPanel(null);
     const existing = tracks.find((t) => t.type === 'sub' && t['external-filename'] === s.url);
@@ -226,6 +265,7 @@ export function MpvOverlay() {
     if (addedSubs.current.has(s.url)) return;
     addedSubs.current.set(s.url, true);
     await cmd('sub-add', s.url, 'select', `${langName(s.lang)} · ${s.addon}`, s.lang);
+    autoSync(s);
   };
 
   // ---------- Langue : VO choisie pour ce titre, sous-titres FR si l'audio n'est pas en français ----------
@@ -238,7 +278,6 @@ export function MpvOverlay() {
     const audios = tracks.filter((t) => t.type === 'audio');
     const subTracks = tracks.filter((t) => t.type === 'sub');
     let audio = audios.find((t) => t.selected);
-    const say = (text: string) => { setNotice(text); setTimeout(() => setNotice((n) => (n === text ? null : n)), 4000); };
 
     // VO demandée : on quitte la VF pour la piste originale
     if (info.langMode === 'vo' && audio && isFr(audio)) {

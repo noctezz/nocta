@@ -50,7 +50,8 @@
     "asarUnpack": [
       "node_modules/ffmpeg-static/**",
       "node_modules/@ffprobe-installer/**",
-      "electron/intro-worker.cjs"
+      "electron/intro-worker.cjs",
+      "electron/subsync-worker.cjs"
     ],
     "win": {
       "target": [

@@ -60,6 +60,11 @@ devant, la piste originale est choisie et les sous-titres français s'activent t
 **Sous-titres français automatiques** : quand l'audio n'est pas en français, les sous-titres français s'activent tout
 seuls (ceux du fichier, sinon ceux des addons). Réglable dans *Paramètres*.
 
+**Sous-titres recalés automatiquement** : quand NOCTA met des sous-titres français d'un addon (OpenSubtitles…), il
+écoute 3 passages de la vidéo pour repérer quand les gens parlent et vérifie que les sous-titres tombent au bon moment.
+Décalés ou qui dérivent (version 25 / 23,976 images par seconde) : ils sont recalés tout seuls (« Français · recalés
+par NOCTA »). En cas de doute, ils restent tels quels.
+
 **Mises à jour automatiques** : au lancement, NOCTA regarde s'il existe une nouvelle version. Une carte propose
 *Mettre à jour* : téléchargement, installation et redémarrage tout seuls. Aussi dans *Paramètres → Mises à jour*.
 

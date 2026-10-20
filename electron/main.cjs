@@ -5,6 +5,7 @@ const store = require('./store.cjs');
 const media = require('./media-server.cjs');
 const { MpvSession, mpvBinary } = require('./mpv.cjs');
 const intro = require('./intro.cjs');
+const subsync = require('./subsync.cjs');
 const remote = require('./remote.cjs');
 const updater = require('./updater.cjs');
 
@@ -138,6 +139,8 @@ ipcMain.handle('player:intro', (_e, mark) => session && session.sendMain('player
 // Détection du générique par empreinte audio
 ipcMain.handle('intro:detect', (_e, job) => intro.detect(job));
 ipcMain.handle('intro:has', (_e, seriesId, videoId) => intro.hasFp(seriesId, videoId));
+// Recalage automatique des sous-titres
+ipcMain.handle('player:subsync', (_e, job) => subsync.sync(job));
 ipcMain.handle('player:fullscreen', () => { win.setFullScreen(!win.isFullScreen()); return !win.isFullScreen(); });
 ipcMain.handle('player:minimize', () => win.minimize());
 // Boutons « Passer l'intro » / « Épisode suivant » visibles : relayés à la télécommande
