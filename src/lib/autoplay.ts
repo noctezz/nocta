@@ -4,6 +4,7 @@ import { useStore } from './store';
 import { useBusy } from './ui';
 import type { Meta, MetaPreview, PlayRequest, Settings, Stream, Video } from './types';
 import { canCheck, checkLang, langBonus, type LangInfo } from './langCheck';
+import { langPrefsFor } from './langPrefs';
 
 /** Ce qu'on veut regarder : un film, ou un épisode précis */
 export interface PlayTarget {
@@ -22,7 +23,7 @@ export const isInstant = (s: Stream) => !!s.url && /⚡|\+\]|cached|instant/i.te
  * Note une source selon les préférences : lien direct, en cache, langue, résolution.
  * Plus le score est haut, meilleure est la source.
  */
-export function scoreStream(s: Stream, prefs: Pick<Settings, 'maxResolution' | 'preferFrench' | 'verifyLanguage'>): number {
+export function scoreStream(s: Stream, prefs: Pick<Settings, 'maxResolution' | 'preferFrench' | 'verifyLanguage'> & { vo?: boolean }): number {
   const q = streamQuality(s);
   let score = 0;
   if (s.url) score += 1_000_000;
@@ -33,6 +34,11 @@ export function scoreStream(s: Stream, prefs: Pick<Settings, 'maxResolution' | '
     // MULTI contient presque toujours la piste française : même priorité que VF
     if (q.tags.includes('VF') || q.tags.includes('MULTI')) score += 30_000;
     else if (q.tags.includes('VOSTFR')) score += 5_000;
+  } else if (prefs.vo) {
+    // VO sous-titrée : la version originale d'abord (VOSTFR, puis MULTI qui contient aussi la VO)
+    if (q.tags.includes('VOSTFR')) score += 30_000;
+    else if (q.tags.includes('MULTI')) score += 20_000;
+    else if (q.tags.includes('VF')) score -= 20_000;
   }
   const max = prefs.maxResolution || 1080;
   const res = q.res || 720;
@@ -43,8 +49,9 @@ export function scoreStream(s: Stream, prefs: Pick<Settings, 'maxResolution' | '
   return score;
 }
 
-export function rankStreams<T extends { stream: Stream }>(rows: T[]): T[] {
-  const prefs = useStore.getState().settings;
+export function rankStreams<T extends { stream: Stream }>(rows: T[], metaId?: string): T[] {
+  const lp = langPrefsFor(metaId);
+  const prefs = { ...useStore.getState().settings, preferFrench: lp.preferFrench, vo: lp.vo };
   return rows.slice().sort((a, b) => scoreStream(b.stream, prefs) - scoreStream(a.stream, prefs));
 }
 
@@ -66,11 +73,11 @@ export async function playTarget(t: PlayTarget, opts: { manual?: boolean; startA
     const groups = await getStreams(st.addons, t.type, t.videoId);
     if (signal.cancelled) return;
     const rows = groups.flatMap((g) => g.streams.filter((s) => s.url).map((stream) => ({ stream })));
-    let best = rankStreams(rows)[0]?.stream;
-    if (best && st.settings.preferFrench && st.settings.verifyLanguage !== false) {
-      const verified = await pickVerifiedFrench(rankStreams(rows).map((r) => r.stream), (text) => busy.set({ ...base, status: text }), signal);
+    let best = rankStreams(rows, t.meta.id)[0]?.stream;
+    if (best && langPrefsFor(t.meta.id).verify) {
+      const verified = await pickVerifiedFrench(rankStreams(rows, t.meta.id).map((r) => r.stream), (text) => busy.set({ ...base, status: text }), signal);
       // Sinon : nouveau classement, où les fausses VF repérées sont passées derrière
-      best = verified || rankStreams(rows)[0].stream;
+      best = verified || rankStreams(rows, t.meta.id)[0].stream;
       if (signal.cancelled) return;
     }
     if (!best) {

@@ -9,6 +9,7 @@ import { errMsg, resolveStream, streamToDesc } from '../lib/playback';
 import { backdropOf, posterOf, useBusy } from '../lib/ui';
 import type { Stream } from '../lib/types';
 import { cachedLang, canCheck, checkLang, isChecking, onLangResult } from '../lib/langCheck';
+import { langPrefsFor } from '../lib/langPrefs';
 
 interface Row { stream: Stream; addon: string; key: string }
 
@@ -51,8 +52,9 @@ export function StreamPicker() {
   }, [addons, picker.type, picker.videoId]);
 
   // Vérification de la vraie langue des meilleures sources : la liste se réordonne au fil des résultats
-  const settings = useStore((s) => s.settings);
-  const verify = settings.preferFrench && settings.verifyLanguage !== false;
+  useStore((s) => s.settings);
+  useStore((s) => s.profiles);
+  const verify = langPrefsFor(picker.meta.id).verify;
   const [langVersion, setLangVersion] = useState(0);
   useEffect(() => onLangResult(() => setLangVersion((v) => v + 1)), []);
 
@@ -60,13 +62,13 @@ export function StreamPicker() {
     if (!groups) return [];
     const all = groups.flatMap((g) => g.streams.map((s, i) => ({ stream: s, addon: g.addon.manifest.name, key: `${g.addon.url}#${i}` })));
     // Même classement que la lecture automatique : la 1re source est celle qu'elle choisirait
-    return rankStreams(all);
+    return rankStreams(all, picker.meta.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups, langVersion]);
+  }, [groups, langVersion, verify]);
 
   useEffect(() => {
     if (!verify || !groups) return;
-    const all = rankStreams(groups.flatMap((g) => g.streams.map((stream) => ({ stream })))).map((r) => r.stream);
+    const all = rankStreams(groups.flatMap((g) => g.streams.map((stream) => ({ stream }))), picker.meta.id).map((r) => r.stream);
     all.filter(canCheck).slice(0, 10).forEach((s) => { checkLang(s); });
     setLangVersion((v) => v + 1);
   }, [verify, groups]);

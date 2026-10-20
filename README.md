@@ -48,6 +48,13 @@ volume, « Passer l'intro » et « Épisode suivant ». La recherche se tape au 
 pilote alors NOCTA de n'importe où, sans être sur le Wi-Fi. Si Windows demande l'autorisation, coche *Réseaux privés*
 et *Réseaux publics*.
 
+**VF ou VO, titre par titre** : sur la fiche, le sélecteur *Audio : VF / VO · sous-titres FR* est mémorisé pour ce
+film ou cette série (par exemple les animés en VOSTFR, tout le reste en VF). En VO, les sources VOSTFR et MULTI passent
+devant, la piste originale est choisie et les sous-titres français s'activent tout seuls.
+
+**Sous-titres français automatiques** : quand l'audio n'est pas en français, les sous-titres français s'activent tout
+seuls (ceux du fichier, sinon ceux des addons). Réglable dans *Paramètres*.
+
 **Mises à jour automatiques** : au lancement, NOCTA regarde s'il existe une nouvelle version. Une carte propose
 *Mettre à jour* : téléchargement, installation et redémarrage tout seuls. Aussi dans *Paramètres → Mises à jour*.
 

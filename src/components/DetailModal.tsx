@@ -8,7 +8,25 @@ import { useProfile, useStore } from '../lib/store';
 import { backdropOf, logoOf, resumeEntry, year } from '../lib/ui';
 import { episodeLabel, formatTime, slimMeta, sortedEpisodes } from '../lib/playback';
 import { episodeTarget, nextUnwatched, playTarget } from '../lib/autoplay';
-import type { Meta, Video } from '../lib/types';
+import type { Meta, Video, LangMode } from '../lib/types';
+
+/** Langue de ce titre : VF, ou VO avec sous-titres français (mémorisé pour ce film / cette série) */
+function LangSwitch({ explicit, fallback, onChange }: {
+  explicit: LangMode | null;
+  fallback: LangMode | null;
+  onChange: (mode: LangMode | null) => void;
+}) {
+  const current = explicit || fallback;
+  const pick = (m: LangMode) => onChange(explicit === m ? null : m);
+  return (
+    <div className="lang-switch" title="Choix mémorisé pour ce titre uniquement">
+      <span>Audio</span>
+      <button className={current === 'vf' ? 'is-on' : ''} onClick={() => pick('vf')}>VF</button>
+      <button className={current === 'vo' ? 'is-on' : ''} onClick={() => pick('vo')}>VO · sous-titres FR</button>
+      {!explicit && <small>par défaut</small>}
+    </div>
+  );
+}
 
 export function DetailModal() {
   const detail = useLatest(useStore((s) => s.detail))!;
@@ -18,6 +36,8 @@ export function DetailModal() {
   const picker = useStore((s) => s.picker);
   const toggleMyList = useStore((s) => s.toggleMyList);
   const profile = useProfile();
+  const preferFrench = useStore((s) => s.settings.preferFrench);
+  const setLangPref = useStore((s) => s.setLangPref);
   const [meta, setMeta] = useState<Meta | null>((detail.preview as Meta) || null);
   const [loading, setLoading] = useState(true);
   const [season, setSeason] = useState<number | null>(null);
@@ -128,6 +148,15 @@ export function DetailModal() {
               )}
               {movieWatched && <span className="watched-pill"><CircleCheck size={16} /> Vu</span>}
             </div>
+            <LangSwitch
+              explicit={profile?.langPrefs?.[meta.id] || null}
+              fallback={preferFrench ? 'vf' : null}
+              onChange={(mode) => {
+                setLangPref(meta.id, mode);
+                const label = mode === 'vo' ? 'VO sous-titrée en français' : mode === 'vf' ? 'VF' : 'réglage général';
+                useStore.getState().toast(`${meta.name} : ${label}`, 'success');
+              }}
+            />
             {entry && (
               <div className="detail-resume">
                 <div className="bar"><div style={{ width: `${(entry.position / (entry.duration || 1)) * 100}%` }} /></div>

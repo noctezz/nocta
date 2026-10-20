@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CINEMETA_FALLBACK, CINEMETA_URL, OPENSUBTITLES_URL } from './addons';
-import type { Avatar, InstalledAddon, Meta, MetaPreview, PlayRequest, Profile, ProgressEntry, Settings, IntroMark } from './types';
+import type { Avatar, InstalledAddon, Meta, MetaPreview, PlayRequest, Profile, ProgressEntry, Settings, IntroMark, LangMode } from './types';
 
 export type Page = 'home' | 'series' | 'movies' | 'mylist' | 'search' | 'addons' | 'settings' | 'browse' | 'catalogs';
 
@@ -44,6 +44,7 @@ interface State extends PersistedData {
   upsertProfile: (p: { id?: string; name: string; avatar: Avatar }) => string;
   deleteProfile: (id: string) => void;
   toggleMyList: (m: MetaPreview) => void;
+  setLangPref: (metaId: string, mode: LangMode | null) => void;
   saveProgress: (key: string, entry: ProgressEntry) => void;
   setWatched: (videoIds: string[], watched: boolean) => void;
   setIntroMark: (seriesId: string, mark: IntroMark | null) => void;
@@ -110,6 +111,7 @@ const DEFAULT_SETTINGS: Settings = {
   maxResolution: 1080,
   preferFrench: true,
   verifyLanguage: true,
+  autoFrenchSubs: true,
   autoSkipIntro: false,
   introDetection: true,
 };
@@ -172,6 +174,14 @@ export const useStore = create<State>((set, get) => ({
     return pid;
   },
   deleteProfile: (id) => set((s) => ({ profiles: s.profiles.filter((p) => p.id !== id) })),
+
+  setLangPref: (metaId, mode) => set((s) => ({
+    profiles: updateProfile(s, (p) => {
+      const next = { ...(p.langPrefs || {}) };
+      if (mode) next[metaId] = mode; else delete next[metaId];
+      return { ...p, langPrefs: next };
+    }),
+  })),
 
   toggleMyList: (m) => set((s) => ({
     profiles: updateProfile(s, (p) => {

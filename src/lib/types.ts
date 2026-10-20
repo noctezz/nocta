@@ -112,7 +112,11 @@ export interface Profile {
   progress: Record<string, ProgressEntry>;
   /** Vidéos vues (id d'épisode ou de film) → date */
   watched?: Record<string, number>;
+  /** Langue choisie pour un titre précis (id du film / de la série) : VF ou VO sous-titrée */
+  langPrefs?: Record<string, LangMode>;
 }
+
+export type LangMode = 'vf' | 'vo';
 
 /** Plage de générique d'une série (secondes), apprise ou issue des chapitres */
 export interface IntroMark { start: number; end: number }
@@ -137,6 +141,8 @@ export interface Settings {
   preferFrench: boolean;
   /** Vérifier la vraie langue des sources (pistes audio) avant de lancer */
   verifyLanguage: boolean;
+  /** Sous-titres français activés tout seuls quand l'audio n'est pas en français */
+  autoFrenchSubs: boolean;
   /** Passer automatiquement le générique (sinon : bouton) */
   autoSkipIntro: boolean;
   /** Détection du générique par analyse audio */

@@ -3,6 +3,7 @@ import { getMeta, getSubtitles } from '../lib/addons';
 import { useStore } from '../lib/store';
 import { useLatest } from '../lib/useLatest';
 import { detectIntro } from '../lib/autoplay';
+import { langPrefsFor } from '../lib/langPrefs';
 import { episodeTitleOf, errMsg, nextEpisode, prepareNextEpisode, recordProgress, resolveNextEpisode, slimMeta } from '../lib/playback';
 import type { Meta, PlayRequest } from '../lib/types';
 
@@ -35,7 +36,9 @@ export function MpvBridge() {
       startAt: r.startAt,
       volume: st().settings.volume,
       subtitleSize: st().settings.subtitleSize,
-      alang: st().settings.preferredSubLang === 'eng' ? 'eng,en' : `${st().settings.preferredSubLang},fre,fra,fr,eng,en`,
+      // VO sous-titrée : la piste originale (souvent anglaise ou japonaise) plutôt que la VF
+      alang: langPrefsFor(r.meta?.id).vo ? 'jpn,ja,kor,ko,eng,en'
+        : st().settings.preferredSubLang === 'eng' ? 'eng,en' : `${st().settings.preferredSubLang},fre,fra,fr,eng,en`,
     });
 
     // Infos annexes envoyées à l'interface du lecteur : sous-titres, épisode suivant
@@ -44,6 +47,8 @@ export function MpvBridge() {
       p.info({
         autoplayNext: settings.autoplayNext,
         autoSkipIntro: settings.autoSkipIntro,
+        langMode: langPrefsFor(r.meta?.id).vo ? 'vo' : 'vf',
+        autoFrenchSubs: settings.autoFrenchSubs !== false,
         // Générique de cet épisode (détecté) sinon celui appris pour la série
         intro: r.type === 'series' && r.meta ? st().introMarks?.[r.videoId || ''] || st().introMarks?.[r.meta.id] || null : null,
         next: null,
@@ -58,7 +63,7 @@ export function MpvBridge() {
         const nx = meta && r.videoId ? nextEpisode(meta, r.videoId) : null;
         if (alive()) p.info({ next: nx ? { label: episodeTitleOf(nx) } : null });
         // Sources de l'épisode suivant vérifiées à l'avance (VF), pour un enchaînement immédiat
-        if (nx) setTimeout(() => { if (alive() && reqRef.current.videoId === r.videoId) prepareNextEpisode(nx).catch(() => {}); }, 60000);
+        if (nx) setTimeout(() => { if (alive() && reqRef.current.videoId === r.videoId) prepareNextEpisode(nx, r.meta?.id).catch(() => {}); }, 60000);
         // Analyse audio du générique, une fois la lecture bien lancée
         setTimeout(() => {
           if (!alive() || reqRef.current.videoId !== r.videoId) return;

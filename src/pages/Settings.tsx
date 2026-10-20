@@ -94,6 +94,13 @@ export function Settings() {
         )}
         <label className="setting">
           <div>
+            <strong>Sous-titres français automatiques</strong>
+            <span>Quand une vidéo n'a pas de piste française (ou que tu as choisi « VO · sous-titres FR » sur sa fiche), les sous-titres français s'activent tout seuls : ceux du fichier, sinon ceux de tes addons.</span>
+          </div>
+          <input type="checkbox" className="switch" checked={settings.autoFrenchSubs !== false} onChange={(e) => update({ autoFrenchSubs: e.target.checked })} />
+        </label>
+        <label className="setting">
+          <div>
             <strong>Détection du générique</strong>
             <span>Compare le son du début des épisodes pour trouver le générique de n'importe quelle série. Les premières minutes de l'épisode voisin sont téléchargées en arrière-plan.</span>
           </div>

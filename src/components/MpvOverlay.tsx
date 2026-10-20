@@ -30,9 +30,14 @@ interface Track {
   'external-filename'?: string;
   'demux-channel-count'?: number;
   forced?: boolean;
+  default?: boolean;
 }
 
 interface Info {
+  /** VO sous-titrée demandée pour ce titre */
+  langMode?: 'vf' | 'vo';
+  /** Sous-titres français tout seuls quand l'audio n'est pas en français */
+  autoFrenchSubs?: boolean;
   extSubs?: { url: string; lang: string; addon: string }[];
   next?: { label: string } | null;
   status?: string;
@@ -79,6 +84,9 @@ export function MpvOverlay() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [chapters, setChapters] = useState<{ title?: string; time: number }[]>([]);
   const skipped = useRef(new Set<string>());
+  /** Choix automatique audio / sous-titres, une seule fois par vidéo */
+  const langAuto = useRef({ done: false, at: Date.now() });
+  const [notice, setNotice] = useState<string | null>(null);
   const learn = useRef<{ from: number; to: number; at: number } | null>(null);
   const learnTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const addedSubs = useRef(new Map<string, true>());
@@ -97,6 +105,8 @@ export function MpvOverlay() {
         setInfo({});
         setChapters([]);
         skipped.current.clear();
+        langAuto.current = { done: false, at: Date.now() };
+        setNotice(null);
         learn.current = null;
         addedSubs.current.clear();
         if (p.volume != null) setVolume(Math.round(p.volume * 100));
@@ -218,6 +228,50 @@ export function MpvOverlay() {
     await cmd('sub-add', s.url, 'select', `${langName(s.lang)} · ${s.addon}`, s.lang);
   };
 
+  // ---------- Langue : VO choisie pour ce titre, sous-titres FR si l'audio n'est pas en français ----------
+  useEffect(() => {
+    const a = langAuto.current;
+    // On attend le réglage de langue du titre (envoyé juste après l'ouverture)
+    if (a.done || !started || !tracks.length || !info.langMode) return;
+    const isFr = (t: { lang?: string; title?: string }) =>
+      /^(fr|fre|fra|french)(-|$)/i.test(t.lang || '') || (!t.lang && /fran[cç]ais|french|\bvff?\b|vfq/i.test(t.title || ''));
+    const audios = tracks.filter((t) => t.type === 'audio');
+    const subTracks = tracks.filter((t) => t.type === 'sub');
+    let audio = audios.find((t) => t.selected);
+    const say = (text: string) => { setNotice(text); setTimeout(() => setNotice((n) => (n === text ? null : n)), 4000); };
+
+    // VO demandée : on quitte la VF pour la piste originale
+    if (info.langMode === 'vo' && audio && isFr(audio)) {
+      const vo = audios.find((t) => !isFr(t) && t.default) || audios.find((t) => !isFr(t));
+      if (vo) { cmd('set_property', 'aid', vo.id); audio = vo; }
+    }
+    const audioIsFr = !!audio && isFr(audio);
+    const audioKnown = !!audio && (!!audio.lang || audioIsFr);
+    const wantSubs = info.autoFrenchSubs !== false && (info.langMode === 'vo' || (audioKnown && !audioIsFr));
+    if (!wantSubs) { a.done = true; return; }
+
+    const current = subTracks.find((t) => t.selected);
+    if (current && isFr(current) && !current.forced) { a.done = true; return; }
+    // Sous-titres français du fichier (complets, pas seulement « forcés »), sinon ceux des addons
+    const internal = subTracks.find((t) => isFr(t) && !t.forced);
+    if (internal) {
+      a.done = true;
+      cmd('set_property', 'sid', internal.id);
+      say('Sous-titres français activés');
+      return;
+    }
+    const ext = (info.extSubs || []).find((s) => /^(fr|fre|fra)/i.test(s.lang));
+    if (ext) {
+      a.done = true;
+      addExtSub(ext);
+      say('Sous-titres français activés');
+      return;
+    }
+    // Les sous-titres des addons arrivent parfois quelques secondes après : on attend un peu
+    if (Date.now() - a.at > 20000) a.done = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started, tracks, info.extSubs, info.langMode, info.autoFrenchSubs]);
+
   // ---------- Fin / épisode suivant ----------
   useEffect(() => {
     if (eof && info.next && info.autoplayNext !== false && countdown == null) setCountdown(5);
@@ -316,6 +370,20 @@ export function MpvOverlay() {
       </AnimatePresence>
 
       {started && (buffering || seeking) && !error && <div className="player-center"><div className="ring" /></div>}
+
+      <AnimatePresence>
+        {notice && (
+          <motion.div
+            key={notice}
+            className="player-notice"
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+          >
+            <MessageSquareText size={16} /> {notice}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {flash && (
