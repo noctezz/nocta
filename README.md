@@ -65,6 +65,11 @@ seuls (ceux du fichier, sinon ceux des addons). Réglable dans *Paramètres*.
 Décalés ou qui dérivent (version 25 / 23,976 images par seconde) : ils sont recalés tout seuls (« Français · recalés
 par NOCTA »). En cas de doute, ils restent tels quels.
 
+**Nox, l'assistant** 🦉 : la chouette en bas à gauche. Clique dessus et pose tes questions : casting, durée,
+recommandations, « il est dispo en vraie VF ? » (Nox vérifie les fichiers pour de vrai), « lance l'épisode 3 »… Il
+sait quelle fiche est ouverte. Nox réfléchit avec Claude : il faut une clé API Anthropic (*Paramètres → Avancé →
+Assistant Nox*, environ 1 à 3 centimes par question).
+
 **Mises à jour automatiques** : au lancement, NOCTA regarde s'il existe une nouvelle version. Une carte propose
 *Mettre à jour* : téléchargement, installation et redémarrage tout seuls. Aussi dans *Paramètres → Mises à jour*.
 

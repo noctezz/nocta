@@ -151,6 +151,10 @@ export interface Settings {
   torboxCleanup?: boolean;
   /** Nombre de torrents retirés par ce nettoyage */
   torboxCleaned?: number;
+  /** Clé API Anthropic de Nox, l'assistant (reste sur ce PC) */
+  noxKey?: string;
+  /** Afficher Nox en bas de l'écran */
+  noxVisible?: boolean;
   /** Passer automatiquement le générique (sinon : bouton) */
   autoSkipIntro: boolean;
   /** Détection du générique par analyse audio */

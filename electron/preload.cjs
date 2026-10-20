@@ -71,6 +71,10 @@ contextBridge.exposeInMainWorld('nocta', {
       return () => ipcRenderer.removeListener('update:status', fn);
     },
   },
+  assistant: {
+    create: (req) => ipcRenderer.invoke('assistant:create', req),
+    testKey: (key) => ipcRenderer.invoke('assistant:testKey', key),
+  },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
   win: {
     toggleFullscreen: () => ipcRenderer.invoke('win:toggleFullscreen'),

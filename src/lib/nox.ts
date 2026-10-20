@@ -1,0 +1,362 @@
+// Nox, la mascotte-assistant de NOCTA : discute avec Claude et agit dans l'app grâce à des
+// outils (recherche, fiche et casting, vérification de la vraie VF, lecture, liste, langue).
+import type Anthropic from '@anthropic-ai/sdk';
+import { create } from 'zustand';
+import { getMeta, getStreams, searchableCatalogs, getCatalog, streamQuality, streamSize } from './addons';
+import { episodeTarget, nextUnwatched, pickVerified, playTarget, rankStreams } from './autoplay';
+import { cachedLang } from './langCheck';
+import { langPrefsFor } from './langPrefs';
+import { episodeLabel, sortedEpisodes, slimMeta } from './playback';
+import { isUhd, fitsLang } from './sourcePolicy';
+import { useStore } from './store';
+import { quickPlay } from './ui';
+import type { Meta, MetaPreview } from './types';
+
+type Msg = Anthropic.Beta.BetaMessageParam;
+type Tool = Anthropic.Beta.BetaTool;
+
+// ---------- Ce que Nox sait faire ----------
+const TOOLS: Tool[] = [
+  {
+    name: 'search_titles',
+    description: 'Cherche des films ou des séries dans le catalogue de NOCTA à partir d\'un titre (ou d\'un mot-clé). Renvoie les identifiants à utiliser avec les autres outils.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Titre ou mots-clés' },
+        type: { type: 'string', enum: ['movie', 'series', 'any'], description: 'Film, série, ou les deux' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'get_title_details',
+    description: 'Fiche complète d\'un film ou d\'une série : résumé, année, durée, genres, note IMDb, casting, réalisation, saisons et épisodes, progression de l\'utilisateur. À utiliser pour toute question factuelle (casting, durée…), au lieu de répondre de mémoire.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Identifiant (ex. tt0133093)' },
+        type: { type: 'string', enum: ['movie', 'series'] },
+      },
+      required: ['id', 'type'],
+    },
+  },
+  {
+    name: 'check_language',
+    description: 'Vérifie pour de vrai la langue des sources disponibles d\'un film ou d\'un épisode, en lisant les pistes audio des fichiers (pas seulement le nom des torrents). Pour une série sans épisode précisé, vérifie le prochain épisode à regarder. Prend quelques secondes.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        type: { type: 'string', enum: ['movie', 'series'] },
+        season: { type: 'integer' },
+        episode: { type: 'integer' },
+        want: { type: 'string', enum: ['vf', 'vo'], description: 'Langue à vérifier (par défaut : celle réglée pour ce titre)' },
+      },
+      required: ['id', 'type'],
+    },
+  },
+  {
+    name: 'play',
+    description: 'Lance la lecture d\'un film, ou d\'un épisode précis d\'une série (sinon reprise ou prochain épisode non vu). Seulement quand l\'utilisateur demande de lancer / regarder maintenant.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        type: { type: 'string', enum: ['movie', 'series'] },
+        season: { type: 'integer' },
+        episode: { type: 'integer' },
+      },
+      required: ['id', 'type'],
+    },
+  },
+  {
+    name: 'open_title',
+    description: 'Ouvre la fiche d\'un film ou d\'une série à l\'écran.',
+    input_schema: {
+      type: 'object',
+      properties: { id: { type: 'string' }, type: { type: 'string', enum: ['movie', 'series'] } },
+      required: ['id', 'type'],
+    },
+  },
+  {
+    name: 'set_language',
+    description: 'Règle la langue d\'un titre précis : VF, ou VO avec sous-titres français. Mémorisé pour ce titre.',
+    input_schema: {
+      type: 'object',
+      properties: { id: { type: 'string' }, mode: { type: 'string', enum: ['vf', 'vo'] } },
+      required: ['id', 'mode'],
+    },
+  },
+  {
+    name: 'my_list',
+    description: 'Ajoute un titre à « Ma liste » ou l\'en retire.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        type: { type: 'string', enum: ['movie', 'series'] },
+        action: { type: 'string', enum: ['add', 'remove'] },
+      },
+      required: ['id', 'type', 'action'],
+    },
+  },
+  {
+    name: 'get_activity',
+    description: 'Ce que l\'utilisateur est en train de regarder (« Reprendre ») et le contenu de « Ma liste ».',
+    input_schema: { type: 'object', properties: {} },
+  },
+];
+
+const SYSTEM = `Tu es Nox, la mascotte de NOCTA : une petite chouette cinéphile qui vit dans l'application de streaming personnelle de l'utilisateur.
+
+Ta personnalité : chaleureuse, enthousiaste sans en faire trop, un brin d'humour. Tu tutoies. Tu réponds en français, court et clair (2 à 5 phrases, ou une petite liste), comme dans une discussion. Pas de titres markdown ; le **gras** est permis pour les titres d'œuvres.
+
+Comment tu travailles :
+- Pour toute info factuelle sur un titre (casting, réalisateur, durée, année, saisons, résumé), utilise get_title_details plutôt que ta mémoire. Si tu ne connais pas l'identifiant, cherche-le avec search_titles.
+- « Vérifie la VF », « c'est dispo en français ? », « je vais regarder X » : utilise check_language et dis clairement le résultat (vraie VF trouvée ou non, qualité, et si les noms de torrents mentaient).
+- Ne lance une lecture (play) que si l'utilisateur te le demande. S'il dit juste qu'il va regarder quelque chose, vérifie la VF et propose de lancer.
+- Le contexte de l'écran (fiche ouverte, lecture en cours) t'est donné avec chaque message : « ce film », « cette série » désignent la fiche ouverte.
+- Pour des recommandations, appuie-toi sur tes connaissances et sur ce que l'utilisateur regarde (get_activity), puis vérifie que les titres existent dans le catalogue avec search_titles.
+- N'invente jamais un résultat d'outil. Si un outil échoue, dis-le simplement.`;
+
+// ---------- Exécution des outils ----------
+type Input = Record<string, any>;
+const profile = () => {
+  const st = useStore.getState();
+  return st.profiles.find((p) => p.id === st.activeProfileId);
+};
+
+function videoFor(meta: Meta, season?: number, episode?: number) {
+  if (meta.type !== 'series') return null;
+  const eps = sortedEpisodes(meta);
+  if (season != null && episode != null) return eps.find((v) => v.season === season && (v.episode ?? v.number) === episode) || null;
+  return nextUnwatched(meta, profile()?.watched);
+}
+
+async function runTool(name: string, input: Input, onStatus: (text: string) => void): Promise<unknown> {
+  const st = useStore.getState();
+  switch (name) {
+    case 'search_titles': {
+      const q = String(input.query || '').trim();
+      if (q.length < 2) return { results: [] };
+      onStatus(`Recherche de « ${q} »…`);
+      const cats = searchableCatalogs(st.addons).filter(({ catalog }) => !input.type || input.type === 'any' || catalog.type === input.type);
+      const settled = await Promise.allSettled(cats.map(({ catalog, addon }) => getCatalog(addon, catalog.type, catalog.id, { search: q })));
+      const seen = new Set<string>();
+      const results: unknown[] = [];
+      for (const r of settled) {
+        if (r.status !== 'fulfilled') continue;
+        for (const m of r.value) {
+          if (seen.has(m.id) || results.length >= 8) continue;
+          seen.add(m.id);
+          results.push({ id: m.id, type: m.type, name: m.name, year: m.releaseInfo, imdb: m.imdbRating });
+        }
+      }
+      return { results };
+    }
+    case 'get_title_details': {
+      onStatus('Lecture de la fiche…');
+      const meta = await getMeta(st.addons, input.type, input.id);
+      if (!meta) return { error: 'Titre introuvable' };
+      const m = meta as Meta & Record<string, any>;
+      const castFromLinks = (cat: string) => (m.links || []).filter((l: any) => l.category === cat).map((l: any) => l.name);
+      const eps = sortedEpisodes(meta).filter((v) => (v.season ?? 0) > 0);
+      const seasons = [...new Set(eps.map((v) => v.season))];
+      const p = profile();
+      const watched = eps.filter((v) => p?.watched?.[v.id]).length;
+      const next = meta.type === 'series' ? nextUnwatched(meta, p?.watched) : null;
+      return {
+        id: meta.id, type: meta.type, name: meta.name, year: meta.releaseInfo, runtime: m.runtime, genres: meta.genres,
+        imdb: meta.imdbRating, description: meta.description,
+        cast: (m.cast && m.cast.length ? m.cast : castFromLinks('Cast')).slice(0, 12),
+        director: m.director && m.director.length ? m.director : castFromLinks('Directors'),
+        writers: m.writer && m.writer.length ? m.writer : castFromLinks('Writers'),
+        country: m.country, awards: m.awards,
+        seasons: meta.type === 'series' ? seasons.map((s) => ({ season: s, episodes: eps.filter((v) => v.season === s).length })) : undefined,
+        user: {
+          inMyList: !!p?.myList.some((x) => x.id === meta.id),
+          languageMode: langPrefsFor(meta.id).want,
+          watchedEpisodes: meta.type === 'series' ? `${watched}/${eps.length}` : undefined,
+          movieWatched: meta.type === 'movie' ? !!p?.watched?.[meta.id] : undefined,
+          resume: p?.progress[meta.id]?.episodeTitle || (p?.progress[meta.id] ? 'en cours' : undefined),
+          nextEpisode: next ? `${episodeLabel(next)} « ${next.title || next.name || ''} »` : undefined,
+        },
+      };
+    }
+    case 'check_language': {
+      const meta = await getMeta(st.addons, input.type, input.id);
+      if (!meta) return { error: 'Titre introuvable' };
+      const v = videoFor(meta, input.season, input.episode);
+      if (meta.type === 'series' && !v) return { error: 'Épisode introuvable' };
+      const videoId = v ? v.id : meta.id;
+      const want: 'vf' | 'vo' = input.want || langPrefsFor(meta.id).want || 'vf';
+      onStatus(`Recherche des sources${v ? ` (${episodeLabel(v)})` : ''}…`);
+      const groups = await getStreams(st.addons, meta.type, videoId);
+      const all = groups.flatMap((g) => g.streams.filter((s) => s.url).map((s) => ({ stream: s, addon: g.addon.manifest.name })));
+      if (!all.length) return { episode: v ? episodeLabel(v) : undefined, error: 'Aucune source trouvée par les addons' };
+      const hide = st.settings.hideUhd !== false;
+      const pool = all.filter((r) => !hide || !isUhd(r.stream));
+      const tagged = pool.filter((r) => fitsLang(r.stream, want));
+      const ranked = rankStreams(tagged.length ? tagged : pool, meta.id).map((r) => r.stream);
+      const found = await pickVerified(ranked, want, onStatus, { cancelled: false }, { quiet: true });
+      const info = found ? cachedLang(found) : null;
+      const checked = ranked.filter((s) => cachedLang(s)).length;
+      const fakes = ranked.filter((s) => {
+        const c = cachedLang(s);
+        return c && (want === 'vf' ? c.status === 'nofr' : c.status === 'fr' && c.vo === false);
+      }).length;
+      const q = found ? streamQuality(found) : null;
+      return {
+        episode: v ? `${episodeLabel(v)} « ${v.title || v.name || ''} »` : undefined,
+        want,
+        confirmed: !!found && (want === 'vf' ? info?.status === 'fr' : info?.vo === true),
+        source: found ? { quality: q?.label, size: streamSize(found), addon: all.find((r) => r.stream === found)?.addon, audio: info?.label } : null,
+        sourcesWithLanguageTag: tagged.length,
+        sourcesChecked: checked,
+        fakeLanguageTags: fakes,
+      };
+    }
+    case 'play': {
+      const meta = await getMeta(st.addons, input.type, input.id);
+      if (!meta) return { error: 'Titre introuvable' };
+      if (meta.type === 'series' && input.season != null && input.episode != null) {
+        const v = videoFor(meta, input.season, input.episode);
+        if (!v) return { error: 'Épisode introuvable' };
+        playTarget(episodeTarget(meta, v));
+        return { started: `${meta.name} ${episodeLabel(v)}` };
+      }
+      quickPlay(slimMeta(meta));
+      return { started: meta.name };
+    }
+    case 'open_title': {
+      st.openDetail({ type: input.type, id: input.id });
+      return { opened: true };
+    }
+    case 'set_language': {
+      st.setLangPref(String(input.id), input.mode === 'vo' ? 'vo' : 'vf');
+      return { ok: true, mode: input.mode };
+    }
+    case 'my_list': {
+      const p = profile();
+      const inList = !!p?.myList.some((x) => x.id === input.id);
+      if ((input.action === 'add') === inList) return { ok: true, unchanged: true };
+      const meta = await getMeta(st.addons, input.type, input.id);
+      if (!meta) return { error: 'Titre introuvable' };
+      st.toggleMyList(meta as MetaPreview);
+      return { ok: true };
+    }
+    case 'get_activity': {
+      const p = profile();
+      return {
+        continueWatching: Object.values(p?.progress || {}).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 10)
+          .map((e) => ({ id: e.meta.id, type: e.meta.type, name: e.meta.name, episode: e.episodeTitle, progress: e.duration ? Math.round((e.position / e.duration) * 100) + '%' : undefined })),
+        myList: (p?.myList || []).slice(0, 20).map((m) => ({ id: m.id, type: m.type, name: m.name })),
+      };
+    }
+  }
+  return { error: `Outil inconnu : ${name}` };
+}
+
+/** Ce qui est à l'écran, envoyé avec chaque question */
+function screenContext(): string {
+  const st = useStore.getState();
+  const parts = [`Page : ${st.page}`];
+  if (st.detail) parts.push(`Fiche ouverte : ${st.detail.preview?.name || ''} (id ${st.detail.id}, ${st.detail.type})`);
+  if (st.player) parts.push(`En lecture : ${st.player.title}${st.player.subtitle ? ` ${st.player.subtitle}` : ''}${st.player.meta ? ` (id ${st.player.meta.id})` : ''}`);
+  const p = profile();
+  if (p) parts.push(`Profil : ${p.name}`);
+  return `[Contexte de l'écran — ${parts.join(' · ')}]`;
+}
+
+// ---------- Conversation ----------
+export interface ChatItem {
+  id: number;
+  role: 'user' | 'nox' | 'activity' | 'error';
+  text: string;
+}
+
+interface NoxState {
+  open: boolean;
+  busy: boolean;
+  items: ChatItem[];
+  history: Msg[];
+  setOpen: (v: boolean) => void;
+  reset: () => void;
+  ask: (text: string) => Promise<void>;
+}
+
+let seq = 0;
+const ACT: Record<string, string> = {
+  search_titles: '🔎', get_title_details: '🎬', check_language: '🇫🇷', play: '▶️', open_title: '📄', set_language: '🗣️', my_list: '➕', get_activity: '🕘',
+};
+
+export const useNox = create<NoxState>((set, get) => ({
+  open: false,
+  busy: false,
+  items: [],
+  history: [],
+  setOpen: (open) => set({ open }),
+  reset: () => set({ items: [], history: [] }),
+  ask: async (text) => {
+    const q = text.trim();
+    if (!q || get().busy) return;
+    const apiKey = (useStore.getState().settings.noxKey || '').trim();
+    const push = (role: ChatItem['role'], t: string) => {
+      const item = { id: ++seq, role, text: t };
+      set((s) => ({ items: [...s.items, item] }));
+      return item.id;
+    };
+    const update = (id: number, t: string) => set((s) => ({ items: s.items.map((i) => (i.id === id ? { ...i, text: t } : i)) }));
+    push('user', q);
+    set({ busy: true });
+    // Historique en ajout seul : jamais réécrit (les blocs de réflexion doivent revenir intacts)
+    const history: Msg[] = [...get().history, { role: 'user', content: `${screenContext()}\n\n${q}` }];
+    try {
+      for (let turn = 0; turn < 8; turn++) {
+        const res = await window.nocta!.assistant.create({ apiKey, system: SYSTEM, tools: TOOLS, messages: history });
+        if (!res.ok || !res.content) { push('error', res.error || 'Pas de réponse'); break; }
+        history.push({ role: 'assistant', content: res.content as Msg['content'] });
+        const said = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+        if (said) push('nox', said);
+        if (res.stop_reason === 'refusal') { if (!said) push('nox', 'Désolé, je ne peux pas t\'aider là-dessus.'); break; }
+        if (res.stop_reason === 'pause_turn') continue;
+        if (res.stop_reason !== 'tool_use') break;
+        // Outils demandés : exécutés, puis tous les résultats renvoyés dans un seul message
+        const calls = res.content.filter((b) => b.type === 'tool_use') as Anthropic.Beta.BetaToolUseBlock[];
+        const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
+        for (const call of calls) {
+          const actId = push('activity', `${ACT[call.name] || '⚙️'} …`);
+          const status = (t: string) => update(actId, `${ACT[call.name] || '⚙️'} ${t}`);
+          status(call.name === 'check_language' ? 'Vérification de la langue…' : 'Un instant…');
+          try {
+            const out = await runTool(call.name, (call.input || {}) as Input, status);
+            const err = out && typeof out === 'object' && 'error' in out ? String((out as { error: unknown }).error) : null;
+            status(err ? `Oups : ${err}` : doneLabel(call.name, call.input as Input, out));
+            results.push({ type: 'tool_result', tool_use_id: call.id, content: JSON.stringify(out), is_error: !!err });
+          } catch (e) {
+            status('Oups, ça n\'a pas marché');
+            results.push({ type: 'tool_result', tool_use_id: call.id, content: String((e as Error).message || e), is_error: true });
+          }
+        }
+        history.push({ role: 'user', content: results });
+      }
+    } finally {
+      set({ history, busy: false });
+    }
+  },
+}));
+
+function doneLabel(name: string, input: Input, out: any): string {
+  switch (name) {
+    case 'search_titles': return `Recherche « ${input.query} » : ${out?.results?.length || 0} résultat(s)`;
+    case 'get_title_details': return `Fiche de ${out?.name || 'ce titre'}`;
+    case 'check_language': return out?.confirmed ? `${out.want === 'vo' ? 'VO' : 'Vraie VF'} trouvée${out.source?.quality ? ` · ${out.source.quality}` : ''}` : `Pas de ${out?.want === 'vo' ? 'VO' : 'vraie VF'} confirmée`;
+    case 'play': return `Lecture de ${out?.started || 'la vidéo'}`;
+    case 'open_title': return 'Fiche ouverte';
+    case 'set_language': return `Langue réglée : ${input.mode === 'vo' ? 'VO · sous-titres FR' : 'VF'}`;
+    case 'my_list': return input.action === 'add' ? 'Ajouté à ta liste' : 'Retiré de ta liste';
+    case 'get_activity': return 'Ce que tu regardes';
+  }
+  return 'Fait';
+}

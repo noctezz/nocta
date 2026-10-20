@@ -6,6 +6,7 @@ const media = require('./media-server.cjs');
 const { MpvSession, mpvBinary } = require('./mpv.cjs');
 const intro = require('./intro.cjs');
 const subsync = require('./subsync.cjs');
+const assistant = require('./assistant.cjs');
 const remote = require('./remote.cjs');
 const updater = require('./updater.cjs');
 
@@ -143,6 +144,9 @@ ipcMain.handle('player:action', (_e, name, data) => {
 // Détection du générique par empreinte audio
 ipcMain.handle('intro:detect', (_e, job) => intro.detect(job));
 ipcMain.handle('intro:has', (_e, seriesId, videoId) => intro.hasFp(seriesId, videoId));
+// Nox, l'assistant (Claude)
+ipcMain.handle('assistant:create', (_e, req) => assistant.create(req));
+ipcMain.handle('assistant:testKey', (_e, key) => assistant.testKey(key));
 // Recalage automatique des sous-titres
 ipcMain.handle('player:subsync', (_e, job) => subsync.sync(job));
 ipcMain.handle('player:fullscreen', () => { win.setFullScreen(!win.isFullScreen()); return !win.isFullScreen(); });

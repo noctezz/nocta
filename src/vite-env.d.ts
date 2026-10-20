@@ -83,6 +83,11 @@ interface NoctaBridge {
     openWindow: (url: string) => Promise<void>;
     onInstall: (cb: (manifestUrl: string) => void) => () => void;
   };
+  assistant: {
+    create: (req: { apiKey: string; system: unknown; tools: unknown; messages: unknown }) =>
+      Promise<{ ok: boolean; content?: any[]; stop_reason?: string; stop_details?: { category?: string | null; explanation?: string } | null; error?: string }>;
+    testKey: (key: string) => Promise<{ ok: boolean; model?: string; error?: string }>;
+  };
   update: {
     status: () => Promise<NoctaUpdateState>;
     check: () => Promise<NoctaUpdateState>;

@@ -25,6 +25,7 @@ import { errMsg } from './lib/playback';
 import { playLocalFile } from './lib/playback';
 import { useBusy, useHover } from './lib/ui';
 import { UpdateBanner } from './components/UpdateBanner';
+import { Nox } from './components/Nox';
 import { installSpatialNav, navigate, type NavKey } from './lib/spatialNav';
 
 const VIDEO_RE = /\.(mkv|mp4|avi|mov|webm|m4v|ts|wmv|flv)$/i;
@@ -158,6 +159,7 @@ export default function App() {
               {page === 'catalogs' && <Catalogs />}
             </main>
             <HoverPreview />
+            {!player && <Nox />}
             {!player && <SeasonalLayer theme={season} density={0.7} className="app-season" />}
           </motion.div>
         )}

@@ -4,6 +4,7 @@ import { playIntroSound } from '../lib/sound';
 import { RemotePanel } from '../components/RemotePanel';
 import { UpdateSettings } from '../components/UpdateBanner';
 import { testKey } from '../lib/torbox';
+import { NoxOwl } from '../components/Nox';
 
 const ENCODERS: Record<string, string> = {
   libx264: 'Processeur (compatible partout)',
@@ -65,6 +66,46 @@ function TorboxCleanup() {
       {!!settings.torboxCleaned && <div className="status">{settings.torboxCleaned} source{settings.torboxCleaned > 1 ? 's' : ''} essayée{settings.torboxCleaned > 1 ? 's' : ''} retirée{settings.torboxCleaned > 1 ? 's' : ''} de TorBox</div>}
       <small className="muted">La clé reste sur ce PC et ne sert qu'à ce nettoyage.</small>
     </div>
+  );
+}
+
+/** Nox : clé API Anthropic et affichage de la mascotte */
+function NoxSettings() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const [key, setKey] = useState(settings.noxKey || '');
+  const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    const k = key.trim();
+    update({ noxKey: k });
+    if (!k || !window.nocta) { setTest(null); return; }
+    setBusy(true);
+    const r = await window.nocta.assistant.testKey(k);
+    setBusy(false);
+    setTest(r.ok ? { ok: true, text: `Nox est réveillé (${r.model})` } : { ok: false, text: r.error || 'Clé refusée' });
+  };
+  return (
+    <section className="settings-card">
+      <h2 className="nox-settings-title"><NoxOwl size={34} /> Assistant Nox</h2>
+      <Toggle
+        title="Afficher Nox"
+        hint="La chouette en bas à gauche : casting, recommandations, vérification de la vraie VF, lancement d'un film… Il suffit de lui demander."
+        checked={settings.noxVisible !== false}
+        onChange={(v) => update({ noxVisible: v })}
+      />
+      <div className="setting setting-col">
+        <div>
+          <strong>Clé API Anthropic (Claude)</strong>
+          <span>Nox réfléchit avec Claude. Crée une clé sur console.anthropic.com → API Keys (payant à l'usage, environ 1 à 3 centimes par question). La clé reste sur ce PC.</span>
+        </div>
+        <div className="key-row">
+          <input className="input" type="password" placeholder="sk-ant-…" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} />
+          <button className="btn-outline" disabled={busy} onClick={save}>{busy ? 'Test…' : key.trim() === (settings.noxKey || '') && key ? 'Tester' : 'Enregistrer'}</button>
+        </div>
+        {test && <div className={`status ${test.ok ? 'ok' : 'err'}`}>{test.text}</div>}
+      </div>
+    </section>
   );
 }
 
@@ -229,6 +270,8 @@ export function Settings() {
               </select>
             </label>
           </section>
+
+          <NoxSettings />
 
           <section className="settings-card">
             <h2>Générique</h2>
