@@ -67,8 +67,9 @@ par NOCTA »). En cas de doute, ils restent tels quels.
 
 **Nox, l'assistant** 🦉 : la chouette en bas à gauche. Clique dessus et pose tes questions : casting, durée,
 recommandations, « il est dispo en vraie VF ? » (Nox vérifie les fichiers pour de vrai), « lance l'épisode 3 »… Il
-sait quelle fiche est ouverte. Nox réfléchit avec Claude : il faut une clé API Anthropic (*Paramètres → Avancé →
-Assistant Nox*, environ 1 à 3 centimes par question).
+sait quelle fiche est ouverte. Nox réfléchit avec Gemini : il faut une clé API Google, gratuite (*Paramètres →
+Avancé → Assistant Nox → Créer ma clé*). On peut aussi lui parler : bouton 🎤 dans la discussion, Nox détecte tout
+seul la fin de la phrase.
 
 **Mises à jour automatiques** : au lancement, NOCTA regarde s'il existe une nouvelle version. Une carte propose
 *Mettre à jour* : téléchargement, installation et redémarrage tout seuls. Aussi dans *Paramètres → Mises à jour*.

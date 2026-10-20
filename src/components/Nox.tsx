@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowUp, RotateCcw, X } from 'lucide-react';
+import { ArrowUp, Mic, RotateCcw, Square, X } from 'lucide-react';
 import { useNox } from '../lib/nox';
 import { useStore } from '../lib/store';
+import { listen, type Listening } from '../lib/voice';
 
 /**
  * Nox, la chouette de NOCTA (dessin original en SVG) : flotte, cligne des yeux,
@@ -99,6 +100,11 @@ export function Nox() {
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  // Micro : écoute → transcription → question
+  const [voice, setVoice] = useState<'idle' | 'listening' | 'speaking' | 'transcribing'>('idle');
+  const [level, setLevel] = useState(0);
+  const [voiceError, setVoiceError] = useState('');
+  const rec = useRef<Listening | null>(null);
 
   // Le regard suit la souris
   useEffect(() => {
@@ -127,10 +133,18 @@ export function Nox() {
   useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 200); }, [open]);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (rec.current) rec.current.cancel();
+      else setOpen(false);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, setOpen]);
+
+  // Fermer le panneau coupe le micro
+  useEffect(() => { if (!open) rec.current?.cancel(); }, [open]);
+  useEffect(() => () => rec.current?.cancel(), []);
 
   if (settings.noxVisible === false) return null;
   const hasKey = !!(settings.noxKey || '').trim();
@@ -140,6 +154,33 @@ export function Nox() {
     setText('');
     ask(t);
   };
+
+  const talk = async () => {
+    if (rec.current) { rec.current.stop(); return; }
+    if (busy || voice === 'transcribing') return;
+    setVoiceError('');
+    let r: Listening;
+    try {
+      r = await listen(setLevel, () => setVoice('speaking'));
+    } catch (e) {
+      const name = (e as DOMException)?.name;
+      setVoiceError(name === 'NotAllowedError' ? 'Micro refusé : autorise-le dans les réglages de Windows (Confidentialité → Microphone).' : name === 'NotFoundError' ? 'Aucun micro détecté.' : 'Impossible d\'ouvrir le micro.');
+      return;
+    }
+    rec.current = r;
+    setVoice('listening');
+    const audio = await r.done;
+    rec.current = null;
+    if (!audio) { setVoice('idle'); return; }
+    setVoice('transcribing');
+    const res = await window.nocta!.assistant.transcribe({ apiKey: (settings.noxKey || '').trim(), ...audio });
+    setVoice('idle');
+    if (!res.ok) { setVoiceError(res.error || 'Transcription impossible'); return; }
+    const said = (res.text || '').trim();
+    if (said.length < 2) { setVoiceError('Je n\'ai pas compris, tu peux répéter ?'); return; }
+    ask(said);
+  };
+  const recording = voice === 'listening' || voice === 'speaking';
 
   return (
     <>
@@ -210,16 +251,44 @@ export function Nox() {
                     {suggestions().map((s) => <button key={s} onClick={() => send(s)}>{s}</button>)}
                   </div>
                 )}
+                {voiceError && <div className="nox-voice-error">{voiceError}</div>}
                 <div className="nox-input">
-                  <textarea
-                    ref={inputRef}
-                    rows={1}
-                    value={text}
-                    placeholder="Pose ta question à Nox…"
-                    onChange={(e) => setText(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-                  />
-                  <button className="nox-send" disabled={busy || !text.trim()} onClick={() => send()} aria-label="Envoyer"><ArrowUp size={18} /></button>
+                  {recording || voice === 'transcribing' ? (
+                    <div className={`nox-listen ${voice}`}>
+                      <div className="nox-wave" aria-hidden>
+                        {[0.55, 0.85, 1, 0.75, 0.5, 0.9, 0.65].map((k, i) => (
+                          <span key={i} style={{ transform: `scaleY(${voice === 'transcribing' ? 0.25 : Math.max(0.12, Math.min(1, level * k * 1.6))})` }} />
+                        ))}
+                      </div>
+                      <span className="nox-listen-label">
+                        {voice === 'transcribing' ? 'Je t\'ai entendu, je note…' : voice === 'speaking' ? 'Je t\'écoute…' : 'Parle, je t\'écoute 🦉'}
+                      </span>
+                      {recording && <button className="nox-icon" onClick={() => rec.current?.cancel()} title="Annuler (Échap)"><X size={16} /></button>}
+                    </div>
+                  ) : (
+                    <textarea
+                      ref={inputRef}
+                      rows={1}
+                      value={text}
+                      placeholder="Pose ta question à Nox…"
+                      onChange={(e) => setText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+                    />
+                  )}
+                  {text.trim() && !recording && voice !== 'transcribing' ? (
+                    <button className="nox-send" disabled={busy} onClick={() => send()} aria-label="Envoyer"><ArrowUp size={18} /></button>
+                  ) : (
+                    <button
+                      className={`nox-mic ${recording ? 'is-on' : ''}`}
+                      disabled={busy || voice === 'transcribing'}
+                      onClick={talk}
+                      aria-label={recording ? 'Terminer' : 'Parler à Nox'}
+                      title={recording ? 'Terminer (Nox s\'arrête aussi tout seul quand tu as fini de parler)' : 'Parler à Nox'}
+                      style={recording ? { boxShadow: `0 0 0 ${3 + level * 10}px rgba(229, 9, 20, 0.28)` } : undefined}
+                    >
+                      {recording ? <Square size={14} fill="currentColor" /> : <Mic size={18} />}
+                    </button>
+                  )}
                 </div>
               </>
             )}
@@ -230,7 +299,7 @@ export function Nox() {
   );
 }
 
-/** Première ouverture : la clé API Anthropic */
+/** Première ouverture : la clé API Google (gratuite) */
 function NoxSetup({ onDone, onSettings }: { onDone: (key: string) => void; onSettings: () => void }) {
   const [key, setKey] = useState('');
   const [state, setState] = useState<{ busy?: boolean; error?: string }>({});
@@ -244,12 +313,12 @@ function NoxSetup({ onDone, onSettings }: { onDone: (key: string) => void; onSet
   };
   return (
     <div className="nox-setup">
-      <p>Pour me réveiller, il me faut une <b>clé API Anthropic</b> (Claude). Elle reste sur ce PC.</p>
+      <p>Pour me réveiller, il me faut une <b>clé API Google</b> (Gemini). C'est <b>gratuit</b>, et elle reste sur ce PC.</p>
       <ol>
-        <li>Va sur <a onClick={() => window.nocta?.openExternal('https://console.anthropic.com/settings/keys')}>console.anthropic.com</a>, crée une clé.</li>
-        <li>Colle-la ici. Compte environ 1 à 3 centimes par question.</li>
+        <li>Va sur <a onClick={() => window.nocta?.openExternal('https://aistudio.google.com/apikey')}>Google AI Studio</a>, connecte-toi et clique sur <i>Create API key</i>.</li>
+        <li>Copie la clé et colle-la ici.</li>
       </ol>
-      <input className="input" type="password" placeholder="sk-ant-…" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && test()} />
+      <input className="input" type="password" placeholder="AIza…" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && test()} />
       {state.error && <div className="status err">{state.error}</div>}
       <div className="nox-setup-actions">
         <button className="btn btn-white" disabled={state.busy || !key.trim()} onClick={test}>{state.busy ? 'Vérification…' : 'Réveiller Nox'}</button>

@@ -73,6 +73,7 @@ contextBridge.exposeInMainWorld('nocta', {
   },
   assistant: {
     create: (req) => ipcRenderer.invoke('assistant:create', req),
+    transcribe: (req) => ipcRenderer.invoke('assistant:transcribe', req),
     testKey: (key) => ipcRenderer.invoke('assistant:testKey', key),
   },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),

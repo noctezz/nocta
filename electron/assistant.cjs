@@ -1,68 +1,119 @@
-// Nox, l'assistant de NOCTA : les appels à Claude (API Anthropic) se font ici, dans le
-// processus principal, pour que la clé ne passe jamais par l'interface. La boucle d'outils
-// (recherche, casting, vérification de la VF, lecture…) tourne dans l'interface, qui
-// envoie l'historique complet à chaque tour.
-const AnthropicSDK = require('@anthropic-ai/sdk');
+// Nox, l'assistant de NOCTA, réfléchit avec Gemini (Google AI Studio, gratuit dans la limite
+// des quotas). Les appels se font ici, dans le processus principal, pour que la clé ne passe
+// jamais par l'interface. La boucle d'outils (recherche, casting, VF, lecture…) tourne dans
+// l'interface, qui envoie l'historique complet à chaque tour.
+const API = 'https://generativelanguage.googleapis.com/v1beta';
 
-const Anthropic = AnthropicSDK.default || AnthropicSDK;
-const MODEL = 'claude-opus-5-5';
+let models = null; // modèles utilisables avec la clé, du meilleur au moins bon
+let modelsKey = '';
 
-let client = null;
-let clientKey = '';
-function clientFor(apiKey) {
-  if (!client || clientKey !== apiKey) {
-    client = new Anthropic({ apiKey, maxRetries: 2, timeout: 120000 });
-    clientKey = apiKey;
-  }
-  return client;
-}
-
-/** Message d'erreur clair, à partir des classes d'erreur du SDK */
-function explain(e) {
-  if (e instanceof Anthropic.AuthenticationError) return 'Clé API refusée : vérifie-la dans Paramètres → Avancé → Assistant Nox.';
-  if (e instanceof Anthropic.PermissionDeniedError) return 'Cette clé API n\'a pas accès à ce modèle.';
-  if (e instanceof Anthropic.RateLimitError) return 'Trop de questions d\'un coup : réessaie dans quelques secondes.';
-  if (e instanceof Anthropic.BadRequestError) return `Requête refusée par l'API : ${e.message}`;
-  if (e instanceof Anthropic.APIError && e.status >= 500) return 'Le service de Claude ne répond pas pour le moment, réessaie dans un instant.';
-  if (e instanceof Anthropic.APIConnectionError) return 'Pas de connexion à Internet, ou le service est injoignable.';
-  if (e instanceof Anthropic.APIError) return `Erreur de l'API (${e.status}) : ${e.message}`;
-  return String((e && e.message) || e);
-}
+/** Version d'un nom de modèle (gemini-2.5-flash → 2.5) pour trier du plus récent au plus ancien */
+const versionOf = (name) => parseFloat((/gemini-(\d+(?:\.\d+)?)/.exec(name) || [])[1] || '0');
 
 /**
- * Un tour de conversation : renvoie le contenu complet de la réponse (à remettre tel quel
- * dans l'historique, blocs de réflexion compris) et la raison d'arrêt.
+ * Choisit automatiquement les modèles « Flash » accessibles avec la clé (rapides et gratuits) :
+ * les versions stables d'abord, les plus récentes en premier ; « Lite » en dernier recours.
  */
-async function create({ apiKey, system, tools, messages }) {
-  if (!apiKey) return { ok: false, error: 'Aucune clé API : ajoute-la dans Paramètres → Avancé → Assistant Nox.' };
-  try {
-    const res = await clientFor(apiKey).beta.messages.create({
-      model: MODEL,
-      max_tokens: 16000,
-      // Discussion : un niveau d'effort bas suffit et répond plus vite
-      output_config: { effort: 'low' },
-      // Si le modèle décline une demande, un autre modèle prend le relais dans le même appel
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      cache_control: { type: 'ephemeral' },
-      system,
-      tools,
-      messages,
+async function modelsFor(apiKey) {
+  if (models && modelsKey === apiKey) return models;
+  const res = await fetch(`${API}/models?pageSize=200`, { headers: { 'x-goog-api-key': apiKey }, signal: AbortSignal.timeout(15000) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw apiError(res.status, data);
+  const usable = (data.models || [])
+    .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+    .map((m) => m.name.replace(/^models\//, ''))
+    .filter((n) => /^gemini-\d/.test(n) && /flash/.test(n) && !/image|tts|audio|live|embedding|vision|learnlm/.test(n));
+  const rank = (n) => (/lite/.test(n) ? 2 : 0) + (/preview|exp/.test(n) ? 1 : 0);
+  usable.sort((a, b) => rank(a) - rank(b) || versionOf(b) - versionOf(a) || a.length - b.length);
+  if (!usable.length) throw new Error('Aucun modèle Gemini disponible avec cette clé.');
+  models = usable;
+  modelsKey = apiKey;
+  return models;
+}
+
+function apiError(status, data) {
+  const msg = (data && data.error && data.error.message) || '';
+  if (status === 400 && /API key not valid|API_KEY_INVALID/i.test(msg)) return Object.assign(new Error('Clé API refusée : vérifie-la dans Paramètres → Avancé → Assistant Nox.'), { status });
+  if (status === 403) return Object.assign(new Error('Cette clé n\'a pas accès à l\'API Gemini (active « Generative Language API » sur ton compte Google).'), { status });
+  if (status === 429) return Object.assign(new Error('Quota gratuit atteint pour le moment : réessaie dans une minute.'), { status, quota: true });
+  if (status >= 500) return Object.assign(new Error('Le service de Google ne répond pas pour le moment, réessaie dans un instant.'), { status });
+  return Object.assign(new Error(msg || `Erreur de l'API Gemini (${status})`), { status });
+}
+
+/** Appel à generateContent, en passant au modèle suivant si le quota gratuit de l'un est épuisé */
+async function generate(apiKey, body) {
+  const list = await modelsFor(apiKey);
+  let lastErr;
+  for (const model of list.slice(0, 3)) {
+    const res = await fetch(`${API}/models/${model}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(90000),
     });
-    return { ok: true, content: res.content, stop_reason: res.stop_reason, stop_details: res.stop_details || null };
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return { data, model };
+    lastErr = apiError(res.status, data);
+    if (!lastErr.quota && res.status !== 404) break;
+  }
+  throw lastErr;
+}
+
+const fail = (e) => ({ ok: false, error: e && e.name === 'TimeoutError' ? 'Gemini met trop de temps à répondre, réessaie.' : String((e && e.message) || e) });
+
+/**
+ * Un tour de conversation : renvoie le contenu du modèle (à remettre tel quel dans l'historique,
+ * signatures de réflexion comprises) et la raison d'arrêt.
+ */
+async function create({ apiKey, system, tools, contents }) {
+  if (!apiKey) return { ok: false, error: 'Aucune clé API : ajoute ta clé Google dans Paramètres → Avancé → Assistant Nox.' };
+  try {
+    const { data, model } = await generate(apiKey, {
+      systemInstruction: { parts: [{ text: system }] },
+      contents,
+      tools: [{ functionDeclarations: tools }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
+    });
+    const cand = (data.candidates || [])[0];
+    if (!cand || !cand.content) {
+      const blocked = data.promptFeedback && data.promptFeedback.blockReason;
+      return { ok: false, error: blocked ? 'Gemini a refusé de répondre à cette question.' : 'Pas de réponse de Gemini.' };
+    }
+    return { ok: true, content: { role: 'model', parts: cand.content.parts || [] }, finishReason: cand.finishReason, model };
   } catch (e) {
-    return { ok: false, error: explain(e) };
+    return fail(e);
   }
 }
 
-/** Vérifie la clé sans rien facturer (lecture des infos du modèle) */
+/** Transcription d'un message vocal (WAV en base64) */
+async function transcribe({ apiKey, audio, mime }) {
+  try {
+    const { data } = await generate(apiKey, {
+      contents: [{
+        role: 'user',
+        parts: [
+          { inlineData: { mimeType: mime || 'audio/wav', data: audio } },
+          { text: 'Transcris exactement ce message vocal (en français, avec la ponctuation). Réponds uniquement par le texte transcrit, sans guillemets. S\'il n\'y a pas de parole, réponds par une chaîne vide.' },
+        ],
+      }],
+      generationConfig: { temperature: 0 },
+    });
+    const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
+    return { ok: true, text: parts.filter((p) => p.text && !p.thought).map((p) => p.text).join('').trim() };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Vérifie la clé et indique le modèle qui sera utilisé */
 async function testKey(apiKey) {
   try {
-    const m = await clientFor(apiKey).models.retrieve(MODEL);
-    return { ok: true, model: m.display_name || MODEL };
+    models = null;
+    const list = await modelsFor(apiKey);
+    return { ok: true, model: list[0] };
   } catch (e) {
-    return { ok: false, error: explain(e) };
+    return fail(e);
   }
 }
 
-module.exports = { create, testKey };
+module.exports = { create, transcribe, testKey };

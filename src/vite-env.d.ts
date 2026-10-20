@@ -84,8 +84,9 @@ interface NoctaBridge {
     onInstall: (cb: (manifestUrl: string) => void) => () => void;
   };
   assistant: {
-    create: (req: { apiKey: string; system: unknown; tools: unknown; messages: unknown }) =>
-      Promise<{ ok: boolean; content?: any[]; stop_reason?: string; stop_details?: { category?: string | null; explanation?: string } | null; error?: string }>;
+    create: (req: { apiKey: string; system: string; tools: unknown; contents: unknown }) =>
+      Promise<{ ok: boolean; content?: { role: string; parts: any[] }; finishReason?: string; model?: string; error?: string }>;
+    transcribe: (req: { apiKey: string; audio: string; mime: string }) => Promise<{ ok: boolean; text?: string; error?: string }>;
     testKey: (key: string) => Promise<{ ok: boolean; model?: string; error?: string }>;
   };
   update: {

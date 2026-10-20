@@ -144,8 +144,9 @@ ipcMain.handle('player:action', (_e, name, data) => {
 // Détection du générique par empreinte audio
 ipcMain.handle('intro:detect', (_e, job) => intro.detect(job));
 ipcMain.handle('intro:has', (_e, seriesId, videoId) => intro.hasFp(seriesId, videoId));
-// Nox, l'assistant (Claude)
+// Nox, l'assistant (Gemini)
 ipcMain.handle('assistant:create', (_e, req) => assistant.create(req));
+ipcMain.handle('assistant:transcribe', (_e, req) => assistant.transcribe(req));
 ipcMain.handle('assistant:testKey', (_e, key) => assistant.testKey(key));
 // Recalage automatique des sous-titres
 ipcMain.handle('player:subsync', (_e, job) => subsync.sync(job));
@@ -278,6 +279,10 @@ ipcMain.handle('win:setFullscreen', (_e, v) => { win.setFullScreen(!!v); return 
 
 app.whenReady().then(async () => {
   await media.start();
+  // Micro autorisé pour parler à Nox (aucune autre permission sensible)
+  const allow = (p) => p === 'media' || p === 'audioCapture' || p === 'clipboard-sanitized-write' || p === 'fullscreen';
+  electronSession.defaultSession.setPermissionRequestHandler((_wc, p, cb) => cb(allow(p)));
+  electronSession.defaultSession.setPermissionCheckHandler((_wc, p) => allow(p));
   electronSession.defaultSession.webRequest.onBeforeSendHeaders(
     { urls: ['https://www.youtube-nocookie.com/*', 'https://www.youtube.com/*'] },
     (details, cb) => {

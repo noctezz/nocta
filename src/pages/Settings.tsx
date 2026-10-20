@@ -69,7 +69,7 @@ function TorboxCleanup() {
   );
 }
 
-/** Nox : clé API Anthropic et affichage de la mascotte */
+/** Nox : clé API Google (Gemini, gratuite) et affichage de la mascotte */
 function NoxSettings() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
@@ -96,11 +96,12 @@ function NoxSettings() {
       />
       <div className="setting setting-col">
         <div>
-          <strong>Clé API Anthropic (Claude)</strong>
-          <span>Nox réfléchit avec Claude. Crée une clé sur console.anthropic.com → API Keys (payant à l'usage, environ 1 à 3 centimes par question). La clé reste sur ce PC.</span>
+          <strong>Clé API Google (Gemini)</strong>
+          <span>Nox réfléchit avec Gemini, gratuit pour un usage perso. Clique sur « Créer ma clé », connecte-toi avec ton compte Google, puis <i>Create API key</i> et colle-la ici. La clé reste sur ce PC.</span>
         </div>
         <div className="key-row">
-          <input className="input" type="password" placeholder="sk-ant-…" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} />
+          <input className="input" type="password" placeholder="AIza…" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} />
+          <button className="btn-outline" onClick={() => window.nocta?.openExternal('https://aistudio.google.com/apikey')}>Créer ma clé ↗</button>
           <button className="btn-outline" disabled={busy} onClick={save}>{busy ? 'Test…' : key.trim() === (settings.noxKey || '') && key ? 'Tester' : 'Enregistrer'}</button>
         </div>
         {test && <div className={`status ${test.ok ? 'ok' : 'err'}`}>{test.text}</div>}

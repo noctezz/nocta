@@ -13,7 +13,6 @@
     "dist": "vite build && electron-builder --win --publish never"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.135.0",
     "@ffprobe-installer/ffprobe": "^2.1.2",
     "ffmpeg-static": "^5.3.0",
     "qrcode": "^1.5.4",

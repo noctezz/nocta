@@ -1,6 +1,5 @@
-// Nox, la mascotte-assistant de NOCTA : discute avec Claude et agit dans l'app grâce à des
+// Nox, la mascotte-assistant de NOCTA : discute avec Gemini (Google) et agit dans l'app grâce à des
 // outils (recherche, fiche et casting, vérification de la vraie VF, lecture, liste, langue).
-import type Anthropic from '@anthropic-ai/sdk';
 import { create } from 'zustand';
 import { getMeta, getStreams, searchableCatalogs, getCatalog, streamQuality, streamSize } from './addons';
 import { episodeTarget, nextUnwatched, pickVerified, playTarget, rankStreams } from './autoplay';
@@ -12,15 +11,16 @@ import { useStore } from './store';
 import { quickPlay } from './ui';
 import type { Meta, MetaPreview } from './types';
 
-type Msg = Anthropic.Beta.BetaMessageParam;
-type Tool = Anthropic.Beta.BetaTool;
+type Part = Record<string, any>;
+type Msg = { role: 'user' | 'model'; parts: Part[] };
+type Tool = { name: string; description: string; parameters?: Record<string, unknown> };
 
 // ---------- Ce que Nox sait faire ----------
 const TOOLS: Tool[] = [
   {
     name: 'search_titles',
     description: 'Cherche des films ou des séries dans le catalogue de NOCTA à partir d\'un titre (ou d\'un mot-clé). Renvoie les identifiants à utiliser avec les autres outils.',
-    input_schema: {
+    parameters: {
       type: 'object',
       properties: {
         query: { type: 'string', description: 'Titre ou mots-clés' },
@@ -32,7 +32,7 @@ const TOOLS: Tool[] = [
   {
     name: 'get_title_details',
     description: 'Fiche complète d\'un film ou d\'une série : résumé, année, durée, genres, note IMDb, casting, réalisation, saisons et épisodes, progression de l\'utilisateur. À utiliser pour toute question factuelle (casting, durée…), au lieu de répondre de mémoire.',
-    input_schema: {
+    parameters: {
       type: 'object',
       properties: {
         id: { type: 'string', description: 'Identifiant (ex. tt0133093)' },
@@ -44,7 +44,7 @@ const TOOLS: Tool[] = [
   {
     name: 'check_language',
     description: 'Vérifie pour de vrai la langue des sources disponibles d\'un film ou d\'un épisode, en lisant les pistes audio des fichiers (pas seulement le nom des torrents). Pour une série sans épisode précisé, vérifie le prochain épisode à regarder. Prend quelques secondes.',
-    input_schema: {
+    parameters: {
       type: 'object',
       properties: {
         id: { type: 'string' },
@@ -59,7 +59,7 @@ const TOOLS: Tool[] = [
   {
     name: 'play',
     description: 'Lance la lecture d\'un film, ou d\'un épisode précis d\'une série (sinon reprise ou prochain épisode non vu). Seulement quand l\'utilisateur demande de lancer / regarder maintenant.',
-    input_schema: {
+    parameters: {
       type: 'object',
       properties: {
         id: { type: 'string' },
@@ -73,7 +73,7 @@ const TOOLS: Tool[] = [
   {
     name: 'open_title',
     description: 'Ouvre la fiche d\'un film ou d\'une série à l\'écran.',
-    input_schema: {
+    parameters: {
       type: 'object',
       properties: { id: { type: 'string' }, type: { type: 'string', enum: ['movie', 'series'] } },
       required: ['id', 'type'],
@@ -82,7 +82,7 @@ const TOOLS: Tool[] = [
   {
     name: 'set_language',
     description: 'Règle la langue d\'un titre précis : VF, ou VO avec sous-titres français. Mémorisé pour ce titre.',
-    input_schema: {
+    parameters: {
       type: 'object',
       properties: { id: { type: 'string' }, mode: { type: 'string', enum: ['vf', 'vo'] } },
       required: ['id', 'mode'],
@@ -91,7 +91,7 @@ const TOOLS: Tool[] = [
   {
     name: 'my_list',
     description: 'Ajoute un titre à « Ma liste » ou l\'en retire.',
-    input_schema: {
+    parameters: {
       type: 'object',
       properties: {
         id: { type: 'string' },
@@ -104,7 +104,6 @@ const TOOLS: Tool[] = [
   {
     name: 'get_activity',
     description: 'Ce que l\'utilisateur est en train de regarder (« Reprendre ») et le contenu de « Ma liste ».',
-    input_schema: { type: 'object', properties: {} },
   },
 ];
 
@@ -311,35 +310,44 @@ export const useNox = create<NoxState>((set, get) => ({
     push('user', q);
     set({ busy: true });
     // Historique en ajout seul : jamais réécrit (les blocs de réflexion doivent revenir intacts)
-    const history: Msg[] = [...get().history, { role: 'user', content: `${screenContext()}\n\n${q}` }];
+    const history: Msg[] = [...get().history];
+    const asked: Part = { text: `${screenContext()}\n\n${q}` };
+    // Après une erreur, le dernier message peut déjà venir de l'utilisateur : on le complète
+    const last = history[history.length - 1];
+    if (last?.role === 'user') history[history.length - 1] = { role: 'user', parts: [...last.parts, asked] };
+    else history.push({ role: 'user', parts: [asked] });
     try {
       for (let turn = 0; turn < 8; turn++) {
-        const res = await window.nocta!.assistant.create({ apiKey, system: SYSTEM, tools: TOOLS, messages: history });
+        const res = await window.nocta!.assistant.create({ apiKey, system: SYSTEM, tools: TOOLS, contents: history });
         if (!res.ok || !res.content) { push('error', res.error || 'Pas de réponse'); break; }
-        history.push({ role: 'assistant', content: res.content as Msg['content'] });
-        const said = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+        // Remis tel quel (signatures de réflexion comprises), sinon Gemini perd le fil des outils
+        const parts: Part[] = res.content.parts || [];
+        history.push({ role: 'model', parts });
+        const said = parts.filter((p) => typeof p.text === 'string' && !p.thought).map((p) => p.text).join('').trim();
         if (said) push('nox', said);
-        if (res.stop_reason === 'refusal') { if (!said) push('nox', 'Désolé, je ne peux pas t\'aider là-dessus.'); break; }
-        if (res.stop_reason === 'pause_turn') continue;
-        if (res.stop_reason !== 'tool_use') break;
+        const calls = parts.filter((p) => p.functionCall).map((p) => p.functionCall as { name: string; args?: Input; id?: string });
+        if (!calls.length) {
+          if (!said) push('nox', /SAFETY|BLOCK|PROHIBITED/.test(res.finishReason || '') ? 'Désolé, je ne peux pas t\'aider là-dessus.' : 'Hmm, je n\'ai rien trouvé à répondre. Tu peux reformuler ?');
+          break;
+        }
         // Outils demandés : exécutés, puis tous les résultats renvoyés dans un seul message
-        const calls = res.content.filter((b) => b.type === 'tool_use') as Anthropic.Beta.BetaToolUseBlock[];
-        const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
+        const results: Part[] = [];
         for (const call of calls) {
           const actId = push('activity', `${ACT[call.name] || '⚙️'} …`);
           const status = (t: string) => update(actId, `${ACT[call.name] || '⚙️'} ${t}`);
           status(call.name === 'check_language' ? 'Vérification de la langue…' : 'Un instant…');
+          let out: unknown;
           try {
-            const out = await runTool(call.name, (call.input || {}) as Input, status);
+            out = await runTool(call.name, call.args || {}, status);
             const err = out && typeof out === 'object' && 'error' in out ? String((out as { error: unknown }).error) : null;
-            status(err ? `Oups : ${err}` : doneLabel(call.name, call.input as Input, out));
-            results.push({ type: 'tool_result', tool_use_id: call.id, content: JSON.stringify(out), is_error: !!err });
+            status(err ? `Oups : ${err}` : doneLabel(call.name, call.args || {}, out));
           } catch (e) {
             status('Oups, ça n\'a pas marché');
-            results.push({ type: 'tool_result', tool_use_id: call.id, content: String((e as Error).message || e), is_error: true });
+            out = { error: String((e as Error).message || e) };
           }
+          results.push({ functionResponse: { name: call.name, ...(call.id ? { id: call.id } : {}), response: { result: out } } });
         }
-        history.push({ role: 'user', content: results });
+        history.push({ role: 'user', parts: results });
       }
     } finally {
       set({ history, busy: false });
