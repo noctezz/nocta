@@ -63,7 +63,7 @@ export function MpvBridge() {
         const nx = meta && r.videoId ? nextEpisode(meta, r.videoId) : null;
         if (alive()) p.info({ next: nx ? { label: episodeTitleOf(nx) } : null });
         // Sources de l'épisode suivant vérifiées à l'avance (VF), pour un enchaînement immédiat
-        if (nx) setTimeout(() => { if (alive() && reqRef.current.videoId === r.videoId) prepareNextEpisode(nx, r.meta?.id).catch(() => {}); }, 60000);
+        if (nx) setTimeout(() => { if (alive() && reqRef.current.videoId === r.videoId) prepareNextEpisode(meta!, nx, r).catch(() => {}); }, 60000);
         // Analyse audio du générique, une fois la lecture bien lancée
         setTimeout(() => {
           if (!alive() || reqRef.current.videoId !== r.videoId) return;

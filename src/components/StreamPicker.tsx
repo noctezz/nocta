@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AudioLines, ExternalLink, Loader2, Play, Puzzle, X, Zap } from 'lucide-react';
 import { getStreams, streamQuality, streamSize, type StreamGroup } from '../lib/addons';
@@ -8,7 +8,7 @@ import { useStore } from '../lib/store';
 import { errMsg, resolveStream, streamToDesc } from '../lib/playback';
 import { backdropOf, posterOf, useBusy } from '../lib/ui';
 import type { Stream } from '../lib/types';
-import { cachedLang, canCheck, checkLang, isChecking, onLangResult } from '../lib/langCheck';
+import { cachedLang, canCheck, checkLang, discard, isChecking, onLangResult } from '../lib/langCheck';
 import { langPrefsFor } from '../lib/langPrefs';
 
 interface Row { stream: Stream; addon: string; key: string }
@@ -68,10 +68,28 @@ export function StreamPicker() {
 
   useEffect(() => {
     if (!verify || !groups) return;
+    // Une par une, dans l'ordre, jusqu'à la première vraie VF (une seule source ajoutée à TorBox)
+    let stop = false;
     const all = rankStreams(groups.flatMap((g) => g.streams.map((stream) => ({ stream }))), picker.meta.id).map((r) => r.stream);
-    all.filter(canCheck).slice(0, 10).forEach((s) => { checkLang(s); });
-    setLangVersion((v) => v + 1);
+    (async () => {
+      for (const s of all.filter(canCheck).slice(0, 8)) {
+        const run = checkLang(s);
+        setLangVersion((v) => v + 1);
+        const info = await run;
+        if (stop || info?.status === 'fr') break;
+      }
+    })();
+    return () => { stop = true; };
   }, [verify, groups]);
+
+  // En quittant la liste : les sources ouvertes pour vérification mais pas choisies sont retirées de TorBox
+  const chosenRef = useRef<Stream | null>(null);
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
+  useEffect(() => () => {
+    const chosen = chosenRef.current;
+    groupsRef.current?.forEach((g) => g.streams.forEach((s) => { if (s !== chosen && s.url !== chosen?.url) discard(s); }));
+  }, []);
 
   const qualities = useMemo(() => {
     const set = new Set(rows.map((r) => streamQuality(r.stream).label).filter(Boolean));
@@ -84,6 +102,7 @@ export function StreamPicker() {
 
   const choose = async (r: Row) => {
     const s = r.stream;
+    chosenRef.current = s;
     if (s.externalUrl || s.ytId) {
       window.nocta?.openExternal(s.externalUrl || `https://www.youtube.com/watch?v=${s.ytId}`);
       return;

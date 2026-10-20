@@ -3,7 +3,7 @@ import { errMsg, nextEpisode, resolveStream, slimMeta, sortedEpisodes, episodeTi
 import { useStore } from './store';
 import { useBusy } from './ui';
 import type { Meta, MetaPreview, PlayRequest, Settings, Stream, Video } from './types';
-import { canCheck, checkLang, langBonus, type LangInfo } from './langCheck';
+import { canCheck, checkLang, discard, langBonus, type LangInfo } from './langCheck';
 import { langPrefsFor } from './langPrefs';
 
 /** Ce qu'on veut regarder : un film, ou un épisode précis */
@@ -106,9 +106,9 @@ export async function playTarget(t: PlayTarget, opts: { manual?: boolean; startA
 }
 
 /**
- * Parcourt les meilleures sources dans l'ordre et prend la première dont le fichier
- * contient vraiment une piste audio française. Les vérifications tournent en parallèle
- * et la lecture part dès que la meilleure source confirmée est connue.
+ * Vérifie les meilleures sources UNE PAR UNE, dans l'ordre du classement, et s'arrête dès
+ * qu'une vraie piste française est trouvée : une seule source finit sur TorBox.
+ * Les sources essayées avant (fausses VF, langue non indiquée) en sont retirées.
  */
 export async function pickVerifiedFrench(
   ranked: Stream[],
@@ -118,25 +118,29 @@ export async function pickVerifiedFrench(
 ): Promise<Stream | null> {
   const candidates = ranked.filter(canCheck).slice(0, 6);
   if (!candidates.length) return null;
-  const checks = candidates.map((s) => checkLang(s));
-  const deadline = Date.now() + 25000;
-  let fallback: Stream | null = null;
+  const deadline = Date.now() + 30000;
+  const unsure: Stream[] = [];
   let done = 0;
   for (let i = 0; i < candidates.length; i++) {
-    onStatus(`Vérification de la VF · source ${i + 1} sur ${candidates.length}`);
     const left = deadline - Date.now();
     if (left <= 0) break;
+    onStatus(`Vérification de la VF · source ${i + 1} sur ${candidates.length}`);
     const info: LangInfo | null | 'timeout' = await Promise.race([
-      checks[i],
+      checkLang(candidates[i]),
       new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), left)),
     ]);
     if (signal.cancelled) return null;
     done++;
     if (info === 'timeout') break;
-    if (info?.status === 'fr') return candidates[i];
-    // Langue non renseignée : on la garde au cas où aucune VF ne serait confirmée
-    if (!fallback && (!info || info.status === 'unknown')) fallback = candidates[i];
+    if (info?.status === 'fr') {
+      unsure.forEach(discard);
+      return candidates[i];
+    }
+    // Langue non indiquée : gardée en réserve au cas où aucune VF ne serait confirmée
+    if (!info || info.status === 'unknown') unsure.push(candidates[i]);
   }
+  const fallback = unsure.shift() || null;
+  unsure.forEach(discard);
   if (done && !fallback && !opts.quiet) useStore.getState().toast('Aucune source avec une vraie piste française : lancement de la meilleure source disponible');
   return fallback;
 }

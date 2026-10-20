@@ -82,6 +82,8 @@ export const canCheck = (s: Stream) =>
 
 // ---------- Vérifications (3 en parallèle au plus) ----------
 const inflight = new Map<string, Promise<LangInfo | null>>();
+/** Liste TorBox prise juste avant chaque vérification : permet de retirer plus tard ce qu'elle a ajouté */
+const befores = new Map<string, Set<number>>();
 let running = 0;
 const queue: (() => void)[] = [];
 const listeners = new Set<() => void>();
@@ -107,6 +109,7 @@ export function checkLang(s: Stream): Promise<LangInfo | null> {
   const p = slot(async () => {
     // Liste TorBox juste avant d'ouvrir la source : seul ce qui apparaît ensuite pourra être retiré
     const before = await torboxSnapshot();
+    if (before) befores.set(key, before);
     const r = await window.nocta!.media.langs(s.url!);
     if (!r.ok) return null;
     const info: LangInfo = { ...classify(r.audios || [], r.subs || []), at: Date.now() };
@@ -121,6 +124,18 @@ export function checkLang(s: Stream): Promise<LangInfo | null> {
 }
 
 export const isChecking = (s: Stream) => inflight.has(keyOf(s));
+
+/**
+ * Source ouverte pour vérification mais finalement pas retenue : retirée de TorBox
+ * (seulement si c'est la vérification qui l'y avait ajoutée).
+ */
+export function discard(s: Stream) {
+  const key = keyOf(s);
+  const before = befores.get(key);
+  if (!before) return;
+  befores.delete(key);
+  torboxCleanup(s, before).catch(() => {});
+}
 
 /** Prévient quand un résultat arrive (pour rafraîchir la liste des sources) */
 export function onLangResult(f: () => void) {

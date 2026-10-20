@@ -124,22 +124,17 @@ export function episodeTitleOf(v: Video) {
 }
 
 /**
- * Prépare l'épisode suivant sans jamais laisser l'utilisateur en plan :
+ * Choisit la source de l'épisode suivant sans jamais laisser l'utilisateur en plan :
  * 1. la même source que l'épisode en cours (bingeGroup, comme Stremio), si elle est bien en VF ;
- * 2. sinon la meilleure source dont la piste française est vérifiée dans le fichier ;
+ * 2. sinon la première source dont la piste française est vérifiée (une par une, arrêt à la première) ;
  * 3. sinon la meilleure source disponible.
- * Renvoie null seulement si aucun addon ne propose de lien pour cet épisode.
+ * Le même choix est fait à l'avance pendant l'épisode en cours puis au moment de passer à la suite :
+ * les vérifications sont mémorisées, donc une seule source de l'épisode finit sur TorBox.
  */
-export async function resolveNextEpisode(
-  meta: Meta,
-  next: Video,
-  current: PlayRequest,
-  onStatus?: (text: string) => void,
-): Promise<PlayRequest | null> {
+async function pickNextStream(meta: Meta, next: Video, current: PlayRequest, onStatus?: (text: string) => void): Promise<Stream | null> {
   const st = useStore.getState();
   const wantFr = langPrefsFor(meta.id).verify;
   const group = current.stream?.bingeGroup;
-  const ep = next.episode ?? next.number;
   const { rankStreams, pickVerifiedFrench } = await import('./autoplay');
 
   // Une 2e tentative si l'addon ne répond pas du premier coup
@@ -152,25 +147,34 @@ export async function resolveNextEpisode(
   const playable = groups.flatMap((g) => g.streams).filter((s) => s.url);
   if (!playable.length) return null;
 
-  let choice: Stream | undefined;
   const same = group ? playable.find((s) => s.behaviorHints?.bingeGroup === group) : undefined;
   if (same) {
-    if (!wantFr) choice = same;
-    else {
-      onStatus?.('Vérification de la VF…');
-      const info = canCheck(same) ? await checkLang(same) : cachedLang(same);
-      // Même release que l'épisode en cours : gardée sauf si elle n'a clairement pas de VF
-      if (info?.status !== 'nofr') choice = same;
-    }
+    if (!wantFr) return same;
+    onStatus?.('Vérification de la VF…');
+    const info = canCheck(same) ? await checkLang(same) : cachedLang(same);
+    // Même release que l'épisode en cours : gardée sauf si elle n'a clairement pas de VF
+    if (info?.status !== 'nofr') return same;
   }
-  if (!choice && wantFr) {
+  if (wantFr) {
     onStatus?.('Recherche d\'une source en VF…');
     const ranked = rankStreams(playable.map((stream) => ({ stream })), meta.id).map((r) => r.stream);
-    choice = (await pickVerifiedFrench(ranked, (t) => onStatus?.(t), { cancelled: false }, { quiet: true })) || undefined;
+    const found = await pickVerifiedFrench(ranked, (t) => onStatus?.(t), { cancelled: false }, { quiet: true });
+    if (found) return found;
   }
   // Aucune VF confirmée : la meilleure source restante (les fausses VF repérées sont classées derrière)
-  if (!choice) choice = rankStreams(playable.map((stream) => ({ stream })), meta.id)[0].stream;
+  return rankStreams(playable.map((stream) => ({ stream })), meta.id)[0].stream;
+}
 
+/** Prépare l'épisode suivant (source choisie comme ci-dessus). null = aucun lien pour cet épisode */
+export async function resolveNextEpisode(
+  meta: Meta,
+  next: Video,
+  current: PlayRequest,
+  onStatus?: (text: string) => void,
+): Promise<PlayRequest | null> {
+  const choice = await pickNextStream(meta, next, current, onStatus);
+  if (!choice) return null;
+  const ep = next.episode ?? next.number;
   const desc = streamToDesc(choice);
   const src = await resolveStream(desc, { season: next.season, episode: ep });
   return {
@@ -180,14 +184,10 @@ export async function resolveNextEpisode(
 }
 
 /**
- * Pendant l'épisode en cours, vérifie déjà la langue des sources du suivant :
+ * Pendant l'épisode en cours, fait déjà le choix de la source du suivant :
  * le passage à l'épisode suivant est alors quasi instantané.
  */
-export async function prepareNextEpisode(next: Video, metaId?: string) {
-  const st = useStore.getState();
-  if (!langPrefsFor(metaId).verify) return;
-  const groups = await getStreams(st.addons, 'series', next.id).catch(() => []);
-  const { rankStreams } = await import('./autoplay');
-  const ranked = rankStreams(groups.flatMap((g) => g.streams).filter((s) => s.url).map((stream) => ({ stream })), metaId);
-  ranked.map((r) => r.stream).filter(canCheck).slice(0, 6).forEach((s) => { checkLang(s); });
+export async function prepareNextEpisode(meta: Meta, next: Video, current: PlayRequest) {
+  if (!langPrefsFor(meta.id).verify) return;
+  await pickNextStream(meta, next, current);
 }
