@@ -9,7 +9,7 @@ import { noxKeys } from './noxKeys';
 import { episodeLabel, sortedEpisodes, slimMeta } from './playback';
 import { isUhd, fitsLang } from './sourcePolicy';
 import { useStore } from './store';
-import { quickPlay } from './ui';
+import { resumeEntry } from './ui';
 import type { Meta, MetaPreview } from './types';
 
 type Part = Record<string, any>;
@@ -59,7 +59,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'play',
-    description: 'Lance un film, ou un épisode précis d\'une série (sinon reprise ou prochain épisode non vu) : la liste des sources s\'ouvre (sources vérifiées, la meilleure en tête), l\'utilisateur clique sur celle qu\'il veut ; une lecture en cours reprend directement. Seulement quand l\'utilisateur demande de lancer / regarder maintenant.',
+    description: 'Lance pour de vrai un film, ou un épisode précis d\'une série (sans épisode précisé : reprise ou prochain épisode non vu). NOCTA vérifie lui-même les sources et démarre la première confirmée dans la bonne langue : inutile d\'appeler check_language avant. Seulement quand l\'utilisateur demande de lancer / regarder maintenant.',
     parameters: {
       type: 'object',
       properties: {
@@ -67,6 +67,7 @@ const TOOLS: Tool[] = [
         type: { type: 'string', enum: ['movie', 'series'] },
         season: { type: 'integer' },
         episode: { type: 'integer' },
+        language: { type: 'string', enum: ['vf', 'vo'], description: 'Seulement si l\'utilisateur précise la langue (« en VF », « en français », « en VO »)' },
       },
       required: ['id', 'type'],
     },
@@ -115,7 +116,7 @@ Ta personnalité : chaleureuse, enthousiaste sans en faire trop, un brin d'humou
 Comment tu travailles :
 - Pour toute info factuelle sur un titre (casting, réalisateur, durée, année, saisons, résumé), utilise get_title_details plutôt que ta mémoire. Si tu ne connais pas l'identifiant, cherche-le avec search_titles.
 - « Vérifie la VF », « c'est dispo en français ? », « je vais regarder X » : utilise check_language et dis clairement le résultat (vraie VF trouvée ou non, qualité, et si les noms de torrents mentaient).
-- Ne lance une lecture (play) que si l'utilisateur te le demande. S'il dit juste qu'il va regarder quelque chose, vérifie la VF et propose de lancer.
+- Ne lance une lecture (play) que si l'utilisateur te le demande. Quand il le demande, appelle directement play (avec language s'il précise VF / français / VO) : NOCTA vérifie et démarre tout seul la bonne source, pas besoin de check_language avant. S'il dit juste qu'il va regarder quelque chose, vérifie la VF et propose de lancer.
 - Le contexte de l'écran (fiche ouverte, lecture en cours) t'est donné avec chaque message : « ce film », « cette série » désignent la fiche ouverte.
 - Pour des recommandations, appuie-toi sur tes connaissances et sur ce que l'utilisateur regarde (get_activity), puis vérifie que les titres existent dans le catalogue avec search_titles.
 - N'invente jamais un résultat d'outil. Si un outil échoue, dis-le simplement.`;
@@ -220,18 +221,29 @@ async function runTool(name: string, input: Input, onStatus: (text: string) => v
     case 'play': {
       const meta = await getMeta(st.addons, input.type, input.id);
       if (!meta) return { error: 'Titre introuvable' };
-      if (meta.type === 'series' && input.season != null && input.episode != null) {
-        const v = videoFor(meta, input.season, input.episode);
+      // Langue demandée (« en VF », « en VO ») : mémorisée pour ce titre avant de lancer
+      const before = langPrefsFor(meta.id).want;
+      if (input.language === 'vf' || input.language === 'vo') st.setLangPref(meta.id, input.language);
+      const lang = langPrefsFor(meta.id).want || 'vf';
+      const langChanged = !!input.language && input.language !== before;
+      const p = profile();
+      let v = null as ReturnType<typeof videoFor>;
+      if (meta.type === 'series') {
+        v = videoFor(meta, input.season, input.episode);
         if (!v) return { error: 'Épisode introuvable' };
-        playTarget(episodeTarget(meta, v));
-        setTimeout(() => useNox.getState().setOpen(false), 1200);
-        return { sourcesOpened: `${meta.name} ${episodeLabel(v)}` };
       }
-      const resume = !!profile()?.progress[meta.id];
-      // Nox se range pour laisser la place à la liste des sources
-      if (!resume) setTimeout(() => useNox.getState().setOpen(false), 1200);
-      quickPlay(slimMeta(meta));
-      return resume ? { resumed: meta.name } : { sourcesOpened: meta.name };
+      // Lecture en cours de ce même film / épisode (et même langue) : reprise directe
+      const entry = p?.progress[meta.id];
+      if (entry && !langChanged && (!v || entry.videoId === v.id)) {
+        resumeEntry(entry);
+        setTimeout(() => useNox.getState().setOpen(false), 1500);
+        return { resumed: `${meta.name}${v ? ` ${episodeLabel(v)}` : ''}` };
+      }
+      // Sinon : vérification des sources, et la 1re confirmée dans la bonne langue démarre toute seule
+      const target = v ? episodeTarget(meta, v) : { meta: slimMeta(meta), type: meta.type, videoId: meta.id };
+      playTarget({ ...target, autoLaunch: true });
+      setTimeout(() => useNox.getState().setOpen(false), 1500);
+      return { launching: `${meta.name}${v ? ` ${episodeLabel(v)}` : ''}`, language: lang, note: 'Les sources sont vérifiées et la première confirmée dans cette langue démarre toute seule.' };
     }
     case 'open_title': {
       st.openDetail({ type: input.type, id: input.id });
@@ -402,7 +414,7 @@ function doneLabel(name: string, input: Input, out: any): string {
     case 'search_titles': return `Recherche « ${input.query} » : ${out?.results?.length || 0} résultat(s)`;
     case 'get_title_details': return `Fiche de ${out?.name || 'ce titre'}`;
     case 'check_language': return out?.confirmed ? `${out.want === 'vo' ? 'VO' : 'Vraie VF'} trouvée${out.source?.quality ? ` · ${out.source.quality}` : ''}` : `Pas de ${out?.want === 'vo' ? 'VO' : 'vraie VF'} confirmée`;
-    case 'play': return out?.resumed ? `Reprise de ${out.resumed}` : `Sources de ${out?.sourcesOpened || 'la vidéo'}`;
+    case 'play': return out?.resumed ? `Reprise de ${out.resumed}` : `Lancement de ${out?.launching || 'la vidéo'} en ${out?.language === 'vo' ? 'VO' : 'VF'}`;
     case 'open_title': return 'Fiche ouverte';
     case 'set_language': return `Langue réglée : ${input.mode === 'vo' ? 'VO · sous-titres FR' : 'VF'}`;
     case 'my_list': return input.action === 'add' ? 'Ajouté à ta liste' : 'Retiré de ta liste';

@@ -31,7 +31,8 @@ interface State extends PersistedData {
   page: Page;
   searchQuery: string;
   detail: { type: string; id: string; preview?: MetaPreview } | null;
-  picker: { meta: Meta | MetaPreview; type: string; videoId: string; season?: number; episode?: number; episodeTitle?: string } | null;
+  /** autoLaunch : lancée par Nox, la 1re source confirmée dans la bonne langue démarre toute seule */
+  picker: { meta: Meta | MetaPreview; type: string; videoId: string; season?: number; episode?: number; episodeTitle?: string; autoLaunch?: boolean } | null;
   player: PlayRequest | null;
   browse: BrowseDef | null;
   mpvAvailable: boolean;
