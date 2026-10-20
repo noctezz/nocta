@@ -67,8 +67,9 @@ par NOCTA »). En cas de doute, ils restent tels quels.
 
 **Nox, l'assistant** 🦉 : la chouette en bas à gauche. Clique dessus et pose tes questions : casting, durée,
 recommandations, « il est dispo en vraie VF ? » (Nox vérifie les fichiers pour de vrai), « lance l'épisode 3 »… Il
-sait quelle fiche est ouverte. Nox réfléchit avec Gemini : il faut une clé API Google, gratuite (*Paramètres →
-Avancé → Assistant Nox → Créer ma clé*). On peut aussi lui parler : bouton 🎤 dans la discussion, Nox détecte tout
+sait quelle fiche est ouverte. Nox réfléchit avec des IA gratuites : Gemini (Google), Groq, OpenRouter, Mistral ou
+Cerebras (*Paramètres → Avancé → Assistant Nox*, un lien par service pour créer la clé). Avec plusieurs clés, Nox
+passe tout seul à la suivante quand un service est saturé ou à court de quota. On peut aussi lui parler : bouton 🎤 dans la discussion, Nox détecte tout
 seul la fin de la phrase.
 
 **Mises à jour automatiques** : au lancement, NOCTA regarde s'il existe une nouvelle version. Une carte propose

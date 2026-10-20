@@ -5,6 +5,7 @@ import { RemotePanel } from '../components/RemotePanel';
 import { UpdateSettings } from '../components/UpdateBanner';
 import { testKey } from '../lib/torbox';
 import { NoxOwl } from '../components/Nox';
+import { NoxKeyList } from '../components/NoxKeys';
 
 const ENCODERS: Record<string, string> = {
   libx264: 'Processeur (compatible partout)',
@@ -69,22 +70,10 @@ function TorboxCleanup() {
   );
 }
 
-/** Nox : clé API Google (Gemini, gratuite) et affichage de la mascotte */
+/** Nox : clés des IA gratuites (essayées dans l'ordre) et affichage de la mascotte */
 function NoxSettings() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
-  const [key, setKey] = useState(settings.noxKey || '');
-  const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const save = async () => {
-    const k = key.trim();
-    update({ noxKey: k });
-    if (!k || !window.nocta) { setTest(null); return; }
-    setBusy(true);
-    const r = await window.nocta.assistant.testKey(k);
-    setBusy(false);
-    setTest(r.ok ? { ok: true, text: `Nox est réveillé : ${r.model} répond en ${((r.ms || 0) / 1000).toFixed(1).replace('.', ',')} s` } : { ok: false, text: r.error || 'Clé refusée' });
-  };
   return (
     <section className="settings-card">
       <h2 className="nox-settings-title"><NoxOwl size={34} /> Assistant Nox</h2>
@@ -96,15 +85,10 @@ function NoxSettings() {
       />
       <div className="setting setting-col">
         <div>
-          <strong>Clé API Google (Gemini)</strong>
-          <span>Nox réfléchit avec Gemini, gratuit pour un usage perso. Clique sur « Créer ma clé », connecte-toi avec ton compte Google, puis <i>Create API key</i> et colle-la ici. La clé reste sur ce PC.</span>
+          <strong>Clés API (gratuites)</strong>
+          <span>Nox réfléchit avec des IA gratuites. Ajoute plusieurs clés : si un service est saturé ou à court de quota, Nox passe tout seul au suivant, dans l'ordre de la liste. Pour parler au micro, il faut une clé Gemini ou Groq. Les clés restent sur ce PC.</span>
         </div>
-        <div className="key-row">
-          <input className="input" type="password" placeholder="AIza…" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} />
-          <button className="btn-outline" onClick={() => window.nocta?.openExternal('https://aistudio.google.com/apikey')}>Créer ma clé ↗</button>
-          <button className="btn-outline" disabled={busy} onClick={save}>{busy ? 'Test…' : key.trim() === (settings.noxKey || '') && key ? 'Tester' : 'Enregistrer'}</button>
-        </div>
-        {test && <div className={`status ${test.ok ? 'ok' : 'err'}`}>{test.text}</div>}
+        <NoxKeyList />
       </div>
     </section>
   );

@@ -1,10 +1,11 @@
-// Nox, la mascotte-assistant de NOCTA : discute avec Gemini (Google) et agit dans l'app grâce à des
+// Nox, la mascotte-assistant de NOCTA : discute avec une IA gratuite (Gemini, Groq…) et agit dans l'app grâce à des
 // outils (recherche, fiche et casting, vérification de la vraie VF, lecture, liste, langue).
 import { create } from 'zustand';
 import { getMeta, getStreams, searchableCatalogs, getCatalog, streamQuality, streamSize } from './addons';
 import { episodeTarget, nextUnwatched, pickVerified, playTarget, rankStreams } from './autoplay';
 import { cachedLang } from './langCheck';
 import { langPrefsFor } from './langPrefs';
+import { noxKeys } from './noxKeys';
 import { episodeLabel, sortedEpisodes, slimMeta } from './playback';
 import { isUhd, fitsLang } from './sourcePolicy';
 import { useStore } from './store';
@@ -280,6 +281,8 @@ interface NoxState {
   busy: boolean;
   /** Début de la réflexion en cours (pour afficher le temps écoulé) */
   since: number;
+  /** Service qui a répondu en dernier (Gemini, Groq…) */
+  via: string;
   items: ChatItem[];
   history: Msg[];
   setOpen: (v: boolean) => void;
@@ -296,7 +299,7 @@ let run = 0; // chaque question a son numéro : une réponse arrivée après « 
 function call(req: Parameters<NonNullable<typeof window.nocta>['assistant']['create']>[0]) {
   return Promise.race([
     window.nocta!.assistant.create(req),
-    new Promise<{ ok: false; error: string }>((r) => setTimeout(() => r({ ok: false, error: 'Gemini ne répond pas : réessaie dans un instant.' }), 100000)),
+    new Promise<{ ok: false; error: string }>((r) => setTimeout(() => r({ ok: false, error: 'Personne ne répond : réessaie dans un instant.' }), 130000)),
   ]);
 }
 const ACT: Record<string, string> = {
@@ -307,6 +310,7 @@ export const useNox = create<NoxState>((set, get) => ({
   open: false,
   busy: false,
   since: 0,
+  via: '',
   items: [],
   history: [],
   setOpen: (open) => set({ open }),
@@ -319,7 +323,7 @@ export const useNox = create<NoxState>((set, get) => ({
   ask: async (text) => {
     const q = text.trim();
     if (!q || get().busy) return;
-    const apiKey = (useStore.getState().settings.noxKey || '').trim();
+    const keys = noxKeys(useStore.getState().settings);
     const push = (role: ChatItem['role'], t: string) => {
       const item = { id: ++seq, role, text: t };
       set((s) => ({ items: [...s.items, item] }));
@@ -338,8 +342,9 @@ export const useNox = create<NoxState>((set, get) => ({
     else history.push({ role: 'user', parts: [asked] });
     try {
       for (let turn = 0; turn < 8; turn++) {
-        const res = await call({ apiKey, system: SYSTEM, tools: TOOLS, contents: history });
+        const res = await call({ keys, system: SYSTEM, tools: TOOLS, contents: history });
         if (me !== run) return; // arrêté entre-temps : historique laissé tel qu'avant la question
+        if (res.ok && res.via) set({ via: res.via });
         if (!res.ok || !res.content) { push('error', res.error || 'Pas de réponse'); break; }
         // Remis tel quel (signatures de réflexion comprises), sinon Gemini perd le fil des outils
         const parts: Part[] = res.content.parts || [];

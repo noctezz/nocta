@@ -84,10 +84,10 @@ interface NoctaBridge {
     onInstall: (cb: (manifestUrl: string) => void) => () => void;
   };
   assistant: {
-    create: (req: { apiKey: string; system: string; tools: unknown; contents: unknown }) =>
-      Promise<{ ok: boolean; content?: { role: string; parts: any[] }; finishReason?: string; model?: string; error?: string }>;
-    transcribe: (req: { apiKey: string; audio: string; mime: string }) => Promise<{ ok: boolean; text?: string; error?: string }>;
-    testKey: (key: string) => Promise<{ ok: boolean; model?: string; ms?: number; error?: string }>;
+    create: (req: { keys: { provider: string; key: string }[]; system: string; tools: unknown; contents: unknown }) =>
+      Promise<{ ok: boolean; content?: { role: string; parts: any[] }; finishReason?: string; model?: string; via?: string; error?: string }>;
+    transcribe: (req: { keys: { provider: string; key: string }[]; audio: string; mime: string }) => Promise<{ ok: boolean; text?: string; error?: string }>;
+    testKey: (k: { provider: string; key: string }) => Promise<{ ok: boolean; model?: string; via?: string; ms?: number; error?: string; keyOk?: boolean }>;
   };
   update: {
     status: () => Promise<NoctaUpdateState>;

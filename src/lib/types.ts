@@ -151,8 +151,10 @@ export interface Settings {
   torboxCleanup?: boolean;
   /** Nombre de torrents retirés par ce nettoyage */
   torboxCleaned?: number;
-  /** Clé API Anthropic de Nox, l'assistant (reste sur ce PC) */
+  /** Ancienne clé Gemini unique (remplacée par noxKeys) */
   noxKey?: string;
+  /** Clés des services d'IA de Nox, dans l'ordre d'essai */
+  noxKeys?: { provider: 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'cerebras'; key: string }[];
   /** Afficher Nox en bas de l'écran */
   noxVisible?: boolean;
   /** Passer automatiquement le générique (sinon : bouton) */

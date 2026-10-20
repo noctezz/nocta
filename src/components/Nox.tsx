@@ -4,6 +4,8 @@ import { ArrowUp, Mic, RotateCcw, Square, X } from 'lucide-react';
 import { useNox } from '../lib/nox';
 import { useStore } from '../lib/store';
 import { listen, type Listening } from '../lib/voice';
+import { noxKeys, type NoxKey } from '../lib/noxKeys';
+import { NoxKeyAdder } from './NoxKeys';
 
 /**
  * Nox, la chouette de NOCTA (dessin original en SVG) : flotte, cligne des yeux,
@@ -89,7 +91,7 @@ function suggestions(): string[] {
 
 /** Bouton chouette en bas à gauche + fenêtre de discussion */
 export function Nox() {
-  const { open, busy, since, items, setOpen, ask, reset, stop } = useNox();
+  const { open, busy, since, via, items, setOpen, ask, reset, stop } = useNox();
   // Temps de réflexion affiché (rassure quand Gemini prend son temps)
   const [, tick] = useState(0);
   useEffect(() => {
@@ -155,7 +157,8 @@ export function Nox() {
   useEffect(() => () => rec.current?.cancel(), []);
 
   if (settings.noxVisible === false) return null;
-  const hasKey = !!(settings.noxKey || '').trim();
+  const keys = noxKeys(settings);
+  const hasKey = keys.length > 0;
 
   const send = (t = text) => {
     if (!t.trim() || busy) return;
@@ -181,7 +184,7 @@ export function Nox() {
     rec.current = null;
     if (!audio) { setVoice('idle'); return; }
     setVoice('transcribing');
-    const res = await window.nocta!.assistant.transcribe({ apiKey: (settings.noxKey || '').trim(), ...audio });
+    const res = await window.nocta!.assistant.transcribe({ keys, ...audio });
     setVoice('idle');
     if (!res.ok) { setVoiceError(res.error || 'Transcription impossible'); return; }
     const said = (res.text || '').trim();
@@ -225,14 +228,14 @@ export function Nox() {
               <NoxOwl size={42} thinking={busy} />
               <div>
                 <strong>Nox</strong>
-                <small>{busy ? `réfléchit…${waited >= 3 ? ` ${waited} s` : ''}` : 'ton assistant ciné'}</small>
+                <small>{busy ? `réfléchit…${waited >= 3 ? ` ${waited} s` : ''}` : via ? `ton assistant ciné · via ${via}` : 'ton assistant ciné'}</small>
               </div>
               {items.length > 0 && <button className="nox-icon" onClick={reset} title="Nouvelle discussion"><RotateCcw size={16} /></button>}
               <button className="nox-icon" data-nav-back onClick={() => setOpen(false)} title="Fermer"><X size={18} /></button>
             </div>
 
             {!hasKey ? (
-              <NoxSetup onDone={(k) => update({ noxKey: k })} onSettings={() => { setOpen(false); setPage('settings'); }} />
+              <NoxSetup onDone={(k) => update({ noxKeys: [k], noxKey: undefined })} onSettings={() => { setOpen(false); setPage('settings'); }} />
             ) : (
               <>
                 <div className="nox-list" ref={listRef}>
@@ -309,29 +312,13 @@ export function Nox() {
   );
 }
 
-/** Première ouverture : la clé API Google (gratuite) */
-function NoxSetup({ onDone, onSettings }: { onDone: (key: string) => void; onSettings: () => void }) {
-  const [key, setKey] = useState('');
-  const [state, setState] = useState<{ busy?: boolean; error?: string }>({});
-  const test = async () => {
-    const k = key.trim();
-    if (!k) return;
-    setState({ busy: true });
-    const r = await window.nocta!.assistant.testKey(k);
-    if (r.ok) onDone(k);
-    else setState({ error: r.error });
-  };
+/** Première ouverture : une clé d'IA gratuite */
+function NoxSetup({ onDone, onSettings }: { onDone: (k: NoxKey) => void; onSettings: () => void }) {
   return (
     <div className="nox-setup">
-      <p>Pour me réveiller, il me faut une <b>clé API Google</b> (Gemini). C'est <b>gratuit</b>, et elle reste sur ce PC.</p>
-      <ol>
-        <li>Va sur <a onClick={() => window.nocta?.openExternal('https://aistudio.google.com/apikey')}>Google AI Studio</a>, connecte-toi et clique sur <i>Create API key</i>.</li>
-        <li>Copie la clé et colle-la ici.</li>
-      </ol>
-      <input className="input" type="password" placeholder="AIza…" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && test()} />
-      {state.error && <div className="status err">{state.error}</div>}
+      <p>Pour me réveiller, il me faut une <b>clé API gratuite</b>. Je te conseille <b>Gemini</b> (Google) ou <b>Groq</b>. Elle reste sur ce PC, et tu pourras en ajouter d'autres dans les paramètres pour que je ne tombe jamais en panne.</p>
+      <NoxKeyAdder compact onAdd={onDone} />
       <div className="nox-setup-actions">
-        <button className="btn btn-white" disabled={state.busy || !key.trim()} onClick={test}>{state.busy ? 'Vérification…' : 'Réveiller Nox'}</button>
         <button className="btn-link" onClick={onSettings}>Paramètres</button>
       </div>
     </div>
