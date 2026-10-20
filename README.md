@@ -10,7 +10,7 @@ Application de bureau **Electron + React + Vite**, pour un usage strictement per
 Prérequis : [Node.js](https://nodejs.org) 20 ou plus récent et [Git](https://git-scm.com).
 
 ```bash
-git clone https://github.com/noctezz/aurora.git nocta
+git clone https://github.com/noctezz/nocta.git
 cd nocta
 npm install
 npm run dev

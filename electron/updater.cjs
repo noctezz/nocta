@@ -1,6 +1,5 @@
 // Mises à jour automatiques : NOCTA regarde sur GitHub s'il existe une version plus récente,
 // la télécharge, puis lance l'installeur en silencieux et redémarre tout seul.
-// Le dépôt contient aussi d'autres projets : seules les versions NOCTA (NOCTA-Setup.exe) comptent.
 const { app, shell } = require('electron');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -9,7 +8,7 @@ const { spawn } = require('node:child_process');
 const { Readable } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
 
-const REPO = 'noctezz/aurora';
+const REPO = 'noctezz/nocta';
 const ASSET = 'NOCTA-Setup.exe';
 const CHECK_EVERY = 6 * 3600 * 1000;
 

@@ -2,7 +2,7 @@ name: Build Windows
 
 on:
   push:
-    branches: [main, 'claude/laughing-bell-p4i573']
+    branches: [main]
     paths-ignore: ['README.md']
   workflow_dispatch:
 
@@ -53,7 +53,7 @@ jobs:
 
       - name: Version
         shell: bash
-        run: npm version "0.1.${{ github.run_number }}" --no-git-tag-version
+        run: npm version "0.2.${{ github.run_number }}" --no-git-tag-version
 
       - name: Typecheck & build UI
         run: |
@@ -71,17 +71,13 @@ jobs:
           {
             echo "### Nouveautés"
             git log -1 --format=%B | grep -v -E '^(Co-Authored-By|Claude-Session):' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
-            echo
-            echo "---"
-            echo
-            cat GUIDE.md
           } > RELEASE.md
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.${{ github.run_number }}
-          name: NOCTA v0.1.${{ github.run_number }}
+          tag_name: v0.2.${{ github.run_number }}
+          name: NOCTA v0.2.${{ github.run_number }}
           target_commitish: ${{ github.sha }}
           make_latest: true
           files: |
