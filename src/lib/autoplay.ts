@@ -1,7 +1,6 @@
 import { getMeta, getStreams, streamQuality } from './addons';
-import { errMsg, nextEpisode, resolveStream, slimMeta, sortedEpisodes, episodeTitleOf, streamToDesc } from './playback';
+import { nextEpisode, slimMeta, sortedEpisodes, episodeTitleOf } from './playback';
 import { useStore } from './store';
-import { useBusy } from './ui';
 import type { Meta, MetaPreview, PlayRequest, Settings, Stream, Video } from './types';
 import { canCheck, checkLang, discard, fitsVerified, langBonus, wasDiscarded, type LangInfo } from './langCheck';
 import { filterSources } from './sourcePolicy';
@@ -59,56 +58,9 @@ export function rankStreams<T extends { stream: Stream }>(rows: T[], metaId?: st
   return rows.slice().sort((a, b) => scoreStream(b.stream, prefs) - scoreStream(a.stream, prefs));
 }
 
-/**
- * Lance un film ou un épisode. Avec le choix auto (par défaut), la meilleure source
- * démarre directement ; sinon (ou si rien ne convient) la liste des sources s'ouvre.
- */
-export async function playTarget(t: PlayTarget, opts: { manual?: boolean; startAt?: number } = {}) {
-  const st = useStore.getState();
-  if (opts.manual || !st.settings.autoPickSource) {
-    st.openPicker(t);
-    return;
-  }
-  const busy = useBusy.getState();
-  const signal = { cancelled: false };
-  const base = { meta: t.meta, title: t.meta.name, subtitle: t.episodeTitle };
-  busy.set({ ...base, status: 'Recherche de la meilleure source…' }, signal);
-  try {
-    const groups = await getStreams(st.addons, t.type, t.videoId);
-    if (signal.cancelled) return;
-    // Sans 4K / HDR et dans la langue voulue (VF, ou VO pour ce titre)
-    const rows = filterSources(groups.flatMap((g) => g.streams.filter((s) => s.url).map((stream) => ({ stream }))), t.meta.id).kept;
-    let best = rankStreams(rows, t.meta.id)[0]?.stream;
-    const lp = langPrefsFor(t.meta.id);
-    if (best && lp.verify && lp.want) {
-      const verified = await pickVerified(rankStreams(rows, t.meta.id).map((r) => r.stream), lp.want, (text) => busy.set({ ...base, status: text }), signal);
-      // Sinon : nouveau classement, où les fausses VF repérées sont passées derrière
-      best = verified || rankStreams(rows, t.meta.id)[0].stream;
-      if (signal.cancelled) return;
-    }
-    if (!best) {
-      busy.set(null, null);
-      st.openPicker(t);
-      if (groups.length) st.toast('Aucune source directe trouvée : choisis-en une dans la liste');
-      return;
-    }
-    const q = streamQuality(best);
-    busy.set({ ...base, status: `Lancement · ${[q.label, ...q.tags.slice(0, 2)].filter(Boolean).join(' · ') || 'meilleure source'}` });
-    const desc = streamToDesc(best);
-    const src = await resolveStream(desc, { season: t.season, episode: t.episode }, undefined, signal);
-    if (signal.cancelled) return;
-    useStore.getState().closeDetail();
-    useStore.getState().play({
-      src, title: t.meta.name, subtitle: t.episodeTitle, meta: t.meta, type: t.type,
-      videoId: t.videoId, season: t.season, episode: t.episode, stream: desc, startAt: opts.startAt,
-    });
-  } catch (e) {
-    if (!signal.cancelled) {
-      busy.set(null, null);
-      st.toast(errMsg(e), 'error');
-      st.openPicker(t);
-    }
-  }
+/** Lance un film ou un épisode : la liste des sources s'ouvre (et vérifie la langue) */
+export function playTarget(t: PlayTarget) {
+  useStore.getState().openPicker(t);
 }
 
 /**

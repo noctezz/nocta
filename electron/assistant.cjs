@@ -17,7 +17,8 @@ const OPENAI_LIKE = {
   groq: {
     name: 'Groq',
     base: 'https://api.groq.com/openai/v1',
-    prefer: ['openai/gpt-oss-120b', 'moonshotai/kimi-k2-instruct-0905', 'moonshotai/kimi-k2-instruct', 'llama-3.3-70b-versatile', 'qwen/qwen3-32b', 'openai/gpt-oss-20b'],
+    // Chaque modèle a son propre quota gratuit (par minute et par jour) : on passe de l'un à l'autre
+    prefer: ['openai/gpt-oss-120b', 'moonshotai/kimi-k2-instruct-0905', 'moonshotai/kimi-k2-instruct', 'llama-3.3-70b-versatile', 'meta-llama/llama-4-maverick', 'meta-llama/llama-4-scout', 'qwen/qwen3-32b', 'openai/gpt-oss-20b'],
     skip: /whisper|guard|tts|playai|orpheus|compound|prompt/,
   },
   openrouter: {
@@ -174,13 +175,14 @@ const forGemini = (contents) => contents.map((c) => (c.role !== 'model' ? c : {
 // ---------- Services compatibles OpenAI (Groq, OpenRouter, Mistral, Cerebras) ----------
 const oaModels = new Map();
 
-async function oaModel(provider, key) {
+/** Modèles utilisables avec la clé, les meilleurs pour les outils d'abord */
+async function oaModelList(provider, key) {
   const id = `${provider}:${key}`;
   if (oaModels.has(id)) return oaModels.get(id);
   const p = OPENAI_LIKE[provider];
   const { res, data } = await request(`${p.base}/models`, { headers: { Authorization: `Bearer ${key}` } }, 15000);
   if (!res.ok) throw apiError(res.status, data);
-  let ids = (data.data || []).filter((m) => {
+  const ids = (data.data || []).filter((m) => {
     if (p.skip && p.skip.test(m.id)) return false;
     if (p.free && !/:free$/.test(m.id)) return false;
     if (p.free && Array.isArray(m.supported_parameters) && !m.supported_parameters.includes('tools')) return false;
@@ -188,9 +190,19 @@ async function oaModel(provider, key) {
   }).map((m) => m.id);
   if (!ids.length) throw Object.assign(new Error(`Aucun modèle gratuit compatible sur ${p.name} pour le moment.`), { retry: true });
   const score = (m) => { const i = p.prefer.findIndex((x) => m.startsWith(x)); return i < 0 ? 99 : i; };
-  ids = ids.sort((a, b) => score(a) - score(b));
-  oaModels.set(id, ids[0]);
-  return ids[0];
+  // Les modèles connus d'abord ; les inconnus seulement s'il n'y a rien d'autre
+  const known = ids.filter((m) => score(m) < 99).sort((a, b) => score(a) - score(b));
+  const list = known.length ? known : ids;
+  oaModels.set(id, list);
+  return list;
+}
+
+/** Attente demandée par le service après un quota (en ms), si elle est indiquée */
+function retryAfter(res, data) {
+  const h = Number(res.headers.get('retry-after'));
+  if (Number.isFinite(h) && h > 0) return h * 1000;
+  const m = /try again in (?:(\d+)m)?([\d.]+)s/i.exec(JSON.stringify(data || ''));
+  return m ? ((+m[1] || 0) * 60 + parseFloat(m[2])) * 1000 : 0;
 }
 
 /** Identifiant d'appel d'outil accepté partout (Mistral exige 9 caractères alphanumériques) */
@@ -230,50 +242,76 @@ const oaTools = (tools) => tools.map((t) => ({
   function: { name: t.name, description: t.description, parameters: t.parameters || { type: 'object', properties: {} } },
 }));
 
+/** Un appel sur un service compatible OpenAI, en essayant jusqu'à 4 de ses modèles */
 async function openaiCall(provider, key, { system, tools, contents }, kind, deadline) {
   const p = OPENAI_LIKE[provider];
-  const model = await oaModel(provider, key);
-  const left = deadline - Date.now();
-  if (left < 4000) throw netError({ name: 'TimeoutError' });
-  const t = Date.now();
-  let res, data;
-  try {
-    ({ res, data } = await request(`${p.base}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`,
-        ...(provider === 'openrouter' ? { 'HTTP-Referer': 'https://github.com/noctezz/nocta', 'X-Title': 'NOCTA' } : {}),
-      },
-      body: JSON.stringify({
-        model,
-        messages: toOpenAI(system, contents),
-        ...(tools && tools.length ? { tools: oaTools(tools), tool_choice: 'auto' } : {}),
-        temperature: 0.6,
-        max_tokens: 4096,
-      }),
-    }, Math.min(ATTEMPT_MS, left)));
-  } catch (e) {
-    log(`${kind} ${provider} ${tail(key)} ${model} ${e && e.name} ${Date.now() - t}ms`);
-    throw netError(e);
+  const list = await oaModelList(provider, key);
+  const benchId = (m) => `${provider}:${key}:${m}`;
+  const order = [...list.filter((m) => !isBenched(benchId(m))), ...list.filter((m) => isBenched(benchId(m)))];
+  const body = {
+    messages: toOpenAI(system, contents),
+    ...(tools && tools.length ? { tools: oaTools(tools), tool_choice: 'auto' } : {}),
+    temperature: 0.6,
+    max_tokens: 2048,
+  };
+  let lastErr;
+  let shortest = Infinity; // plus courte attente annoncée par un quota
+  const attempt = async (model) => {
+    const left = deadline - Date.now();
+    if (left < 4000) throw netError({ name: 'TimeoutError' });
+    const t = Date.now();
+    let res, data;
+    try {
+      ({ res, data } = await request(`${p.base}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${key}`,
+          ...(provider === 'openrouter' ? { 'HTTP-Referer': 'https://github.com/noctezz/nocta', 'X-Title': 'NOCTA' } : {}),
+        },
+        body: JSON.stringify({ model, ...body }),
+      }, Math.min(ATTEMPT_MS, left)));
+    } catch (e) {
+      log(`${kind} ${provider} ${tail(key)} ${model} ${e && e.name} ${Date.now() - t}ms`);
+      bench(benchId(model), 60000);
+      throw netError(e);
+    }
+    const choice = (data.choices || [])[0];
+    log(`${kind} ${provider} ${tail(key)} ${model} ${res.status} ${Date.now() - t}ms ${(choice && choice.finish_reason) || ''} ${res.ok ? '' : JSON.stringify(data.error || data).slice(0, 200)}`);
+    if (!res.ok) {
+      const err = apiError(res.status, data);
+      if (err.quota) {
+        const wait = retryAfter(res, data);
+        shortest = Math.min(shortest, wait || 60000);
+        bench(benchId(model), Math.max(wait, 5000) || 60000);
+      } else bench(benchId(model), 120000);
+      throw err;
+    }
+    if (!choice || !choice.message) throw Object.assign(new Error('Réponse vide.'), { retry: true });
+    const m = choice.message;
+    const parts = [];
+    if (m.content) parts.push({ text: m.content });
+    for (const tc of m.tool_calls || []) {
+      let args = {};
+      try { args = JSON.parse(tc.function.arguments || '{}') || {}; } catch {}
+      parts.push({ functionCall: { name: tc.function.name, args, id: tc.id } });
+    }
+    return { parts, finishReason: choice.finish_reason, model };
+  };
+  for (const model of order.slice(0, 4)) {
+    try {
+      return await attempt(model);
+    } catch (e) {
+      lastErr = e;
+      if (e.auth) throw e;
+    }
   }
-  const choice = (data.choices || [])[0];
-  log(`${kind} ${provider} ${tail(key)} ${model} ${res.status} ${Date.now() - t}ms ${(choice && choice.finish_reason) || ''} ${res.ok ? '' : JSON.stringify(data.error || data).slice(0, 200)}`);
-  if (!res.ok) {
-    const err = apiError(res.status, data);
-    if (res.status === 404 || res.status === 400) oaModels.delete(`${provider}:${key}`); // modèle retiré : on rechoisira
-    throw err;
+  // Tous saturés, mais le quota se libère dans quelques secondes : on patiente un peu
+  if (lastErr && lastErr.quota && shortest <= 12000 && deadline - Date.now() > shortest + 8000) {
+    await new Promise((r) => setTimeout(r, shortest + 300));
+    return attempt(order[0]);
   }
-  if (!choice || !choice.message) throw Object.assign(new Error('Réponse vide.'), { retry: true });
-  const m = choice.message;
-  const parts = [];
-  if (m.content) parts.push({ text: m.content });
-  for (const tc of m.tool_calls || []) {
-    let args = {};
-    try { args = JSON.parse(tc.function.arguments || '{}') || {}; } catch {}
-    parts.push({ functionCall: { name: tc.function.name, args, id: tc.id } });
-  }
-  return { parts, finishReason: choice.finish_reason, model };
+  throw lastErr || netError({ name: 'TimeoutError' });
 }
 
 // ---------- Choix de la clé ----------
@@ -384,6 +422,7 @@ async function testKey(arg) {
   benched.delete(`key:${k.key}`);
   geminiModels.delete(k.key);
   oaModels.delete(`${k.provider}:${k.key}`);
+  for (const id of [...benched.keys()]) if (id.includes(k.key)) benched.delete(id);
   const t = Date.now();
   try {
     const deadline = Date.now() + 60000;

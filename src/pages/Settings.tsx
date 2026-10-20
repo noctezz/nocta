@@ -143,12 +143,6 @@ export function Settings() {
           <section className="settings-card">
             <h2>Lecture</h2>
             <p className="muted">Tu choisis un titre, tu appuies sur Lecture, NOCTA s'occupe du reste.</p>
-            <Toggle
-              title="Lancer directement la meilleure source"
-              hint="« Lecture » démarre tout de suite, sans passer par la liste. Le bouton ☰ de la fiche affiche quand même toutes les sources."
-              checked={settings.autoPickSource}
-              onChange={(v) => update({ autoPickSource: v })}
-            />
             <div className="setting">
               <div>
                 <strong>Langue par défaut</strong>

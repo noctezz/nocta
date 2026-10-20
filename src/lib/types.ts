@@ -133,8 +133,6 @@ export interface Settings {
   seasonalTheme: 'auto' | 'off' | 'halloween' | 'christmas';
   /** Bande-annonce lancée automatiquement dans les fiches */
   autoplayTrailers: boolean;
-  /** Lecture directe de la meilleure source (sans passer par la liste) */
-  autoPickSource: boolean;
   /** Résolution maximale préférée pour le choix auto */
   maxResolution: 2160 | 1080 | 720;
   /** Préférer les sources en français (VF / MULTI / TRUEFRENCH) */

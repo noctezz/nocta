@@ -107,7 +107,6 @@ const DEFAULT_SETTINGS: Settings = {
   playerEngine: 'mpv',
   seasonalTheme: 'auto',
   autoplayTrailers: true,
-  autoPickSource: true,
   maxResolution: 1080,
   preferFrench: true,
   verifyLanguage: true,

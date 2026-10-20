@@ -59,7 +59,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'play',
-    description: 'Lance la lecture d\'un film, ou d\'un épisode précis d\'une série (sinon reprise ou prochain épisode non vu). Seulement quand l\'utilisateur demande de lancer / regarder maintenant.',
+    description: 'Lance un film, ou un épisode précis d\'une série (sinon reprise ou prochain épisode non vu) : la liste des sources s\'ouvre (sources vérifiées, la meilleure en tête), l\'utilisateur clique sur celle qu\'il veut ; une lecture en cours reprend directement. Seulement quand l\'utilisateur demande de lancer / regarder maintenant.',
     parameters: {
       type: 'object',
       properties: {
@@ -224,10 +224,14 @@ async function runTool(name: string, input: Input, onStatus: (text: string) => v
         const v = videoFor(meta, input.season, input.episode);
         if (!v) return { error: 'Épisode introuvable' };
         playTarget(episodeTarget(meta, v));
-        return { started: `${meta.name} ${episodeLabel(v)}` };
+        setTimeout(() => useNox.getState().setOpen(false), 1200);
+        return { sourcesOpened: `${meta.name} ${episodeLabel(v)}` };
       }
+      const resume = !!profile()?.progress[meta.id];
+      // Nox se range pour laisser la place à la liste des sources
+      if (!resume) setTimeout(() => useNox.getState().setOpen(false), 1200);
       quickPlay(slimMeta(meta));
-      return { started: meta.name };
+      return resume ? { resumed: meta.name } : { sourcesOpened: meta.name };
     }
     case 'open_title': {
       st.openDetail({ type: input.type, id: input.id });
@@ -295,6 +299,15 @@ interface NoxState {
 let seq = 0;
 let run = 0; // chaque question a son numéro : une réponse arrivée après « Stop » est ignorée
 
+/**
+ * Seules les 6 dernières questions (et leurs réponses) sont envoyées : les quotas gratuits se
+ * comptent en mots envoyés par minute, et une longue discussion les épuiserait vite.
+ */
+function recent(history: Msg[], keep = 6): Msg[] {
+  const starts = history.map((m, i) => (m.role === 'user' && m.parts.some((p) => typeof p.text === 'string') && !m.parts.some((p) => p.functionResponse) ? i : -1)).filter((i) => i >= 0);
+  return starts.length > keep ? history.slice(starts[starts.length - keep]) : history;
+}
+
 /** Appel à Gemini avec filet de sécurité : jamais d'attente infinie */
 function call(req: Parameters<NonNullable<typeof window.nocta>['assistant']['create']>[0]) {
   return Promise.race([
@@ -342,7 +355,7 @@ export const useNox = create<NoxState>((set, get) => ({
     else history.push({ role: 'user', parts: [asked] });
     try {
       for (let turn = 0; turn < 8; turn++) {
-        const res = await call({ keys, system: SYSTEM, tools: TOOLS, contents: history });
+        const res = await call({ keys, system: SYSTEM, tools: TOOLS, contents: recent(history) });
         if (me !== run) return; // arrêté entre-temps : historique laissé tel qu'avant la question
         if (res.ok && res.via) set({ via: res.via });
         if (!res.ok || !res.content) { push('error', res.error || 'Pas de réponse'); break; }
@@ -389,7 +402,7 @@ function doneLabel(name: string, input: Input, out: any): string {
     case 'search_titles': return `Recherche « ${input.query} » : ${out?.results?.length || 0} résultat(s)`;
     case 'get_title_details': return `Fiche de ${out?.name || 'ce titre'}`;
     case 'check_language': return out?.confirmed ? `${out.want === 'vo' ? 'VO' : 'Vraie VF'} trouvée${out.source?.quality ? ` · ${out.source.quality}` : ''}` : `Pas de ${out?.want === 'vo' ? 'VO' : 'vraie VF'} confirmée`;
-    case 'play': return `Lecture de ${out?.started || 'la vidéo'}`;
+    case 'play': return out?.resumed ? `Reprise de ${out.resumed}` : `Sources de ${out?.sourcesOpened || 'la vidéo'}`;
     case 'open_title': return 'Fiche ouverte';
     case 'set_language': return `Langue réglée : ${input.mode === 'vo' ? 'VO · sous-titres FR' : 'VF'}`;
     case 'my_list': return input.action === 'add' ? 'Ajouté à ta liste' : 'Retiré de ta liste';

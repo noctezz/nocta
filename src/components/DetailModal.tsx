@@ -78,7 +78,7 @@ export function DetailModal() {
   const isSeries = meta.type === 'series' || episodes.length > 0;
   const logo = logoOf(meta);
 
-  const playEpisode = (v: Video, manual = false) => playTarget(episodeTarget(meta, v), { manual });
+  const playEpisode = (v: Video) => playTarget(episodeTarget(meta, v));
   const movieTarget = { meta: slimMeta(meta), type: meta.type, videoId: meta.id };
 
   const play = () => {
@@ -90,9 +90,9 @@ export function DetailModal() {
   const chooseSource = () => {
     if (isSeries) {
       const v = (entry && episodes.find((e) => e.id === entry.videoId)) || upNext;
-      if (v) return playEpisode(v, true);
+      if (v) return playEpisode(v);
     }
-    playTarget(movieTarget, { manual: true });
+    playTarget(movieTarget);
   };
 
   const seasonEps = episodes.filter((e) => e.season === season);
@@ -242,13 +242,6 @@ export function DetailModal() {
                       </strong>
                       <div className="episode-tools">
                         {v.released && <span className="muted">{new Date(v.released).toLocaleDateString('fr-FR')}</span>}
-                        <button
-                          className="ep-tool"
-                          title="Choisir la source"
-                          onClick={(e) => { e.stopPropagation(); playEpisode(v, true); }}
-                        >
-                          <ListVideo size={16} />
-                        </button>
                         <button
                           className={`ep-tool ${isWatched ? 'is-on' : ''}`}
                           title={isWatched ? 'Marquer comme non vu' : 'Marquer comme vu'}
