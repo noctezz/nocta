@@ -1,7 +1,7 @@
 import { useStore } from './store';
 import { getStreams } from './addons';
 import type { Meta, MetaPreview, PlayRequest, Stream, StreamDesc, Video } from './types';
-import { cachedLang, canCheck, checkLang } from './langCheck';
+import { cachedLang, canCheck, checkLang, discard, fitsVerified } from './langCheck';
 import { langPrefsFor } from './langPrefs';
 
 export function errMsg(e: unknown): string {
@@ -133,9 +133,11 @@ export function episodeTitleOf(v: Video) {
  */
 async function pickNextStream(meta: Meta, next: Video, current: PlayRequest, onStatus?: (text: string) => void): Promise<Stream | null> {
   const st = useStore.getState();
-  const wantFr = langPrefsFor(meta.id).verify;
+  const lp = langPrefsFor(meta.id);
+  const want = lp.verify ? lp.want : null;
   const group = current.stream?.bingeGroup;
-  const { rankStreams, pickVerifiedFrench } = await import('./autoplay');
+  const { rankStreams, pickVerified } = await import('./autoplay');
+  const { filterSources } = await import('./sourcePolicy');
 
   // Une 2e tentative si l'addon ne répond pas du premier coup
   let groups: Awaited<ReturnType<typeof getStreams>> = [];
@@ -144,21 +146,24 @@ async function pickNextStream(meta: Meta, next: Video, current: PlayRequest, onS
     if (groups.some((g) => g.streams.some((s) => s.url))) break;
     if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
   }
-  const playable = groups.flatMap((g) => g.streams).filter((s) => s.url);
-  if (!playable.length) return null;
+  const all = groups.flatMap((g) => g.streams).filter((s) => s.url);
+  if (!all.length) return null;
+  // Sans 4K / HDR et dans la langue voulue
+  const playable = filterSources(all.map((stream) => ({ stream })), meta.id).kept.map((r) => r.stream);
 
   const same = group ? playable.find((s) => s.behaviorHints?.bingeGroup === group) : undefined;
   if (same) {
-    if (!wantFr) return same;
-    onStatus?.('Vérification de la VF…');
+    if (!want) return same;
+    onStatus?.(want === 'vf' ? 'Vérification de la VF…' : 'Vérification de la VO…');
     const info = canCheck(same) ? await checkLang(same) : cachedLang(same);
-    // Même release que l'épisode en cours : gardée sauf si elle n'a clairement pas de VF
-    if (info?.status !== 'nofr') return same;
+    // Même release que l'épisode en cours : gardée sauf si elle n'est clairement pas dans la bonne langue
+    if (fitsVerified(info, want) !== false) return same;
+    discard(same);
   }
-  if (wantFr) {
-    onStatus?.('Recherche d\'une source en VF…');
+  if (want) {
+    onStatus?.(want === 'vf' ? 'Recherche d\'une source en VF…' : 'Recherche d\'une source en VO…');
     const ranked = rankStreams(playable.map((stream) => ({ stream })), meta.id).map((r) => r.stream);
-    const found = await pickVerifiedFrench(ranked, (t) => onStatus?.(t), { cancelled: false }, { quiet: true });
+    const found = await pickVerified(ranked, want, (t) => onStatus?.(t), { cancelled: false }, { quiet: true });
     if (found) return found;
   }
   // Aucune VF confirmée : la meilleure source restante (les fausses VF repérées sont classées derrière)

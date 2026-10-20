@@ -15,5 +15,7 @@ export function langPrefsFor(metaId?: string) {
   const mode = langModeFor(metaId);
   const vo = mode === 'vo';
   const preferFrench = mode ? mode === 'vf' : s.preferFrench;
-  return { mode, vo, preferFrench, verify: preferFrench && s.verifyLanguage !== false };
+  // Langue des sources à garder : VF, VO, ou indifférent (aucun réglage)
+  const want: 'vf' | 'vo' | null = vo ? 'vo' : preferFrench ? 'vf' : null;
+  return { mode, vo, preferFrench, want, verify: !!want && s.verifyLanguage !== false };
 }

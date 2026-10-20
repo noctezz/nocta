@@ -3,7 +3,8 @@ import { errMsg, nextEpisode, resolveStream, slimMeta, sortedEpisodes, episodeTi
 import { useStore } from './store';
 import { useBusy } from './ui';
 import type { Meta, MetaPreview, PlayRequest, Settings, Stream, Video } from './types';
-import { canCheck, checkLang, discard, langBonus, type LangInfo } from './langCheck';
+import { canCheck, checkLang, discard, fitsVerified, langBonus, type LangInfo } from './langCheck';
+import { filterSources } from './sourcePolicy';
 import { langPrefsFor } from './langPrefs';
 
 /** Ce qu'on veut regarder : un film, ou un épisode précis */
@@ -23,19 +24,20 @@ export const isInstant = (s: Stream) => !!s.url && /⚡|\+\]|cached|instant/i.te
  * Note une source selon les préférences : lien direct, en cache, langue, résolution.
  * Plus le score est haut, meilleure est la source.
  */
-export function scoreStream(s: Stream, prefs: Pick<Settings, 'maxResolution' | 'preferFrench' | 'verifyLanguage'> & { vo?: boolean }): number {
+export function scoreStream(s: Stream, prefs: Pick<Settings, 'maxResolution' | 'preferFrench' | 'verifyLanguage'> & { vo?: boolean; want?: 'vf' | 'vo' | null }): number {
   const q = streamQuality(s);
   let score = 0;
   if (s.url) score += 1_000_000;
   if (isInstant(s)) score += 100_000;
   if (prefs.preferFrench) {
     // Langue vérifiée dans le fichier : prime sur le nom du torrent
-    if (prefs.verifyLanguage !== false) score += langBonus(s);
+    if (prefs.verifyLanguage !== false) score += langBonus(s, 'vf');
     // MULTI contient presque toujours la piste française : même priorité que VF
     if (q.tags.includes('VF') || q.tags.includes('MULTI')) score += 30_000;
     else if (q.tags.includes('VOSTFR')) score += 5_000;
   } else if (prefs.vo) {
     // VO sous-titrée : la version originale d'abord (VOSTFR, puis MULTI qui contient aussi la VO)
+    if (prefs.verifyLanguage !== false) score += langBonus(s, 'vo');
     if (q.tags.includes('VOSTFR')) score += 30_000;
     else if (q.tags.includes('MULTI')) score += 20_000;
     else if (q.tags.includes('VF')) score -= 20_000;
@@ -72,10 +74,12 @@ export async function playTarget(t: PlayTarget, opts: { manual?: boolean; startA
   try {
     const groups = await getStreams(st.addons, t.type, t.videoId);
     if (signal.cancelled) return;
-    const rows = groups.flatMap((g) => g.streams.filter((s) => s.url).map((stream) => ({ stream })));
+    // Sans 4K / HDR et dans la langue voulue (VF, ou VO pour ce titre)
+    const rows = filterSources(groups.flatMap((g) => g.streams.filter((s) => s.url).map((stream) => ({ stream }))), t.meta.id).kept;
     let best = rankStreams(rows, t.meta.id)[0]?.stream;
-    if (best && langPrefsFor(t.meta.id).verify) {
-      const verified = await pickVerifiedFrench(rankStreams(rows, t.meta.id).map((r) => r.stream), (text) => busy.set({ ...base, status: text }), signal);
+    const lp = langPrefsFor(t.meta.id);
+    if (best && lp.verify && lp.want) {
+      const verified = await pickVerified(rankStreams(rows, t.meta.id).map((r) => r.stream), lp.want, (text) => busy.set({ ...base, status: text }), signal);
       // Sinon : nouveau classement, où les fausses VF repérées sont passées derrière
       best = verified || rankStreams(rows, t.meta.id)[0].stream;
       if (signal.cancelled) return;
@@ -107,11 +111,12 @@ export async function playTarget(t: PlayTarget, opts: { manual?: boolean; startA
 
 /**
  * Vérifie les meilleures sources UNE PAR UNE, dans l'ordre du classement, et s'arrête dès
- * qu'une vraie piste française est trouvée : une seule source finit sur TorBox.
- * Les sources essayées avant (fausses VF, langue non indiquée) en sont retirées.
+ * que la bonne langue est confirmée dans le fichier (une vraie VF, ou la piste originale en VO) :
+ * une seule source finit sur TorBox. Les sources essayées et non retenues en sont retirées.
  */
-export async function pickVerifiedFrench(
+export async function pickVerified(
   ranked: Stream[],
+  want: 'vf' | 'vo',
   onStatus: (text: string) => void,
   signal: { cancelled: boolean },
   opts: { quiet?: boolean } = {},
@@ -121,10 +126,11 @@ export async function pickVerifiedFrench(
   const deadline = Date.now() + 30000;
   const unsure: Stream[] = [];
   let done = 0;
+  const label = want === 'vf' ? 'la VF' : 'la VO';
   for (let i = 0; i < candidates.length; i++) {
     const left = deadline - Date.now();
     if (left <= 0) break;
-    onStatus(`Vérification de la VF · source ${i + 1} sur ${candidates.length}`);
+    onStatus(`Vérification de ${label} · source ${i + 1} sur ${candidates.length}`);
     const info: LangInfo | null | 'timeout' = await Promise.race([
       checkLang(candidates[i]),
       new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), left)),
@@ -132,16 +138,23 @@ export async function pickVerifiedFrench(
     if (signal.cancelled) return null;
     done++;
     if (info === 'timeout') break;
-    if (info?.status === 'fr') {
+    const fits = fitsVerified(info, want);
+    if (fits === true) {
       unsure.forEach(discard);
       return candidates[i];
     }
-    // Langue non indiquée : gardée en réserve au cas où aucune VF ne serait confirmée
-    if (!info || info.status === 'unknown') unsure.push(candidates[i]);
+    // Mauvaise langue : retirée de TorBox tout de suite
+    if (fits === false) discard(candidates[i]);
+    // Langue non indiquée : gardée en réserve au cas où rien ne serait confirmé
+    else unsure.push(candidates[i]);
   }
   const fallback = unsure.shift() || null;
   unsure.forEach(discard);
-  if (done && !fallback && !opts.quiet) useStore.getState().toast('Aucune source avec une vraie piste française : lancement de la meilleure source disponible');
+  if (done && !fallback && !opts.quiet) {
+    useStore.getState().toast(want === 'vf'
+      ? 'Aucune source avec une vraie piste française : lancement de la meilleure source disponible'
+      : 'Aucune source avec la piste originale confirmée : lancement de la meilleure source disponible');
+  }
   return fallback;
 }
 

@@ -143,6 +143,8 @@ export interface Settings {
   verifyLanguage: boolean;
   /** Sous-titres français activés tout seuls quand l'audio n'est pas en français */
   autoFrenchSubs: boolean;
+  /** Masquer les sources 4K, HDR et Dolby Vision (inutiles sur un écran de PC classique) */
+  hideUhd?: boolean;
   /** Clé API TorBox (reste sur ce PC) : sert seulement au nettoyage des sources essayées */
   torboxKey?: string;
   /** Retirer de TorBox les sources ouvertes pour vérification qui ne sont pas en VF */

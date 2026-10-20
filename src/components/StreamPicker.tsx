@@ -8,14 +8,24 @@ import { useStore } from '../lib/store';
 import { errMsg, resolveStream, streamToDesc } from '../lib/playback';
 import { backdropOf, posterOf, useBusy } from '../lib/ui';
 import type { Stream } from '../lib/types';
-import { cachedLang, canCheck, checkLang, discard, isChecking, onLangResult } from '../lib/langCheck';
+import { cachedLang, canCheck, checkLang, discard, fitsVerified, isChecking, onLangResult } from '../lib/langCheck';
+import { filterSources } from '../lib/sourcePolicy';
 import { langPrefsFor } from '../lib/langPrefs';
 
 interface Row { stream: Stream; addon: string; key: string }
 
 /** Résultat de la vérification de langue d'une source */
-function LangTag({ stream }: { stream: Stream }) {
+function LangTag({ stream, want }: { stream: Stream; want: 'vf' | 'vo' | null }) {
   const info = cachedLang(stream);
+  if (info && want === 'vo') {
+    const fits = fitsVerified(info, 'vo');
+    const text = fits === true ? `VO vérifiée${info.voLabel ? ` · ${info.voLabel}` : ''}` : fits === false ? 'VF seule, pas de VO' : info.label;
+    return (
+      <span className={`tag ${fits === true ? 'tag-lang-ok' : fits === false ? 'tag-lang-bad' : 'tag-dim'}`} title="Langue lue dans le fichier, pas dans le nom du torrent">
+        <AudioLines size={11} /> {text}
+      </span>
+    );
+  }
   if (info) {
     const cls = info.status === 'fr' ? 'tag-lang-ok' : info.status === 'nofr' ? 'tag-lang-bad' : 'tag-dim';
     return (
@@ -27,7 +37,7 @@ function LangTag({ stream }: { stream: Stream }) {
       </>
     );
   }
-  if (isChecking(stream)) return <span className="tag tag-dim"><Loader2 size={11} className="spin" /> Vérif. VF…</span>;
+  if (isChecking(stream)) return <span className="tag tag-dim"><Loader2 size={11} className="spin" /> Vérif. {want === 'vo' ? 'VO' : 'VF'}…</span>;
   return null;
 }
 
@@ -54,33 +64,40 @@ export function StreamPicker() {
   // Vérification de la vraie langue des meilleures sources : la liste se réordonne au fil des résultats
   useStore((s) => s.settings);
   useStore((s) => s.profiles);
-  const verify = langPrefsFor(picker.meta.id).verify;
+  const { verify, want } = langPrefsFor(picker.meta.id);
   const [langVersion, setLangVersion] = useState(0);
+  const [showAll, setShowAll] = useState(false);
   useEffect(() => onLangResult(() => setLangVersion((v) => v + 1)), []);
 
-  const rows: Row[] = useMemo(() => {
-    if (!groups) return [];
+  // Sans 4K / HDR, seulement la langue voulue (les fausses VF disparaissent une fois démasquées)
+  const { rows, hidden, relaxed } = useMemo(() => {
+    if (!groups) return { rows: [] as Row[], hidden: 0, relaxed: false };
     const all = groups.flatMap((g) => g.streams.map((s, i) => ({ stream: s, addon: g.addon.manifest.name, key: `${g.addon.url}#${i}` })));
+    const f = filterSources(all, picker.meta.id, { showAll });
     // Même classement que la lecture automatique : la 1re source est celle qu'elle choisirait
-    return rankStreams(all, picker.meta.id);
+    return { rows: rankStreams(f.kept, picker.meta.id), hidden: f.hiddenUhd + f.hiddenLang, relaxed: f.langRelaxed };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups, langVersion, verify]);
+  }, [groups, langVersion, verify, want, showAll]);
 
   useEffect(() => {
-    if (!verify || !groups) return;
-    // Une par une, dans l'ordre, jusqu'à la première vraie VF (une seule source ajoutée à TorBox)
+    if (!verify || !want || !groups) return;
+    // Une par une, dans l'ordre, jusqu'à la première confirmée (une seule source ajoutée à TorBox)
     let stop = false;
-    const all = rankStreams(groups.flatMap((g) => g.streams.map((stream) => ({ stream }))), picker.meta.id).map((r) => r.stream);
+    const all = groups.flatMap((g) => g.streams.map((stream) => ({ stream })));
+    const ranked = rankStreams(filterSources(all, picker.meta.id).kept, picker.meta.id).map((r) => r.stream);
     (async () => {
-      for (const s of all.filter(canCheck).slice(0, 8)) {
+      for (const s of ranked.filter(canCheck).slice(0, 8)) {
+        if (stop) break;
         const run = checkLang(s);
         setLangVersion((v) => v + 1);
-        const info = await run;
-        if (stop || info?.status === 'fr') break;
+        const fits = fitsVerified(await run, want);
+        if (fits === false) discard(s); // mauvaise langue : retirée de TorBox tout de suite
+        if (fits === true) break;
       }
     })();
     return () => { stop = true; };
-  }, [verify, groups]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verify, want, groups]);
 
   // En quittant la liste : les sources ouvertes pour vérification mais pas choisies sont retirées de TorBox
   const chosenRef = useRef<Stream | null>(null);
@@ -173,6 +190,19 @@ export function StreamPicker() {
           </div>
         )}
 
+        {groups && (hidden > 0 || relaxed || showAll) && (
+          <div className="picker-filter">
+            <span>
+              {showAll
+                ? 'Toutes les sources'
+                : relaxed
+                  ? `Aucune source ${want === 'vo' ? 'en VO' : 'en VF'} trouvée : toutes les langues sont affichées`
+                  : `${want === 'vo' ? 'VO' : want === 'vf' ? 'VF' : 'Sources'}${useStore.getState().settings.hideUhd !== false ? ' · sans 4K ni HDR' : ''} · ${hidden} masquée${hidden > 1 ? 's' : ''}`}
+            </span>
+            <button onClick={() => setShowAll(!showAll)}>{showAll ? 'Filtrer' : 'Tout afficher'}</button>
+          </div>
+        )}
+
         <div className="picker-list">
           {!groups && Array.from({ length: 6 }, (_, i) => <div key={i} className="stream skeleton" />)}
 
@@ -221,7 +251,7 @@ export function StreamPicker() {
                   </div>
                   <div className="stream-title">{lines.slice(0, 2).join(' — ') || r.addon}</div>
                   <div className="stream-tags">
-                    {verify && <LangTag stream={s} />}
+                    {verify && <LangTag stream={s} want={want} />}
                     {isCached && <span className="tag tag-green"><Zap size={11} /> Instantané</span>}
                     {q.tags.map((t) => <span key={t} className="tag">{t}</span>)}
                     {size && <span className="tag">{size}</span>}

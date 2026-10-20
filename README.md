@@ -35,6 +35,9 @@ npm run dev
    affiche « VF vérifiée », « VFQ vérifiée », « Pas de VF · anglais » ou « Langue non indiquée ». Résultats mémorisés.
    **Nettoyage TorBox** (*Paramètres*, avec ta clé API TorBox) : les sources ouvertes pour vérifier la VF qui ne sont pas
    en français sont retirées de ta liste TorBox. Seuls les torrents ajoutés par la vérification sont concernés.
+   **Sources propres** : pas de 4K ni d'HDR (réglable), et la liste ne montre que la langue voulue : VF, ou VO pour un
+   titre réglé en « VO · sous-titres FR » (MULTI vérifié pour contenir la piste originale). Les sources sont vérifiées
+   une par une, arrêt à la première bonne : une seule source par film ou épisode reste sur TorBox.
 4. **Suivi** : les films et épisodes regardés jusqu'au bout sont marqués « Vu » (cochables à la main, saison entière
    d'un clic). « Lecture » reprend au prochain épisode non vu, et l'épisode suivant apparaît dans « Reprendre ».
 

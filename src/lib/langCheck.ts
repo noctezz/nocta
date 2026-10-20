@@ -13,6 +13,10 @@ export interface LangInfo {
   vfq?: boolean;
   /** Sous-titres français présents */
   frSubs?: boolean;
+  /** Une piste audio non française (la VO) est présente ; undefined = on ne sait pas */
+  vo?: boolean;
+  /** Langue(s) de la VO, en toutes lettres */
+  voLabel?: string;
   at: number;
 }
 
@@ -42,14 +46,14 @@ export function classify(audios: Track[], subs: Track[]): Omit<LangInfo, 'at'> {
   const isFr = (t: Track) => FR_CODE.test(t.lang) || (UNDEFINED.test(t.lang.trim()) && FR_TITLE.test(t.title));
   const frSubs = subs.some((t) => !t.forced && isFr(t));
   const fr = audios.filter(isFr);
+  const others = audios.filter((t) => !isFr(t) && !UNDEFINED.test(t.lang.trim()));
+  const names = [...new Set(others.map((t) => LANG_FR[t.lang.toLowerCase()] || t.lang.toUpperCase()))].slice(0, 2);
   if (fr.length) {
     const vfq = fr.every((t) => QC.test(t.lang) || QC.test(t.title));
-    return { status: 'fr', label: vfq ? 'VFQ vérifiée' : 'VF vérifiée', vfq, frSubs };
+    return { status: 'fr', label: vfq ? 'VFQ vérifiée' : 'VF vérifiée', vfq, frSubs, vo: others.length > 0, voLabel: names.join(', ') };
   }
-  const known = audios.filter((t) => !UNDEFINED.test(t.lang.trim()));
-  if (!audios.length || !known.length) return { status: 'unknown', label: 'Langue non indiquée', frSubs };
-  const names = [...new Set(known.map((t) => LANG_FR[t.lang.toLowerCase()] || t.lang.toUpperCase()))].slice(0, 2);
-  return { status: 'nofr', label: `Pas de VF · ${names.join(', ')}`, frSubs };
+  if (!audios.length || !others.length) return { status: 'unknown', label: 'Langue non indiquée', frSubs };
+  return { status: 'nofr', label: `Pas de VF · ${names.join(', ')}`, frSubs, vo: true, voLabel: names.join(', ') };
 }
 
 // ---------- Cache ----------
@@ -113,7 +117,6 @@ export function checkLang(s: Stream): Promise<LangInfo | null> {
     const r = await window.nocta!.media.langs(s.url!);
     if (!r.ok) return null;
     const info: LangInfo = { ...classify(r.audios || [], r.subs || []), at: Date.now() };
-    if (before && info.status === 'nofr') torboxCleanup(s, before).catch(() => {});
     cache[key] = info;
     persist();
     listeners.forEach((f) => f());
@@ -143,10 +146,18 @@ export function onLangResult(f: () => void) {
   return () => { listeners.delete(f); };
 }
 
-/** Bonus de classement : une VF vérifiée passe devant tout, une fausse VF passe derrière */
-export function langBonus(s: Stream): number {
+/** Bonus de classement : la langue vérifiée dans le fichier passe devant le nom du torrent */
+export function langBonus(s: Stream, mode: 'vf' | 'vo' | null = 'vf'): number {
   const v = cachedLang(s);
-  if (!v) return 0;
+  if (!v || !mode) return 0;
+  if (mode === 'vo') return v.vo === true ? 60_000 : v.status === 'fr' && v.vo === false ? -60_000 : 0;
   // VFF avant VFQ (français québécois) à qualité égale
   return v.status === 'fr' ? (v.vfq ? 55_000 : 60_000) : v.status === 'nofr' ? -60_000 : 0;
+}
+
+/** La source vérifiée convient-elle à la langue voulue ? (true / false / null = on ne sait pas) */
+export function fitsVerified(info: LangInfo | null | undefined, mode: 'vf' | 'vo'): boolean | null {
+  if (!info) return null;
+  if (mode === 'vf') return info.status === 'fr' ? true : info.status === 'nofr' ? false : null;
+  return info.vo === true ? true : info.status === 'fr' && info.vo === false ? false : null;
 }

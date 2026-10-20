@@ -43,9 +43,9 @@ function TorboxCleanup() {
         <div>
           <strong>Nettoyer TorBox après la vérification</strong>
           <span>
-            Pour lire la langue d'une source, ton addon l'ajoute à ton compte TorBox. Celles qui ne sont pas en VF
-            sont retirées de ta liste juste après. Seuls les torrents ajoutés par cette vérification sont concernés :
-            ceux que tu avais déjà ne sont jamais touchés.
+            Pour lire la langue d'une source, ton addon l'ajoute à ton compte TorBox. NOCTA s'arrête à la première
+            source dans la bonne langue (VF, ou VO selon le titre) et retire de ta liste toutes celles essayées pour
+            rien : il ne reste qu'une source par film ou épisode. Ce que tu avais déjà n'est jamais touché.
           </span>
         </div>
         <input type="checkbox" className="switch" disabled={!settings.torboxKey} checked={!!settings.torboxKey && settings.torboxCleanup !== false} onChange={(e) => update({ torboxCleanup: e.target.checked })} />
@@ -62,7 +62,7 @@ function TorboxCleanup() {
         <button className="btn-outline" disabled={busy} onClick={save}>{busy ? 'Test…' : key.trim() === (settings.torboxKey || '') && key ? 'Tester' : 'Enregistrer'}</button>
       </div>
       {test && <div className={`status ${test.ok ? 'ok' : 'err'}`}>{test.text}</div>}
-      {!!settings.torboxCleaned && <div className="status">{settings.torboxCleaned} source{settings.torboxCleaned > 1 ? 's' : ''} sans VF retirée{settings.torboxCleaned > 1 ? 's' : ''} de TorBox</div>}
+      {!!settings.torboxCleaned && <div className="status">{settings.torboxCleaned} source{settings.torboxCleaned > 1 ? 's' : ''} essayée{settings.torboxCleaned > 1 ? 's' : ''} retirée{settings.torboxCleaned > 1 ? 's' : ''} de TorBox</div>}
       <small className="muted">La clé reste sur ce PC et ne sert qu'à ce nettoyage.</small>
     </div>
   );
@@ -125,6 +125,13 @@ export function Settings() {
             <option value={1080}>1080p</option>
             <option value={720}>720p</option>
           </select>
+        </label>
+        <label className="setting">
+          <div>
+            <strong>Masquer la 4K et l'HDR</strong>
+            <span>Les sources 4K, HDR et Dolby Vision n'apparaissent plus et ne sont jamais lancées (sauf s'il n'existe rien d'autre).</span>
+          </div>
+          <input type="checkbox" className="switch" checked={settings.hideUhd !== false} onChange={(e) => update({ hideUhd: e.target.checked })} />
         </label>
         <label className="setting">
           <div>

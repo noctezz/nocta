@@ -112,6 +112,7 @@ const DEFAULT_SETTINGS: Settings = {
   preferFrench: true,
   verifyLanguage: true,
   autoFrenchSubs: true,
+  hideUhd: true,
   autoSkipIntro: false,
   introDetection: true,
 };
