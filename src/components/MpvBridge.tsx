@@ -3,7 +3,7 @@ import { getMeta, getSubtitles } from '../lib/addons';
 import { useStore } from '../lib/store';
 import { useLatest } from '../lib/useLatest';
 import { detectIntro } from '../lib/autoplay';
-import { episodeTitleOf, errMsg, nextEpisode, recordProgress, resolveNextEpisode, slimMeta } from '../lib/playback';
+import { episodeTitleOf, errMsg, nextEpisode, prepareNextEpisode, recordProgress, resolveNextEpisode, slimMeta } from '../lib/playback';
 import type { Meta, PlayRequest } from '../lib/types';
 
 /**
@@ -57,6 +57,8 @@ export function MpvBridge() {
         metaRef.current = meta;
         const nx = meta && r.videoId ? nextEpisode(meta, r.videoId) : null;
         if (alive()) p.info({ next: nx ? { label: episodeTitleOf(nx) } : null });
+        // Sources de l'épisode suivant vérifiées à l'avance (VF), pour un enchaînement immédiat
+        if (nx) setTimeout(() => { if (alive() && reqRef.current.videoId === r.videoId) prepareNextEpisode(nx).catch(() => {}); }, 60000);
         // Analyse audio du générique, une fois la lecture bien lancée
         setTimeout(() => {
           if (!alive() || reqRef.current.videoId !== r.videoId) return;
@@ -107,7 +109,7 @@ export function MpvBridge() {
         if (cur.videoId) st().setWatched([cur.videoId], true);
         try {
           p.info({ status: 'Recherche de l\'épisode suivant…' });
-          const nextReq = await resolveNextEpisode(meta, nx, cur, (u) => p.info({ status: `Préparation de l'épisode… ${u.progress} %` }));
+          const nextReq = await resolveNextEpisode(meta, nx, cur, (text) => p.info({ status: text }));
           if (!nextReq) {
             // Pas de source équivalente : retour au choix des sources
             p.close();

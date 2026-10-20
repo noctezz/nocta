@@ -7,8 +7,8 @@ import {
 import { useLatest } from '../lib/useLatest';
 import { LoadingScreen } from './LoadingScreen';
 import { useStore } from '../lib/store';
-import { getMeta, getStreams, getSubtitles, type SubtitleTrack } from '../lib/addons';
-import { episodeLabel, errMsg, formatTime, nextEpisode, recordProgress, resolveStream, slimMeta, streamToDesc } from '../lib/playback';
+import { getMeta, getSubtitles, type SubtitleTrack } from '../lib/addons';
+import { episodeLabel, errMsg, formatTime, nextEpisode, recordProgress, resolveNextEpisode, slimMeta } from '../lib/playback';
 import { langMatches, langName, parseVtt, type Cue } from '../lib/subs';
 import type { Meta, Video } from '../lib/types';
 
@@ -329,20 +329,12 @@ export function Player() {
       closePlayer();
       openPicker({ meta: slimMeta(fullMeta), type: 'series', videoId: next.id, season: next.season, episode: ep, episodeTitle: epTitle });
     };
-    if (!req.stream?.bingeGroup) return toPicker();
     try {
       setNextBusy('Recherche de l\'épisode suivant…');
-      const groups = await getStreams(addons, 'series', next.id);
-      const match = groups.flatMap((g) => g.streams).find((s) => s.behaviorHints?.bingeGroup === req.stream!.bingeGroup);
-      if (!match) { setNextBusy(null); return toPicker(); }
-      const desc = streamToDesc(match);
-      const src = await resolveStream(desc, { season: next.season, episode: ep }, (u) =>
-        setNextBusy(`Préparation de l'épisode… ${u.progress}%`));
+      const nextReq = await resolveNextEpisode(fullMeta, next, req, (text) => setNextBusy(text));
+      if (!nextReq) { setNextBusy(null); return toPicker(); }
       removeProgress(req.meta!.id);
-      play({
-        src, title: fullMeta.name, subtitle: epTitle, meta: slimMeta(fullMeta), type: 'series',
-        videoId: next.id, season: next.season, episode: ep, stream: desc,
-      });
+      play({ ...nextReq, subtitle: epTitle });
     } catch (e) {
       setNextBusy(null);
       toast(errMsg(e), 'error');

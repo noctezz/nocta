@@ -65,6 +65,18 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
+      - name: Release notes
+        shell: bash
+        run: |
+          {
+            echo "### Nouveautés"
+            git log -1 --format=%B | grep -v -E '^(Co-Authored-By|Claude-Session):' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
+            echo
+            echo "---"
+            echo
+            cat GUIDE.md
+          } > RELEASE.md
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
@@ -75,4 +87,4 @@ jobs:
           files: |
             release/NOCTA-Setup.exe
             release/NOCTA-Portable.exe
-          body_path: GUIDE.md
+          body_path: RELEASE.md

@@ -107,6 +107,7 @@ export async function pickVerifiedFrench(
   ranked: Stream[],
   onStatus: (text: string) => void,
   signal: { cancelled: boolean },
+  opts: { quiet?: boolean } = {},
 ): Promise<Stream | null> {
   const candidates = ranked.filter(canCheck).slice(0, 6);
   if (!candidates.length) return null;
@@ -129,7 +130,7 @@ export async function pickVerifiedFrench(
     // Langue non renseignée : on la garde au cas où aucune VF ne serait confirmée
     if (!fallback && (!info || info.status === 'unknown')) fallback = candidates[i];
   }
-  if (done && !fallback) useStore.getState().toast('Aucune source avec une vraie piste française : lancement de la meilleure source disponible');
+  if (done && !fallback && !opts.quiet) useStore.getState().toast('Aucune source avec une vraie piste française : lancement de la meilleure source disponible');
   return fallback;
 }
 

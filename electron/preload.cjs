@@ -59,6 +59,16 @@ contextBridge.exposeInMainWorld('nocta', {
       return () => ipcRenderer.removeListener(`remote:${channel}`, fn);
     },
   },
+  update: {
+    status: () => ipcRenderer.invoke('update:status'),
+    check: () => ipcRenderer.invoke('update:check'),
+    install: () => ipcRenderer.invoke('update:install'),
+    on: (cb) => {
+      const fn = (_e, st) => cb(st);
+      ipcRenderer.on('update:status', fn);
+      return () => ipcRenderer.removeListener('update:status', fn);
+    },
+  },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
   win: {
     toggleFullscreen: () => ipcRenderer.invoke('win:toggleFullscreen'),

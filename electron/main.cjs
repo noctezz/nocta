@@ -6,6 +6,7 @@ const media = require('./media-server.cjs');
 const { MpvSession, mpvBinary } = require('./mpv.cjs');
 const intro = require('./intro.cjs');
 const remote = require('./remote.cjs');
+const updater = require('./updater.cjs');
 
 const isDev = !!process.env.NOCTA_DEV;
 let win;
@@ -185,6 +186,11 @@ function onRemoteMessage(msg) {
 async function remoteStatusToRenderer() {
   if (win && !win.isDestroyed()) win.webContents.send('remote:status', await remote.status());
 }
+// ---------- Mises à jour ----------
+ipcMain.handle('update:status', () => updater.status());
+ipcMain.handle('update:check', () => updater.check({ manual: true }));
+ipcMain.handle('update:install', () => updater.install());
+
 ipcMain.handle('remote:status', () => remote.status());
 ipcMain.handle('remote:setEnabled', async (_e, v) => { const st = await remote.setEnabled(v); remoteStatusToRenderer(); return st; });
 ipcMain.handle('remote:reset', async () => { const st = await remote.resetToken(); remoteStatusToRenderer(); return st; });
@@ -270,6 +276,7 @@ app.whenReady().then(async () => {
     },
   );
   createWindow();
+  updater.init((st) => { if (win && !win.isDestroyed()) win.webContents.send('update:status', st); });
   remote.init(app.getPath('userData'), {
     getState: remoteState,
     onMessage: onRemoteMessage,

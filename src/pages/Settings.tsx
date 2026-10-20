@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../lib/store';
 import { playIntroSound } from '../lib/sound';
 import { RemotePanel } from '../components/RemotePanel';
+import { UpdateSettings } from '../components/UpdateBanner';
 
 const ENCODERS: Record<string, string> = {
   libx264: 'Processeur (compatible partout)',
@@ -47,6 +48,8 @@ export function Settings() {
           ))}
         </div>
       </section>
+
+      <UpdateSettings />
 
       <section className="settings-card">
         <h2>Télécommande</h2>
@@ -195,7 +198,7 @@ export function Settings() {
       <p className="muted small">
         Un souci de lecture ? <a onClick={() => window.nocta?.openLogs()}>Ouvrir le dossier des journaux</a> (fichier mpv.log).
       </p>
-      <p className="muted small">NOCTA v0.1 · usage personnel</p>
+      <p className="muted small">NOCTA · usage personnel</p>
     </div>
   );
 }

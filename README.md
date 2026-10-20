@@ -48,6 +48,13 @@ volume, « Passer l'intro » et « Épisode suivant ». La recherche se tape au 
 pilote alors NOCTA de n'importe où, sans être sur le Wi-Fi. Si Windows demande l'autorisation, coche *Réseaux privés*
 et *Réseaux publics*.
 
+**Mises à jour automatiques** : au lancement, NOCTA regarde s'il existe une nouvelle version. Une carte propose
+*Mettre à jour* : téléchargement, installation et redémarrage tout seuls. Aussi dans *Paramètres → Mises à jour*.
+
+**Épisode suivant toujours en VF** : NOCTA garde la même source si elle est en vraie VF, sinon il en cherche une autre
+avec une piste française vérifiée, au lieu de renvoyer vers la liste des sources. Les sources de l'épisode suivant
+sont vérifiées pendant l'épisode en cours, pour un enchaînement immédiat.
+
 Le bouton agrandir (ou `F11`) passe en vrai plein écran, et le mode est retenu au prochain lancement.
 Pour quitter : menu du profil (en haut à droite), puis **Quitter NOCTA**.
 

@@ -24,6 +24,7 @@ import { fetchManifest, installAddon } from './lib/addons';
 import { errMsg } from './lib/playback';
 import { playLocalFile } from './lib/playback';
 import { useBusy, useHover } from './lib/ui';
+import { UpdateBanner } from './components/UpdateBanner';
 import { installSpatialNav, navigate, type NavKey } from './lib/spatialNav';
 
 const VIDEO_RE = /\.(mkv|mp4|avi|mov|webm|m4v|ts|wmv|flv)$/i;
@@ -170,6 +171,7 @@ export default function App() {
           : <Player key={player.src + (player.videoId || '')} />)}
       </AnimatePresence>
       <BusyOverlay />
+      {!player && <UpdateBanner />}
       <Toasts />
     </>
   );

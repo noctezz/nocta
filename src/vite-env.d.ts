@@ -27,6 +27,18 @@ interface NoctaTrackLangs {
   subs?: { lang: string; title: string; forced: boolean }[];
 }
 
+interface NoctaUpdateState {
+  state: 'idle' | 'checking' | 'latest' | 'available' | 'downloading' | 'installing' | 'error';
+  current: string;
+  version?: string | null;
+  notes?: string | null;
+  size?: number;
+  progress?: number;
+  portable?: boolean;
+  error?: string | null;
+  note?: string;
+}
+
 interface NoctaBridge {
   platform: string;
   store: { load: () => any; save: (data: any) => Promise<boolean> };
@@ -67,6 +79,12 @@ interface NoctaBridge {
   addons: {
     openWindow: (url: string) => Promise<void>;
     onInstall: (cb: (manifestUrl: string) => void) => () => void;
+  };
+  update: {
+    status: () => Promise<NoctaUpdateState>;
+    check: () => Promise<NoctaUpdateState>;
+    install: () => Promise<NoctaUpdateState>;
+    on: (cb: (st: NoctaUpdateState) => void) => () => void;
   };
   remote: {
     status: () => Promise<NoctaRemoteStatus>;
