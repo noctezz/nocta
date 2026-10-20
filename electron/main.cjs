@@ -106,6 +106,7 @@ ipcMain.handle('http:json', async (_e, url, opts = {}) => {
 
 ipcMain.handle('media:port', () => media.port());
 ipcMain.handle('media:probe', (_e, src) => media.probe(src));
+ipcMain.handle('media:langs', (_e, src) => media.trackLangs(src));
 ipcMain.handle('media:capabilities', () => media.capabilities());
 ipcMain.handle('media:keyframe', (_e, src, t) => media.keyframeBefore(src, t));
 

@@ -3,6 +3,7 @@ import { errMsg, nextEpisode, resolveStream, slimMeta, sortedEpisodes, episodeTi
 import { useStore } from './store';
 import { useBusy } from './ui';
 import type { Meta, MetaPreview, PlayRequest, Settings, Stream, Video } from './types';
+import { canCheck, checkLang, langBonus, type LangInfo } from './langCheck';
 
 /** Ce qu'on veut regarder : un film, ou un épisode précis */
 export interface PlayTarget {
@@ -21,12 +22,14 @@ export const isInstant = (s: Stream) => !!s.url && /⚡|\+\]|cached|instant/i.te
  * Note une source selon les préférences : lien direct, en cache, langue, résolution.
  * Plus le score est haut, meilleure est la source.
  */
-export function scoreStream(s: Stream, prefs: Pick<Settings, 'maxResolution' | 'preferFrench'>): number {
+export function scoreStream(s: Stream, prefs: Pick<Settings, 'maxResolution' | 'preferFrench' | 'verifyLanguage'>): number {
   const q = streamQuality(s);
   let score = 0;
   if (s.url) score += 1_000_000;
   if (isInstant(s)) score += 100_000;
   if (prefs.preferFrench) {
+    // Langue vérifiée dans le fichier : prime sur le nom du torrent
+    if (prefs.verifyLanguage !== false) score += langBonus(s);
     // MULTI contient presque toujours la piste française : même priorité que VF
     if (q.tags.includes('VF') || q.tags.includes('MULTI')) score += 30_000;
     else if (q.tags.includes('VOSTFR')) score += 5_000;
@@ -63,7 +66,13 @@ export async function playTarget(t: PlayTarget, opts: { manual?: boolean; startA
     const groups = await getStreams(st.addons, t.type, t.videoId);
     if (signal.cancelled) return;
     const rows = groups.flatMap((g) => g.streams.filter((s) => s.url).map((stream) => ({ stream })));
-    const best = rankStreams(rows)[0]?.stream;
+    let best = rankStreams(rows)[0]?.stream;
+    if (best && st.settings.preferFrench && st.settings.verifyLanguage !== false) {
+      const verified = await pickVerifiedFrench(rankStreams(rows).map((r) => r.stream), (text) => busy.set({ ...base, status: text }), signal);
+      // Sinon : nouveau classement, où les fausses VF repérées sont passées derrière
+      best = verified || rankStreams(rows)[0].stream;
+      if (signal.cancelled) return;
+    }
     if (!best) {
       busy.set(null, null);
       st.openPicker(t);
@@ -87,6 +96,41 @@ export async function playTarget(t: PlayTarget, opts: { manual?: boolean; startA
       st.openPicker(t);
     }
   }
+}
+
+/**
+ * Parcourt les meilleures sources dans l'ordre et prend la première dont le fichier
+ * contient vraiment une piste audio française. Les vérifications tournent en parallèle
+ * et la lecture part dès que la meilleure source confirmée est connue.
+ */
+export async function pickVerifiedFrench(
+  ranked: Stream[],
+  onStatus: (text: string) => void,
+  signal: { cancelled: boolean },
+): Promise<Stream | null> {
+  const candidates = ranked.filter(canCheck).slice(0, 6);
+  if (!candidates.length) return null;
+  const checks = candidates.map((s) => checkLang(s));
+  const deadline = Date.now() + 25000;
+  let fallback: Stream | null = null;
+  let done = 0;
+  for (let i = 0; i < candidates.length; i++) {
+    onStatus(`Vérification de la VF · source ${i + 1} sur ${candidates.length}`);
+    const left = deadline - Date.now();
+    if (left <= 0) break;
+    const info: LangInfo | null | 'timeout' = await Promise.race([
+      checks[i],
+      new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), left)),
+    ]);
+    if (signal.cancelled) return null;
+    done++;
+    if (info === 'timeout') break;
+    if (info?.status === 'fr') return candidates[i];
+    // Langue non renseignée : on la garde au cas où aucune VF ne serait confirmée
+    if (!fallback && (!info || info.status === 'unknown')) fallback = candidates[i];
+  }
+  if (done && !fallback) useStore.getState().toast('Aucune source avec une vraie piste française : lancement de la meilleure source disponible');
+  return fallback;
 }
 
 export function episodeTarget(meta: Meta | MetaPreview, v: Video): PlayTarget {

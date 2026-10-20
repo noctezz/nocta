@@ -80,6 +80,15 @@ export function Settings() {
           </div>
           <input type="checkbox" className="switch" checked={settings.preferFrench} onChange={(e) => update({ preferFrench: e.target.checked })} />
         </label>
+        {settings.preferFrench && (
+          <label className="setting">
+            <div>
+              <strong>Vérifier la vraie VF</strong>
+              <span>Avant de lancer, NOCTA ouvre le début des meilleures sources et regarde leurs pistes audio. Les torrents marqués VF ou MULTI sans vraie piste française passent derrière. Ajoute quelques secondes au lancement la première fois, puis c'est mémorisé.</span>
+            </div>
+            <input type="checkbox" className="switch" checked={settings.verifyLanguage !== false} onChange={(e) => update({ verifyLanguage: e.target.checked })} />
+          </label>
+        )}
         <label className="setting">
           <div>
             <strong>Détection du générique</strong>

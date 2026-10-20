@@ -872,3 +872,6 @@ html[data-season='christmas'] .loading-vignette { background: radial-gradient(el
 .remote-setup b { color: #fff; }
 .remote-setup a { color: var(--accent-2); cursor: pointer; text-decoration: underline; }
 .remote-setup .btn-outline { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; }
+.tag-lang-ok { background: rgba(70, 211, 105, 0.16); color: var(--green); font-weight: 600; }
+.tag-lang-bad { background: rgba(255, 59, 92, 0.14); color: var(--accent-2); text-decoration: none; }
+.stream-tags .tag svg { vertical-align: -1px; }

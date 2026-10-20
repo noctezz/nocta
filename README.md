@@ -30,6 +30,9 @@ npm run dev
    avec ta clé de débrideur). Le bouton *stremio-addons.net* ouvre l'annuaire communautaire, qui marche pareil.
 3. Choisis un titre, puis **Lecture** : la meilleure source démarre directement (qualité max et préférence VF/MULTI
    dans les Paramètres). Le bouton ☰ de la fiche ouvre la liste complète des sources.
+   **Vraie VF** : avant de lancer, NOCTA ouvre le début des meilleures sources (liens en cache uniquement) et lit leurs
+   vraies pistes audio. Un torrent marqué VF ou MULTI sans piste française passe derrière. Dans la liste ☰, chaque source
+   affiche « VF vérifiée », « VFQ vérifiée », « Pas de VF · anglais » ou « Langue non indiquée ». Résultats mémorisés.
 4. **Suivi** : les films et épisodes regardés jusqu'au bout sont marqués « Vu » (cochables à la main, saison entière
    d'un clic). « Lecture » reprend au prochain épisode non vu, et l'épisode suivant apparaît dans « Reprendre ».
 

@@ -211,6 +211,35 @@ function probe(src) {
   });
 }
 
+/**
+ * Langues réelles d'une source : lit seulement l'en-tête du fichier (quelques Mo au plus)
+ * pour lister les pistes audio et sous-titres, sans télécharger la vidéo.
+ */
+function trackLangs(src) {
+  return new Promise((resolve) => {
+    const args = ['-v', 'error', '-probesize', '4000000', '-analyzeduration', '0',
+      '-show_entries', 'stream=index,codec_type,codec_name,channels:stream_tags=language,title:stream_disposition=default,forced',
+      '-of', 'json'];
+    if (isUrl(src)) args.push('-rw_timeout', '10000000');
+    args.push(src);
+    execFile(FFPROBE, args, { timeout: 20000, maxBuffer: 4 * 1024 * 1024, windowsHide: true }, (err, stdout) => {
+      if (err) return resolve({ ok: false });
+      try {
+        const streams = JSON.parse(stdout).streams || [];
+        const tag = (st, k) => (st.tags && (st.tags[k] || st.tags[k.toUpperCase()])) || '';
+        const pick = (type) => streams.filter((st) => st.codec_type === type).map((st) => ({
+          lang: tag(st, 'language'), title: tag(st, 'title'),
+          forced: !!(st.disposition && st.disposition.forced),
+        }));
+        const video = streams.some((st) => st.codec_type === 'video');
+        resolve({ ok: video, audios: pick('audio'), subs: pick('subtitle') });
+      } catch {
+        resolve({ ok: false });
+      }
+    });
+  });
+}
+
 // Position de l'image-clé juste avant t : en remux (vidéo copiée) ffmpeg démarre
 // forcément sur une image-clé, il faut donc la connaître pour garder le minutage exact.
 function keyframeBefore(src, t) {
@@ -246,4 +275,4 @@ function capabilities() {
   });
 }
 
-module.exports = { FFMPEG, inputArgs, start, stop, probe, capabilities, keyframeBefore, port: () => serverPort };
+module.exports = { FFMPEG, inputArgs, start, stop, probe, trackLangs, capabilities, keyframeBefore, port: () => serverPort };

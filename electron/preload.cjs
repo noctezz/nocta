@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('nocta', {
   media: {
     port: () => ipcRenderer.invoke('media:port'),
     probe: (src) => ipcRenderer.invoke('media:probe', src),
+    langs: (src) => ipcRenderer.invoke('media:langs', src),
     capabilities: () => ipcRenderer.invoke('media:capabilities'),
     keyframe: (src, t) => ipcRenderer.invoke('media:keyframe', src, t),
   },

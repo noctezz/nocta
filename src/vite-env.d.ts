@@ -21,6 +21,12 @@ interface NoctaRemoteStatus {
   clients: string[];
 }
 
+interface NoctaTrackLangs {
+  ok: boolean;
+  audios?: { lang: string; title: string; forced: boolean }[];
+  subs?: { lang: string; title: string; forced: boolean }[];
+}
+
 interface NoctaBridge {
   platform: string;
   store: { load: () => any; save: (data: any) => Promise<boolean> };
@@ -29,6 +35,7 @@ interface NoctaBridge {
   media: {
     port: () => Promise<number>;
     probe: (src: string) => Promise<NoctaProbe>;
+    langs: (src: string) => Promise<NoctaTrackLangs>;
     capabilities: () => Promise<{ ffmpeg: boolean; encoders: string[] }>;
     keyframe: (src: string, t: number) => Promise<number>;
   };

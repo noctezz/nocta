@@ -109,6 +109,7 @@ const DEFAULT_SETTINGS: Settings = {
   autoPickSource: true,
   maxResolution: 1080,
   preferFrench: true,
+  verifyLanguage: true,
   autoSkipIntro: false,
   introDetection: true,
 };

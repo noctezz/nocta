@@ -135,6 +135,8 @@ export interface Settings {
   maxResolution: 2160 | 1080 | 720;
   /** Préférer les sources en français (VF / MULTI / TRUEFRENCH) */
   preferFrench: boolean;
+  /** Vérifier la vraie langue des sources (pistes audio) avant de lancer */
+  verifyLanguage: boolean;
   /** Passer automatiquement le générique (sinon : bouton) */
   autoSkipIntro: boolean;
   /** Détection du générique par analyse audio */

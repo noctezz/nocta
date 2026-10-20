@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ExternalLink, Loader2, Play, Puzzle, X, Zap } from 'lucide-react';
+import { AudioLines, ExternalLink, Loader2, Play, Puzzle, X, Zap } from 'lucide-react';
 import { getStreams, streamQuality, streamSize, type StreamGroup } from '../lib/addons';
 import { useLatest } from '../lib/useLatest';
 import { rankStreams } from '../lib/autoplay';
@@ -8,8 +8,27 @@ import { useStore } from '../lib/store';
 import { errMsg, resolveStream, streamToDesc } from '../lib/playback';
 import { backdropOf, posterOf, useBusy } from '../lib/ui';
 import type { Stream } from '../lib/types';
+import { cachedLang, canCheck, checkLang, isChecking, onLangResult } from '../lib/langCheck';
 
 interface Row { stream: Stream; addon: string; key: string }
+
+/** Résultat de la vérification de langue d'une source */
+function LangTag({ stream }: { stream: Stream }) {
+  const info = cachedLang(stream);
+  if (info) {
+    const cls = info.status === 'fr' ? 'tag-lang-ok' : info.status === 'nofr' ? 'tag-lang-bad' : 'tag-dim';
+    return (
+      <>
+        <span className={`tag ${cls}`} title="Langue lue dans le fichier, pas dans le nom du torrent">
+          {info.status === 'fr' ? '🇫🇷 ' : <AudioLines size={11} />} {info.label}
+        </span>
+        {info.status !== 'fr' && info.frSubs && <span className="tag">Sous-titres FR</span>}
+      </>
+    );
+  }
+  if (isChecking(stream)) return <span className="tag tag-dim"><Loader2 size={11} className="spin" /> Vérif. VF…</span>;
+  return null;
+}
 
 export function StreamPicker() {
   const picker = useLatest(useStore((s) => s.picker))!;
@@ -31,12 +50,26 @@ export function StreamPicker() {
     return () => { alive = false; };
   }, [addons, picker.type, picker.videoId]);
 
+  // Vérification de la vraie langue des meilleures sources : la liste se réordonne au fil des résultats
+  const settings = useStore((s) => s.settings);
+  const verify = settings.preferFrench && settings.verifyLanguage !== false;
+  const [langVersion, setLangVersion] = useState(0);
+  useEffect(() => onLangResult(() => setLangVersion((v) => v + 1)), []);
+
   const rows: Row[] = useMemo(() => {
     if (!groups) return [];
     const all = groups.flatMap((g) => g.streams.map((s, i) => ({ stream: s, addon: g.addon.manifest.name, key: `${g.addon.url}#${i}` })));
     // Même classement que la lecture automatique : la 1re source est celle qu'elle choisirait
     return rankStreams(all);
-  }, [groups]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, langVersion]);
+
+  useEffect(() => {
+    if (!verify || !groups) return;
+    const all = rankStreams(groups.flatMap((g) => g.streams.map((stream) => ({ stream })))).map((r) => r.stream);
+    all.filter(canCheck).slice(0, 10).forEach((s) => { checkLang(s); });
+    setLangVersion((v) => v + 1);
+  }, [verify, groups]);
 
   const qualities = useMemo(() => {
     const set = new Set(rows.map((r) => streamQuality(r.stream).label).filter(Boolean));
@@ -149,6 +182,7 @@ export function StreamPicker() {
             return (
               <motion.button
                 key={r.key}
+                layout="position"
                 className={`stream ${isBusy ? 'is-busy' : ''}`}
                 onClick={() => !busy && choose(r)}
                 disabled={!!busy && !isBusy}
@@ -166,6 +200,7 @@ export function StreamPicker() {
                   </div>
                   <div className="stream-title">{lines.slice(0, 2).join(' — ') || r.addon}</div>
                   <div className="stream-tags">
+                    {verify && <LangTag stream={s} />}
                     {isCached && <span className="tag tag-green"><Zap size={11} /> Instantané</span>}
                     {q.tags.map((t) => <span key={t} className="tag">{t}</span>)}
                     {size && <span className="tag">{size}</span>}
