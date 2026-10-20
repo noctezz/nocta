@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type FocusEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import type { MetaPreview, ProgressEntry } from '../lib/types';
 import type { CardVariant } from '../lib/ui';
@@ -13,6 +13,8 @@ interface RowProps {
   items?: MetaPreview[];
   variant?: CardVariant;
   entries?: Record<string, ProgressEntry>;
+  /** Bouton à droite du titre */
+  action?: ReactNode;
 }
 
 function perRowFor(width: number, variant: CardVariant) {
@@ -27,7 +29,7 @@ export function mergeUnique(prev: MetaPreview[], next: MetaPreview[]) {
   return { list: add.length ? [...prev, ...add] : prev, added: add.length };
 }
 
-export function Row({ def, title: givenTitle, items: given, variant: givenVariant, entries }: RowProps) {
+export function Row({ def, title: givenTitle, items: given, variant: givenVariant, entries, action }: RowProps) {
   const title = def?.title ?? givenTitle ?? '';
   const variant: CardVariant = def?.variant ?? givenVariant ?? 'landscape';
   const pageable = !!def?.pageable && variant !== 'top10';
@@ -140,6 +142,7 @@ export function Row({ def, title: givenTitle, items: given, variant: givenVarian
           {title}
           {def && variant !== 'top10' && <span className="see-all">Tout voir <ChevronRight size={16} /></span>}
         </h2>
+        {action}
         {pages > 1 && (
           <div className="row-dots">
             {Array.from({ length: Math.min(pages, 12) }, (_, i) => <span key={i} className={i === Math.min(p, 11) ? 'is-on' : ''} />)}

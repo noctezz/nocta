@@ -50,6 +50,8 @@ interface State extends PersistedData {
   setWatched: (videoIds: string[], watched: boolean) => void;
   setIntroMark: (seriesId: string, mark: IntroMark | null) => void;
   removeProgress: (key: string) => void;
+  /** Vide « Reprendre » du profil actif */
+  clearProgress: () => void;
   setAddons: (a: InstalledAddon[]) => void;
   updateSettings: (s: Partial<Settings>) => void;
   openDetail: (m: { type: string; id: string; preview?: MetaPreview }) => void;
@@ -211,6 +213,7 @@ export const useStore = create<State>((set, get) => ({
     else delete next[seriesId];
     return { introMarks: next };
   }),
+  clearProgress: () => set((s) => ({ profiles: updateProfile(s, (p) => ({ ...p, progress: {} })) })),
   removeProgress: (key) => set((s) => ({
     profiles: updateProfile(s, (p) => {
       const { [key]: _drop, ...rest } = p.progress;
