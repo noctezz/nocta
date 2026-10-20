@@ -900,3 +900,9 @@ html[data-season='christmas'] .loading-vignette { background: radial-gradient(el
 .lang-switch button:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
 .lang-switch button.is-on { background: #fff; color: #000; }
 .lang-switch small { font-size: 11px; color: var(--muted); padding: 0 10px 0 4px; }
+.setting.setting-col { flex-direction: column; align-items: stretch; gap: 10px; cursor: default; }
+.setting-row { display: flex; align-items: center; gap: 16px; }
+.setting-row > div { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.setting-col .key-row .input { flex: 1; }
+.setting.setting-col > .setting-row, .setting.setting-col > .key-row, .setting.setting-col > .status { flex-direction: row; align-items: center; }
+.setting.setting-col > .key-row { gap: 10px; }

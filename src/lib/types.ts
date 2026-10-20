@@ -143,6 +143,12 @@ export interface Settings {
   verifyLanguage: boolean;
   /** Sous-titres français activés tout seuls quand l'audio n'est pas en français */
   autoFrenchSubs: boolean;
+  /** Clé API TorBox (reste sur ce PC) : sert seulement au nettoyage des sources essayées */
+  torboxKey?: string;
+  /** Retirer de TorBox les sources ouvertes pour vérification qui ne sont pas en VF */
+  torboxCleanup?: boolean;
+  /** Nombre de torrents retirés par ce nettoyage */
+  torboxCleaned?: number;
   /** Passer automatiquement le générique (sinon : bouton) */
   autoSkipIntro: boolean;
   /** Détection du générique par analyse audio */

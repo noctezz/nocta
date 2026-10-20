@@ -33,6 +33,8 @@ npm run dev
    **Vraie VF** : avant de lancer, NOCTA ouvre le début des meilleures sources (liens en cache uniquement) et lit leurs
    vraies pistes audio. Un torrent marqué VF ou MULTI sans piste française passe derrière. Dans la liste ☰, chaque source
    affiche « VF vérifiée », « VFQ vérifiée », « Pas de VF · anglais » ou « Langue non indiquée ». Résultats mémorisés.
+   **Nettoyage TorBox** (*Paramètres*, avec ta clé API TorBox) : les sources ouvertes pour vérifier la VF qui ne sont pas
+   en français sont retirées de ta liste TorBox. Seuls les torrents ajoutés par la vérification sont concernés.
 4. **Suivi** : les films et épisodes regardés jusqu'au bout sont marqués « Vu » (cochables à la main, saison entière
    d'un clic). « Lecture » reprend au prochain épisode non vu, et l'épisode suivant apparaît dans « Reprendre ».
 

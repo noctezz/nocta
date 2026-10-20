@@ -2,6 +2,7 @@
 // (pistes audio et sous-titres) au lieu de croire le nom du torrent (« VF », « MULTI »…).
 // Les résultats sont mémorisés : une source déjà vérifiée l'est instantanément ensuite.
 import type { Stream } from './types';
+import { cleanup as torboxCleanup, snapshot as torboxSnapshot } from './torbox';
 
 export type LangStatus = 'fr' | 'nofr' | 'unknown';
 export interface LangInfo {
@@ -104,9 +105,12 @@ export function checkLang(s: Stream): Promise<LangInfo | null> {
   const cur = inflight.get(key);
   if (cur) return cur;
   const p = slot(async () => {
+    // Liste TorBox juste avant d'ouvrir la source : seul ce qui apparaît ensuite pourra être retiré
+    const before = await torboxSnapshot();
     const r = await window.nocta!.media.langs(s.url!);
     if (!r.ok) return null;
     const info: LangInfo = { ...classify(r.audios || [], r.subs || []), at: Date.now() };
+    if (before && info.status === 'nofr') torboxCleanup(s, before).catch(() => {});
     cache[key] = info;
     persist();
     listeners.forEach((f) => f());

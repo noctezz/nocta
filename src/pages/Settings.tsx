@@ -3,6 +3,7 @@ import { useStore } from '../lib/store';
 import { playIntroSound } from '../lib/sound';
 import { RemotePanel } from '../components/RemotePanel';
 import { UpdateSettings } from '../components/UpdateBanner';
+import { testKey } from '../lib/torbox';
 
 const ENCODERS: Record<string, string> = {
   libx264: 'Processeur (compatible partout)',
@@ -17,6 +18,55 @@ const THEMES: { id: 'auto' | 'off' | 'halloween' | 'christmas'; label: string; h
   { id: 'christmas', label: 'Noël', hint: 'Toute l\'année', icon: '🎄' },
   { id: 'off', label: 'Désactivé', hint: 'Le NOCTA classique', icon: '🌙' },
 ];
+
+/** Nettoyage TorBox des sources ouvertes pour vérifier la VF */
+function TorboxCleanup() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const [key, setKey] = useState(settings.torboxKey || '');
+  const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    const k = key.trim();
+    update({ torboxKey: k });
+    if (!k) { setTest(null); return; }
+    setBusy(true);
+    try { setTest({ ok: true, text: `Connecté : ${await testKey()}` }); }
+    catch (e) { setTest({ ok: false, text: `Clé refusée : ${String((e as Error).message || e)}` }); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="setting setting-col">
+      <div className="setting-row">
+        <div>
+          <strong>Nettoyer TorBox après la vérification</strong>
+          <span>
+            Pour lire la langue d'une source, ton addon l'ajoute à ton compte TorBox. Celles qui ne sont pas en VF
+            sont retirées de ta liste juste après. Seuls les torrents ajoutés par cette vérification sont concernés :
+            ceux que tu avais déjà ne sont jamais touchés.
+          </span>
+        </div>
+        <input type="checkbox" className="switch" disabled={!settings.torboxKey} checked={!!settings.torboxKey && settings.torboxCleanup !== false} onChange={(e) => update({ torboxCleanup: e.target.checked })} />
+      </div>
+      <div className="key-row">
+        <input
+          className="input"
+          type="password"
+          placeholder="Clé API TorBox (torbox.app → Settings → API Key)"
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && save()}
+        />
+        <button className="btn-outline" disabled={busy} onClick={save}>{busy ? 'Test…' : key.trim() === (settings.torboxKey || '') && key ? 'Tester' : 'Enregistrer'}</button>
+      </div>
+      {test && <div className={`status ${test.ok ? 'ok' : 'err'}`}>{test.text}</div>}
+      {!!settings.torboxCleaned && <div className="status">{settings.torboxCleaned} source{settings.torboxCleaned > 1 ? 's' : ''} sans VF retirée{settings.torboxCleaned > 1 ? 's' : ''} de TorBox</div>}
+      <small className="muted">La clé reste sur ce PC et ne sert qu'à ce nettoyage.</small>
+    </div>
+  );
+}
 
 export function Settings() {
   const settings = useStore((s) => s.settings);
@@ -92,6 +142,7 @@ export function Settings() {
             <input type="checkbox" className="switch" checked={settings.verifyLanguage !== false} onChange={(e) => update({ verifyLanguage: e.target.checked })} />
           </label>
         )}
+        {settings.preferFrench && settings.verifyLanguage !== false && <TorboxCleanup />}
         <label className="setting">
           <div>
             <strong>Sous-titres français automatiques</strong>
