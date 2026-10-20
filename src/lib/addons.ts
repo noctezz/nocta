@@ -139,10 +139,20 @@ export async function getMeta(addons: InstalledAddon[], type: string, id: string
 
 export interface StreamGroup { addon: InstalledAddon; streams: Stream[]; error?: string }
 
+const streamCache = new Map<string, { at: number; p: Promise<any> }>();
+/** Sources d'un addon, gardées 3 minutes (la liste, la lecture auto et l'épisode suivant les partagent) */
+function cachedStreams(url: string): Promise<any> {
+  const hit = streamCache.get(url);
+  if (hit && Date.now() - hit.at < 3 * 60_000) return hit.p;
+  const p = getJson(url, 30000).catch((e) => { streamCache.delete(url); throw e; });
+  streamCache.set(url, { at: Date.now(), p });
+  return p;
+}
+
 export async function getStreams(addons: InstalledAddon[], type: string, id: string): Promise<StreamGroup[]> {
   const targets = addons.filter((a) => supports(a, 'stream', type, id));
   const results = await Promise.allSettled(
-    targets.map((a) => getJson(`${baseOf(a.url)}/stream/${encodeURIComponent(type)}/${encodeURIComponent(id)}.json`, 30000)),
+    targets.map((a) => cachedStreams(`${baseOf(a.url)}/stream/${encodeURIComponent(type)}/${encodeURIComponent(id)}.json`)),
   );
   return results.map((r, i) => ({
     addon: targets[i],

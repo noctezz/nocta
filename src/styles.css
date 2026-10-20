@@ -919,3 +919,7 @@ html[data-season='christmas'] .loading-vignette { background: radial-gradient(el
 .setting.setting-col > .theme-grid { margin-top: 4px; }
 .setting > .seg { display: inline-flex; flex-direction: row; flex: none; gap: 3px; }
 .setting.setting-col > .theme-grid { display: grid; flex: none; }
+
+/* Performances : les rangées hors de l'écran ne sont ni dessinées ni mises en page */
+.rows > .row { content-visibility: auto; contain-intrinsic-size: auto 300px; }
+.player-error-actions { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }

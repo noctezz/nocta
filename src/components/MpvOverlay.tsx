@@ -34,6 +34,8 @@ interface Track {
 }
 
 interface Info {
+  /** Plus aucune source à essayer : message d'erreur final */
+  failed?: string;
   /** VO sous-titrée demandée pour ce titre */
   langMode?: 'vf' | 'vo';
   /** Sous-titres français tout seuls quand l'audio n'est pas en français */
@@ -84,6 +86,9 @@ export function MpvOverlay() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [chapters, setChapters] = useState<{ title?: string; time: number }[]>([]);
   const skipped = useRef(new Set<string>());
+  // Source illisible : avant le début de la lecture, NOCTA essaie tout seul une autre source
+  const failRef = useRef<(why: 'error' | 'timeout') => void>(() => {});
+  const reported = useRef(false);
   /** Choix automatique audio / sous-titres, une seule fois par vidéo */
   const langAuto = useRef({ done: false, at: Date.now() });
   const [notice, setNotice] = useState<string | null>(null);
@@ -105,6 +110,7 @@ export function MpvOverlay() {
         setInfo({});
         setChapters([]);
         skipped.current.clear();
+        reported.current = false;
         langAuto.current = { done: false, at: Date.now() };
         setNotice(null);
         learn.current = null;
@@ -130,7 +136,7 @@ export function MpvOverlay() {
           case 'eof-reached': setEof(!!value); break;
           case 'playback-restart': setStarted(true); break;
           case 'end-file':
-            if (value === 'error') setError('Impossible de lire cette vidéo (lien expiré ou fichier illisible).');
+            if (value === 'error') failRef.current('error');
             break;
         }
       }),
@@ -267,6 +273,23 @@ export function MpvOverlay() {
     await cmd('sub-add', s.url, 'select', `${langName(s.lang)} · ${s.addon}`, s.lang);
     autoSync(s);
   };
+
+  // ---------- Source illisible ou qui ne répond pas ----------
+  failRef.current = (why) => {
+    if (!started && !reported.current) {
+      reported.current = true;
+      bridge().action('failed', why);
+      return;
+    }
+    if (started) setError('La lecture s\'est interrompue (connexion perdue ou lien expiré).');
+  };
+  useEffect(() => { if (info.failed) setError(info.failed); }, [info.failed]);
+  // Chargement qui n'en finit pas : au bout de 45 s, on passe à une autre source
+  useEffect(() => {
+    if (!init || started || error) return;
+    const t = setTimeout(() => failRef.current('timeout'), 45000);
+    return () => clearTimeout(t);
+  }, [init, started, error]);
 
   // ---------- Langue : VO choisie pour ce titre, sous-titres FR si l'audio n'est pas en français ----------
   useEffect(() => {
@@ -446,7 +469,11 @@ export function MpvOverlay() {
         <div className="player-error">
           <h2>Oups.</h2>
           <p>{error}</p>
-          <div><button className="btn btn-white" onClick={close}>Retour</button></div>
+          <div className="player-error-actions">
+            <button className="btn btn-white" onClick={() => { setError(null); bridge().action('retry', { at: time }); }}>Réessayer</button>
+            <button className="btn btn-glass" onClick={() => bridge().action('pickOther')}>Choisir une autre source</button>
+            <button className="btn-link" onClick={close}>Retour</button>
+          </div>
         </div>
       )}
 

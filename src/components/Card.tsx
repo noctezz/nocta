@@ -28,7 +28,7 @@ export function Card({
         <svg className="rank" viewBox="0 0 120 160" aria-hidden>
           <text x="120" y="150" textAnchor="end">{rank}</text>
         </svg>
-        <img src={posterOf(item)} alt={item.name} loading="lazy" draggable={false} />
+        <img src={posterOf(item)} alt={item.name} loading="lazy" decoding="async" draggable={false} />
       </div>
     );
   }
@@ -40,12 +40,12 @@ export function Card({
     <div className="card" tabIndex={0} ref={ref} onMouseEnter={enter} onMouseLeave={leave} onClick={click}>
       <div className="card-img">
         {imgOk ? (
-          <img src={backdropOf(item)} alt="" loading="lazy" draggable={false} onError={() => setImgOk(false)} />
+          <img src={backdropOf(item)} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setImgOk(false)} />
         ) : (
           <div className="card-fallback" />
         )}
         {logo && logoOk ? (
-          <img className="card-logo" src={logo} alt={item.name} loading="lazy" draggable={false} onError={() => setLogoOk(false)} />
+          <img className="card-logo" src={logo} alt={item.name} loading="lazy" decoding="async" draggable={false} onError={() => setLogoOk(false)} />
         ) : (
           <div className="card-title">{item.name}</div>
         )}

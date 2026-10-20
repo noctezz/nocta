@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AudioLines, ExternalLink, Loader2, Play, Puzzle, X, Zap } from 'lucide-react';
 import { getStreams, streamQuality, streamSize, type StreamGroup } from '../lib/addons';
@@ -99,14 +99,6 @@ export function StreamPicker() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verify, want, groups]);
 
-  // En quittant la liste : les sources ouvertes pour vérification mais pas choisies sont retirées de TorBox
-  const chosenRef = useRef<Stream | null>(null);
-  const groupsRef = useRef(groups);
-  groupsRef.current = groups;
-  useEffect(() => () => {
-    const chosen = chosenRef.current;
-    groupsRef.current?.forEach((g) => g.streams.forEach((s) => { if (s !== chosen && s.url !== chosen?.url) discard(s); }));
-  }, []);
 
   const qualities = useMemo(() => {
     const set = new Set(rows.map((r) => streamQuality(r.stream).label).filter(Boolean));
@@ -119,7 +111,6 @@ export function StreamPicker() {
 
   const choose = async (r: Row) => {
     const s = r.stream;
-    chosenRef.current = s;
     if (s.externalUrl || s.ytId) {
       window.nocta?.openExternal(s.externalUrl || `https://www.youtube.com/watch?v=${s.ytId}`);
       return;

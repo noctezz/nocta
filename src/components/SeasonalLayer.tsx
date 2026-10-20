@@ -16,8 +16,21 @@ export function SeasonalLayer({ theme, density = 1, className = '' }: { theme: S
     const canvas = ref.current!;
     const ctx = canvas.getContext('2d')!;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let w = 0, h = 0, raf = 0, last = performance.now();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let w = 0, h = 0, raf = 0, last = performance.now(), lastDraw = 0;
+    // Petites particules floues : la pleine résolution n'apporte rien et coûte 4× plus cher
+    const dpr = 1;
+    // Braise pré-dessinée une fois (au lieu d'un dégradé recalculé à chaque image)
+    const ember = document.createElement('canvas');
+    ember.width = ember.height = 32;
+    {
+      const ec = ember.getContext('2d')!;
+      const g = ec.createRadialGradient(16, 16, 0, 16, 16, 16);
+      g.addColorStop(0, '#ffd27a');
+      g.addColorStop(0.4, '#ff7a18');
+      g.addColorStop(1, 'rgba(255,90,0,0)');
+      ec.fillStyle = g;
+      ec.fillRect(0, 0, 32, 32);
+    }
 
     const resize = () => {
       w = canvas.clientWidth; h = canvas.clientHeight;
@@ -65,6 +78,10 @@ export function SeasonalLayer({ theme, density = 1, className = '' }: { theme: S
     };
 
     const frame = (now: number) => {
+      // 30 images/s suffisent pour de la neige ou des braises ; rien quand la fenêtre est cachée
+      if (!reduce) raf = requestAnimationFrame(frame);
+      if (document.hidden || now - lastDraw < 32) return;
+      lastDraw = now;
       const dt = Math.min(50, now - last) / 16.67;
       last = now;
       ctx.clearRect(0, 0, w, h);
@@ -84,14 +101,8 @@ export function SeasonalLayer({ theme, density = 1, className = '' }: { theme: S
           if (f.y < -10) flakes[i] = spawn();
           const flicker = 0.6 + Math.sin(f.phase * 6) * 0.4;
           ctx.globalAlpha = f.o * flicker * Math.min(1, f.y / (h * 0.5));
-          const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 3.2);
-          g.addColorStop(0, '#ffd27a');
-          g.addColorStop(0.4, '#ff7a18');
-          g.addColorStop(1, 'rgba(255,90,0,0)');
-          ctx.fillStyle = g;
-          ctx.beginPath();
-          ctx.arc(f.x, f.y, f.r * 3.2, 0, Math.PI * 2);
-          ctx.fill();
+          const size = f.r * 6.4;
+          ctx.drawImage(ember, f.x - size / 2, f.y - size / 2, size, size);
         }
       }
       ctx.globalAlpha = 1;
@@ -111,7 +122,6 @@ export function SeasonalLayer({ theme, density = 1, className = '' }: { theme: S
           if (b.x < -80 || b.x > w + 80) bats.splice(i, 1);
         }
       }
-      if (!reduce) raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
 

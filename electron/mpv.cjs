@@ -234,6 +234,7 @@ class MpvSession {
     this.req = { ...this.req, ...req };
     this.last = { time: 0, duration: 0 };
     this.info = {};
+    this.started = false;
     await this.send(['set_property', 'start', req.startAt && req.startAt > 5 ? String(Math.max(0, req.startAt - 3)) : 'none']);
     await this.send(['loadfile', req.src, 'replace']);
     this.sendOverlay('player:init', this.req);

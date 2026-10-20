@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('nocta', {
     minimize: () => ipcRenderer.invoke('player:minimize'),
     remoteState: (st) => ipcRenderer.invoke('player:remote', st),
     subsync: (job) => ipcRenderer.invoke('player:subsync', job),
+    action: (name, data) => ipcRenderer.invoke('player:action', name, data),
     on: (channel, cb) => {
       const fn = (_e, data) => cb(data);
       ipcRenderer.on(channel, fn);

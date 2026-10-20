@@ -136,6 +136,10 @@ ipcMain.handle('player:info', (_e, info) => session && session.setInfo(info));
 ipcMain.handle('player:ready', () => session && session.ready());
 ipcMain.handle('player:next', () => session && session.sendMain('player:next'));
 ipcMain.handle('player:intro', (_e, mark) => session && session.sendMain('player:intro', mark));
+// Source illisible / bloquée, « Réessayer » ou « Choisir une autre source » : géré par la fenêtre principale
+ipcMain.handle('player:action', (_e, name, data) => {
+  if (session && ['failed', 'retry', 'pickOther'].includes(name)) session.sendMain(`player:${name}`, data);
+});
 // Détection du générique par empreinte audio
 ipcMain.handle('intro:detect', (_e, job) => intro.detect(job));
 ipcMain.handle('intro:has', (_e, seriesId, videoId) => intro.hasFp(seriesId, videoId));

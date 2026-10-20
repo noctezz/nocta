@@ -3,7 +3,7 @@ import { errMsg, nextEpisode, resolveStream, slimMeta, sortedEpisodes, episodeTi
 import { useStore } from './store';
 import { useBusy } from './ui';
 import type { Meta, MetaPreview, PlayRequest, Settings, Stream, Video } from './types';
-import { canCheck, checkLang, discard, fitsVerified, langBonus, type LangInfo } from './langCheck';
+import { canCheck, checkLang, discard, fitsVerified, langBonus, wasDiscarded, type LangInfo } from './langCheck';
 import { filterSources } from './sourcePolicy';
 import { langPrefsFor } from './langPrefs';
 
@@ -28,6 +28,8 @@ export function scoreStream(s: Stream, prefs: Pick<Settings, 'maxResolution' | '
   const q = streamQuality(s);
   let score = 0;
   if (s.url) score += 1_000_000;
+  // Retirée de TorBox tout à l'heure : son lien a pu expirer
+  if (wasDiscarded(s)) score -= 900_000;
   if (isInstant(s)) score += 100_000;
   if (prefs.preferFrench) {
     // Langue vérifiée dans le fichier : prime sur le nom du torrent
@@ -156,6 +158,24 @@ export async function pickVerified(
       : 'Aucune source avec la piste originale confirmée : lancement de la meilleure source disponible');
   }
   return fallback;
+}
+
+/**
+ * Une autre source pour la même vidéo, quand celle en cours ne se lance pas : même règles
+ * (langue, pas de 4K, vérification une par une), en écartant celles déjà essayées.
+ */
+export async function findAlternative(type: string, videoId: string, metaId: string | undefined, tried: Set<string>, onStatus?: (text: string) => void): Promise<Stream | null> {
+  const st = useStore.getState();
+  const groups = await getStreams(st.addons, type, videoId).catch(() => []);
+  const rows = filterSources(groups.flatMap((g) => g.streams).filter((s) => s.url && !tried.has(s.url)).map((stream) => ({ stream })), metaId).kept;
+  const ranked = rankStreams(rows, metaId).map((r) => r.stream);
+  if (!ranked.length) return null;
+  const lp = langPrefsFor(metaId);
+  if (lp.verify && lp.want) {
+    const found = await pickVerified(ranked, lp.want, (t) => onStatus?.(t), { cancelled: false }, { quiet: true });
+    if (found) return found;
+  }
+  return rankStreams(rows, metaId)[0]?.stream || null;
 }
 
 export function episodeTarget(meta: Meta | MetaPreview, v: Video): PlayTarget {

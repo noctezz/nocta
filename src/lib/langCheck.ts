@@ -137,8 +137,16 @@ export function discard(s: Stream) {
   const before = befores.get(key);
   if (!before) return;
   befores.delete(key);
+  discarded.add(key);
   torboxCleanup(s, before).catch(() => {});
 }
+
+/**
+ * Sources retirées de TorBox pendant cette session : l'addon peut encore garder en mémoire
+ * l'ancien lien (devenu invalide), donc on évite de les relancer.
+ */
+const discarded = new Set<string>();
+export const wasDiscarded = (s: Stream) => discarded.has(keyOf(s));
 
 /** Prévient quand un résultat arrive (pour rafraîchir la liste des sources) */
 export function onLangResult(f: () => void) {

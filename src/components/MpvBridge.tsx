@@ -2,9 +2,9 @@ import { useEffect, useRef } from 'react';
 import { getMeta, getSubtitles } from '../lib/addons';
 import { useStore } from '../lib/store';
 import { useLatest } from '../lib/useLatest';
-import { detectIntro } from '../lib/autoplay';
+import { detectIntro, findAlternative } from '../lib/autoplay';
 import { langPrefsFor } from '../lib/langPrefs';
-import { episodeTitleOf, errMsg, nextEpisode, prepareNextEpisode, recordProgress, resolveNextEpisode, slimMeta } from '../lib/playback';
+import { episodeTitleOf, errMsg, nextEpisode, prepareNextEpisode, recordProgress, resolveNextEpisode, slimMeta, streamToDesc } from '../lib/playback';
 import type { Meta, PlayRequest } from '../lib/types';
 
 /**
@@ -82,7 +82,54 @@ export function MpvBridge() {
 
     const nextOf = () => (metaRef.current && reqRef.current.videoId ? nextEpisode(metaRef.current, reqRef.current.videoId) : null);
 
+    // Sources déjà essayées pour la vidéo en cours (repli automatique si l'une ne se lance pas)
+    const tried = new Set<string>();
+    let triedFor = '';
+    let recovering = false;
+
     const offs = [
+      // Source illisible ou bloquée au chargement : on passe toute seule à une autre
+      p.on('player:failed', async () => {
+        const cur = reqRef.current;
+        if (recovering) return;
+        const vid = cur.videoId || cur.src;
+        if (triedFor !== vid) { tried.clear(); triedFor = vid; }
+        tried.add(cur.src);
+        const giveUp = (msg = 'Aucune source n\'a pu être lue pour le moment. Réessaie, ou choisis une autre source.') => p.info({ status: undefined, failed: msg });
+        if (!cur.type || !cur.videoId || cur.stream?.localPath || tried.size > 3) return giveUp();
+        recovering = true;
+        try {
+          p.info({ status: 'Source indisponible · essai d\'une autre source…' });
+          const alt = await findAlternative(cur.type, cur.videoId, cur.meta?.id, tried, (text) => p.info({ status: text }));
+          if (!alive()) return;
+          if (!alt?.url) return giveUp();
+          const nextReq: PlayRequest = { ...cur, src: alt.url, stream: streamToDesc(alt) };
+          reqRef.current = nextReq;
+          useStore.setState({ player: nextReq });
+          await p.load(payload(nextReq));
+          p.info({ status: undefined });
+          sendExtras(nextReq);
+        } catch {
+          giveUp();
+        } finally {
+          recovering = false;
+        }
+      }),
+      // « Réessayer » : même source, à l'endroit où la lecture s'était arrêtée
+      p.on('player:retry', async (d: { at?: number } | undefined) => {
+        const cur = { ...reqRef.current, startAt: d?.at && d.at > 10 ? d.at : reqRef.current.startAt };
+        reqRef.current = cur;
+        await p.load(payload(cur));
+        sendExtras(cur);
+      }),
+      // « Choisir une autre source » : retour à la liste des sources de cette vidéo
+      p.on('player:pickOther', () => {
+        const cur = reqRef.current;
+        p.close();
+        if (cur.meta && cur.type && cur.videoId) {
+          st().openPicker({ meta: cur.meta, type: cur.type, videoId: cur.videoId, season: cur.season, episode: cur.episode, episodeTitle: cur.subtitle });
+        }
+      }),
       // Générique repéré dans le lecteur (saut manuel) : mémorisé pour toute la série
       p.on('player:intro', (mark: { start: number; end: number } | null) => {
         const r = reqRef.current;
