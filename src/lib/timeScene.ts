@@ -11,8 +11,9 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { FIRST_YEAR, LAST_YEAR } from './timeMachine';
 import type { MetaPreview } from './types';
 
-const SP = 700; // distance entre deux années
-const R = 360; // rayon du tunnel d'affiches
+const SP = 1150; // distance entre deux années (la caméra se tient entre deux portes)
+const R = 300; // rayon du tunnel d'affiches
+const VIEW = 680; // recul de la caméra devant la porte de l'année : toute l'année tient à l'écran
 const PW = 64, PH = 96;
 const zOf = (y: number) => -(LAST_YEAR - y) * SP;
 const yearAt = (z: number) => LAST_YEAR + z / SP;
@@ -235,6 +236,7 @@ export class TimeScene {
   private jump: { from: number; to: number; start: number; dur: number } | null = null;
   private auto = 0; // voyage automatique : -1 vers le passé, 1 vers le présent
   private look = new THREE.Vector2();
+  private yaw = 0; private pitch = 0; private goalYaw = 0; private goalPitch = 0;
   private lastYear = -1;
   private streaks!: THREE.LineSegments;
   private streakPos!: Float32Array;
@@ -426,7 +428,7 @@ export class TimeScene {
   /** Saut vers une année (vol avec effet de vitesse) */
   goTo(year: number) {
     const y = Math.min(LAST_YEAR, Math.max(FIRST_YEAR, Math.round(year)));
-    const to = zOf(y) + 380;
+    const to = zOf(y) + VIEW;
     const dy = Math.abs(yearAt(this.z) - y);
     this.auto = 0;
     this.jump = { from: this.z, to, start: performance.now(), dur: Math.min(4200, 900 + dy * 70) };
@@ -434,7 +436,7 @@ export class TimeScene {
     whoosh();
   }
 
-  step(dir: number) { this.goTo(Math.round(yearAt(this.z - 380)) + dir); }
+  step(dir: number) { this.goTo(Math.round(yearAt(this.z - VIEW)) + dir); }
 
   /** Voyage automatique : on remonte (ou redescend) le temps tout seul */
   setAuto(dir: number) { this.auto = dir; this.jump = null; }
@@ -455,7 +457,14 @@ export class TimeScene {
   private onMove = (e: PointerEvent) => {
     const r = this.canvas.getBoundingClientRect();
     this.mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-    if (this.down) this.down.moved += Math.abs(e.movementX) + Math.abs(e.movementY);
+    if (!this.down) return;
+    this.down.moved += Math.abs(e.movementX) + Math.abs(e.movementY);
+    if (this.down.moved >= 8) {
+      // Glisser : on tourne la tête dans le tunnel
+      this.goalYaw = Math.max(-0.75, Math.min(0.75, this.goalYaw + e.movementX * 0.0035));
+      this.goalPitch = Math.max(-0.55, Math.min(0.55, this.goalPitch - e.movementY * 0.0035));
+      this.canvas.style.cursor = 'grabbing';
+    }
   };
   private onDown = (e: PointerEvent) => {
     this.ray.setFromCamera(this.mouse, this.camera);
@@ -463,10 +472,13 @@ export class TimeScene {
     // Les affiches bougent un peu : on accepte aussi celle survolée il y a un instant
     const recent = this.lastHover && performance.now() - this.lastHover.at < 700 ? this.lastHover.mesh : null;
     this.down = { x: e.clientX, y: e.clientY, moved: 0, mesh: (hit?.object as THREE.Mesh) || this.hovered || recent };
+    this.canvas.setPointerCapture(e.pointerId);
   };
-  private onUp = () => {
+  private onUp = (e: PointerEvent) => {
     const d = this.down;
     this.down = null;
+    try { this.canvas.releasePointerCapture(e.pointerId); } catch {}
+    this.canvas.style.cursor = this.hovered ? 'pointer' : 'grab';
     if (d && d.moved < 8 && d.mesh) this.cb.onPick(d.mesh.userData.meta);
   };
   private onKey = (e: KeyboardEvent) => {
@@ -476,6 +488,8 @@ export class TimeScene {
     else if (e.key === 'PageUp') this.step(-10);
     else if (e.key === 'PageDown') this.step(10);
   };
+  /** Double-clic : regard recentré vers le tunnel */
+  private onDbl = () => { this.goalYaw = 0; this.goalPitch = 0; };
   private onResize = () => this.resize();
 
   private bindEvents() {
@@ -483,6 +497,7 @@ export class TimeScene {
     this.canvas.addEventListener('pointermove', this.onMove);
     this.canvas.addEventListener('pointerdown', this.onDown);
     this.canvas.addEventListener('pointerup', this.onUp);
+    this.canvas.addEventListener('dblclick', this.onDbl);
     window.addEventListener('keydown', this.onKey);
     window.addEventListener('resize', this.onResize);
   }
@@ -513,30 +528,39 @@ export class TimeScene {
       this.z = this.jump.from + (this.jump.to - this.jump.from) * ease(k);
       if (k >= 1) this.jump = null;
     } else if (this.auto) {
-      this.z += this.auto * dt * 1050;
+      this.z += this.auto * dt * 1400;
     } else {
       this.z += this.vel * dt;
       this.vel *= Math.pow(0.08, dt);
       // Arrêt en douceur devant l'année la plus proche
       if (Math.abs(this.vel) < 160) {
-        const snap = zOf(Math.round(yearAt(this.z - 380))) + 380;
+        const snap = zOf(Math.round(yearAt(this.z - VIEW))) + VIEW;
         this.z += (snap - this.z) * Math.min(1, dt * 2.2);
       }
     }
-    const maxZ = zOf(LAST_YEAR) + 900, minZ = zOf(FIRST_YEAR) + 380;
+    const maxZ = zOf(LAST_YEAR) + 900, minZ = zOf(FIRST_YEAR) + VIEW;
     if (this.z > maxZ) { this.z = maxZ; this.vel = 0; if (this.auto > 0) this.auto = 0; }
     if (this.z < minZ) { this.z = minZ; this.vel = 0; if (this.auto < 0) this.auto = 0; }
     const speed = Math.abs(this.z - prevZ) / Math.max(dt, 1e-3);
 
     // Caméra : léger regard vers la souris, petit balancement
-    this.look.lerp(new THREE.Vector2(this.mouse.x === -9 ? 0 : this.mouse.x, this.mouse.y === -9 ? 0 : this.mouse.y), 0.05);
-    this.camera.position.set(Math.sin(t * 0.3) * 12, Math.cos(t * 0.23) * 8, this.z);
-    this.camera.lookAt(this.look.x * 120, this.look.y * 80, this.z - 600);
-    this.camera.fov = 70 + Math.min(18, speed / 260);
+    // Regard : glisser pour regarder autour (et un léger suivi de la souris) ; en pleine vitesse, on regarde devant
+    if (speed > 1500) { this.goalYaw *= 1 - Math.min(1, dt * 2); this.goalPitch *= 1 - Math.min(1, dt * 2); }
+    this.yaw += (this.goalYaw - this.yaw) * Math.min(1, dt * 8);
+    this.pitch += (this.goalPitch - this.pitch) * Math.min(1, dt * 8);
+    this.look.lerp(new THREE.Vector2(this.mouse.x === -9 || this.down ? 0 : this.mouse.x, this.mouse.y === -9 || this.down ? 0 : this.mouse.y), 0.05);
+    const yaw = this.yaw + this.look.x * 0.12, pitch = this.pitch + this.look.y * 0.09;
+    this.camera.position.set(Math.sin(t * 0.3) * 10, Math.cos(t * 0.23) * 6, this.z);
+    this.camera.lookAt(
+      this.camera.position.x + Math.sin(yaw) * Math.cos(pitch) * 600,
+      this.camera.position.y + Math.sin(pitch) * 600,
+      this.z - Math.cos(yaw) * Math.cos(pitch) * 600,
+    );
+    this.camera.fov = 74 + Math.min(18, speed / 260);
     this.camera.updateProjectionMatrix();
 
     // Ambiance de l'époque
-    const year = yearAt(this.z - 380);
+    const year = yearAt(this.z - VIEW);
     const L = lookAt(year);
     const u = this.era.uniforms;
     u.time.value = t;
@@ -594,7 +618,7 @@ export class TimeScene {
     if (h) this.lastHover = { mesh: h, at: performance.now() };
     if (h !== this.hovered) {
       this.hovered = h;
-      this.canvas.style.cursor = h ? 'pointer' : 'default';
+      if (!this.down) this.canvas.style.cursor = h ? 'pointer' : 'grab';
       this.cb.onHover(h ? h.userData.meta : null);
     }
 
@@ -644,6 +668,7 @@ export class TimeScene {
     this.canvas.removeEventListener('pointermove', this.onMove);
     this.canvas.removeEventListener('pointerdown', this.onDown);
     this.canvas.removeEventListener('pointerup', this.onUp);
+    this.canvas.removeEventListener('dblclick', this.onDbl);
     window.removeEventListener('keydown', this.onKey);
     window.removeEventListener('resize', this.onResize);
     this.textures.forEach((t) => t.dispose());

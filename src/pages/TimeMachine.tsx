@@ -99,7 +99,7 @@ export function TimeMachine() {
           <motion.span className="tm-cursor" animate={{ left: `${pct(year)}%` }} transition={{ type: 'spring', stiffness: 260, damping: 30 }} />
           {preview != null && <span className="tm-preview" style={{ left: `${pct(preview)}%` }}>{preview}</span>}
         </div>
-        <div className="tm-hint">Molette pour voyager dans le temps · ← → année par année · Clic sur une affiche pour l'ouvrir</div>
+        <div className="tm-hint">Molette pour voyager · Glisser pour regarder autour (double-clic : recentrer) · ← → année par année · Clic sur une affiche</div>
       </div>
 
       <AnimatePresence>
