@@ -83,6 +83,11 @@ l'image prend l'allure de chaque époque : muet noir et blanc granuleux qui scin
 projecteur), Technicolor, sépia des années 70, grille néon et soleil rétro des années 80, VHS des années 90… Molette
 pour voyager, frise des décennies pour sauter, voyage automatique, clic sur une affiche pour l'ouvrir.
 
+**Sagas** 🎬 (onglet *Sagas*) : plus de 130 sagas (Marvel, Star Wars, James Bond, Harry Potter, Fast & Furious,
+Conjuring, Astérix…) classées par genre, avec une recherche. Chaque saga a sa frise : les films dans l'ordre de sortie
+ou dans l'ordre chronologique de l'histoire, ceux déjà vus cochés, et un bouton *Continuer* qui lance le prochain film
+à voir. Les films sont retrouvés dans Cinemeta à la première visite, puis gardés en mémoire.
+
 **X-Ray** 🔎 : comme sur Prime Video, mais en mieux. À la pause, les personnages de la scène en cours apparaissent
 (Nox lit les dialogues autour de ce moment pour savoir qui est là). Touche **X** : le panneau complet avec la scène,
 toute la distribution, la fiche de chaque acteur (âge, biographie, autres rôles), un **rattrapage** de ce qui vient de

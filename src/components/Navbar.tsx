@@ -12,6 +12,7 @@ const LINKS: { page: Page; label: string }[] = [
   { page: 'series', label: 'Séries' },
   { page: 'movies', label: 'Films' },
   { page: 'catalogs', label: 'Catalogues' },
+  { page: 'sagas', label: 'Sagas' },
   { page: 'timemachine', label: 'Voyage ⏳' },
   { page: 'mylist', label: 'Ma liste' },
   { page: 'addons', label: 'Addons' },

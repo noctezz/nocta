@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Sagas } from './pages/Sagas';
 // La Machine à remonter le temps (three.js, lourde) n'est chargée qu'à l'ouverture
 const TimeMachine = lazy(() => import('./pages/TimeMachine').then((m) => ({ default: m.TimeMachine })));
 import { speak, stopSpeaking } from './lib/speak';
@@ -175,6 +176,7 @@ export default function App() {
               {page === 'settings' && <Settings />}
               {page === 'browse' && <CatalogView />}
               {page === 'catalogs' && <Catalogs />}
+              {page === 'sagas' && <Sagas />}
               {page === 'timemachine' && <Suspense fallback={null}><TimeMachine /></Suspense>}
             </main>
             <HoverPreview />
