@@ -36,6 +36,7 @@ export function MpvBridge() {
       startAt: r.startAt,
       volume: st().settings.volume,
       subtitleSize: st().settings.subtitleSize,
+      ambilight: st().settings.ambilight || 'immersive',
       // VO sous-titrée : la piste originale (souvent anglaise ou japonaise) plutôt que la VF
       alang: langPrefsFor(r.meta?.id).vo ? 'jpn,ja,kor,ko,eng,en'
         : st().settings.preferredSubLang === 'eng' ? 'eng,en' : `${st().settings.preferredSubLang},fre,fra,fr,eng,en`,
@@ -131,6 +132,8 @@ export function MpvBridge() {
         }
       }),
       // Générique repéré dans le lecteur (saut manuel) : mémorisé pour toute la série
+      // Ambilight changé dans le lecteur : gardé pour les prochaines lectures
+      p.on('player:ambilight', (mode: 'off' | 'bars' | 'immersive') => st().updateSettings({ ambilight: mode })),
       p.on('player:intro', (mark: { start: number; end: number } | null) => {
         const r = reqRef.current;
         if (r.type === 'series' && r.meta) {

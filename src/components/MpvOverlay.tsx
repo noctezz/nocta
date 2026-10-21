@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft, Gauge, Loader2, Maximize, MessageSquareText, Minimize, Minus, Pause, Play,
-  RotateCcw, RotateCw, SkipForward, Volume1, Volume2, VolumeX,
+  RotateCcw, RotateCw, SkipForward, Sun, Volume1, Volume2, VolumeX,
 } from 'lucide-react';
+import { Ambilight } from './Ambilight';
 import { formatTime } from '../lib/playback';
 import { langName } from '../lib/subs';
 import type { MetaPreview } from '../lib/types';
@@ -96,6 +97,10 @@ export function MpvOverlay() {
   const learnTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const addedSubs = useRef(new Map<string, true>());
   const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Ambilight : mode et format de l'image, suivis dès l'ouverture (avant même que la vidéo démarre)
+  const [ambi, setAmbi] = useState<'off' | 'bars' | 'immersive'>('off');
+  const [dims, setDims] = useState({ w: 16, h: 9 });
+  useEffect(() => bridge().on('mpv:ambimode', setAmbi), []);
 
   useEffect(() => {
     document.documentElement.classList.add('overlay-mode');
@@ -134,6 +139,8 @@ export function MpvOverlay() {
           case 'audio-delay': if (typeof value === 'number') setAudioDelay(value); break;
           case 'sub-delay': if (typeof value === 'number') setSubDelay(value); break;
           case 'eof-reached': setEof(!!value); break;
+          case 'dwidth': if (typeof value === 'number' && value > 0) setDims((d) => ({ ...d, w: value })); break;
+          case 'dheight': if (typeof value === 'number' && value > 0) setDims((d) => ({ ...d, h: value })); break;
           case 'playback-restart': setStarted(true); break;
           case 'end-file':
             if (value === 'error') failRef.current('error');
@@ -225,6 +232,16 @@ export function MpvOverlay() {
 
   const selectAudio = (id: number) => { cmd('set_property', 'aid', id); };
   const selectSub = (id: number | 'no') => { cmd('set_property', 'sid', id); setPanel(null); };
+  // Ambilight : désactivé → bandes noires → immersif
+  const AMBI_NEXT = { off: 'bars', bars: 'immersive', immersive: 'off' } as const;
+  const AMBI_LABEL = { off: 'Ambilight désactivé', bars: 'Ambilight · dans les bandes noires', immersive: 'Ambilight · immersif' };
+  const cycleAmbi = () => {
+    const next = AMBI_NEXT[ambi];
+    setAmbi(next);
+    bridge().ambilight(next);
+    say(AMBI_LABEL[next], 2500);
+  };
+
   const say = (text: string, ms = 4000) => {
     setNotice(text);
     if (ms) setTimeout(() => setNotice((n) => (n === text ? null : n)), ms);
@@ -368,6 +385,7 @@ export function MpvOverlay() {
         case 'ArrowDown': e.preventDefault(); setVol(volume - 5); break;
         case 'f': case 'F': toggleFullscreen(); break;
         case 'm': case 'M': toggleMute(); break;
+        case 'l': case 'L': cycleAmbi(); break;
         case 'n': case 'N': if (info.next) goNext(); break;
         case 's': case 'S': if (activeSeg) skipSegment(activeSeg); break;
         case 'Escape':
@@ -419,6 +437,7 @@ export function MpvOverlay() {
 
   return (
     <div className={`overlay-root player ${controls ? '' : 'hide-ui'}`} onMouseMove={poke}>
+      <Ambilight visible={started && !error} mode={ambi} aspect={dims.w / dims.h} />
       <div className="overlay-hit" onClick={() => (panel ? setPanel(null) : togglePlay())} onDoubleClick={toggleFullscreen} />
 
       <AnimatePresence>
@@ -582,6 +601,10 @@ export function MpvOverlay() {
               </div>
 
               {info.next && <button className="player-btn" onClick={goNext} title="Épisode suivant (N)"><SkipForward size={30} /></button>}
+
+              <button className={`player-btn ${ambi !== 'off' ? 'is-lit' : ''}`} onClick={cycleAmbi} title={`${AMBI_LABEL[ambi]} (L pour changer)`}>
+                <Sun size={28} />
+              </button>
 
               <div className="pop-wrap">
                 <button className="player-btn" onClick={() => setPanel(panel === 'tracks' ? null : 'tracks')} title="Audio et sous-titres">

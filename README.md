@@ -72,6 +72,13 @@ Cerebras (*Paramètres → Avancé → Assistant Nox*, un lien par service pour 
 passe tout seul à la suivante quand un service est saturé ou à court de quota. On peut aussi lui parler : bouton 🎤 dans la discussion, Nox détecte tout
 seul la fin de la phrase.
 
+**Ambilight** ✨ : pendant la lecture, un halo aux couleurs de l'image déborde autour de la vidéo, comme les TV
+Philips. *Immersif* (la vidéo est un peu réduite, la lumière l'entoure), *Bandes noires* (seulement dans les bandes
+des films en format cinéma) ou désactivé : bouton ☀ du lecteur, touche **L**, ou *Paramètres → Lecture*.
+
+**Nox parle** 🔊 : Nox lit ses réponses à voix haute (quand on lui parle au micro, ou toujours) avec la voix
+française de Windows, ou une voix naturelle Gemini avec la clé gratuite.
+
 **Mises à jour automatiques** : au lancement, NOCTA regarde s'il existe une nouvelle version. Une carte propose
 *Mettre à jour* : téléchargement, installation et redémarrage tout seuls. Aussi dans *Paramètres → Mises à jour*.
 

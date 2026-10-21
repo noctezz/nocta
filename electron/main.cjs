@@ -141,12 +141,19 @@ ipcMain.handle('player:intro', (_e, mark) => session && session.sendMain('player
 ipcMain.handle('player:action', (_e, name, data) => {
   if (session && ['failed', 'retry', 'pickOther'].includes(name)) session.sendMain(`player:${name}`, data);
 });
+// Ambilight changé depuis le lecteur : appliqué tout de suite et mémorisé dans les réglages
+ipcMain.handle('player:ambilight', (_e, mode) => {
+  if (!session || !['off', 'bars', 'immersive'].includes(mode)) return;
+  session.setAmbilight(mode);
+  session.sendMain('player:ambilight', mode);
+});
 // Détection du générique par empreinte audio
 ipcMain.handle('intro:detect', (_e, job) => intro.detect(job));
 ipcMain.handle('intro:has', (_e, seriesId, videoId) => intro.hasFp(seriesId, videoId));
 // Nox, l'assistant (Gemini)
 ipcMain.handle('assistant:create', (_e, req) => assistant.create(req));
 ipcMain.handle('assistant:transcribe', (_e, req) => assistant.transcribe(req));
+ipcMain.handle('assistant:tts', (_e, req) => assistant.tts(req));
 ipcMain.handle('assistant:testKey', (_e, key) => assistant.testKey(key));
 // Recalage automatique des sous-titres
 ipcMain.handle('player:subsync', (_e, job) => subsync.sync(job));

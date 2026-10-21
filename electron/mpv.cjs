@@ -11,7 +11,13 @@ const path = require('node:path');
 const OBSERVED = [
   'time-pos', 'duration', 'pause', 'paused-for-cache', 'cache-buffering-state', 'demuxer-cache-time',
   'track-list', 'volume', 'mute', 'speed', 'eof-reached', 'aid', 'sid', 'sub-delay', 'audio-delay', 'seeking', 'chapter-list',
+  'dwidth', 'dheight',
 ];
+
+// Ambilight : script mpv qui mesure les couleurs des bords de l'image (hors de l'archive asar)
+const AMBI_SCRIPT = path.join(__dirname, 'ambilight.lua').replace('app.asar' + path.sep, 'app.asar.unpacked' + path.sep);
+// Mode immersif : la vidéo est un peu réduite pour laisser la lumière tout autour
+const AMBI_MARGIN = 0.06;
 
 let binCache;
 function mpvBinary() {
@@ -128,6 +134,7 @@ class MpvSession {
     // La souris traverse la vidéo pour atteindre l'interface (mpv ≥ 0.38, fourni avec l'app)
     if (this.single) args.push('--input-cursor-passthrough=yes');
     if (req.startAt && req.startAt > 5) args.push(`--start=${Math.max(0, req.startAt - 3).toFixed(1)}`);
+    if (fs.existsSync(AMBI_SCRIPT)) args.push(`--script=${AMBI_SCRIPT}`);
     args.push('--', req.src);
 
     this.proc = spawn(mpvBinary(), args, { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
@@ -143,6 +150,7 @@ class MpvSession {
 
     await this.connect(pipe);
     OBSERVED.forEach((p, i) => this.send(['observe_property', i + 1, p]));
+    this.setAmbilight(req.ambilight || 'off');
   }
 
   connect(pipe) {
@@ -185,6 +193,11 @@ class MpvSession {
       resolve(msg);
       return;
     }
+    // Couleurs des bords de l'image, mesurées par le script Ambilight
+    if (msg.event === 'client-message') {
+      if (Array.isArray(msg.args) && msg.args[0] === 'nocta-ambi') this.sendOverlay('mpv:ambi', msg.args[1]);
+      return;
+    }
     if (msg.event === 'property-change') {
       this.props[msg.name] = msg.data;
       if (msg.name === 'time-pos' && typeof msg.data === 'number') this.last.time = msg.data;
@@ -215,10 +228,21 @@ class MpvSession {
     });
   }
 
+  /** Ambilight : off (rien), bars (dans les bandes noires), immersive (vidéo un peu réduite, lumière tout autour) */
+  setAmbilight(mode) {
+    this.ambilight = mode;
+    this.req = { ...this.req, ambilight: mode };
+    const m = mode === 'immersive' ? AMBI_MARGIN : 0;
+    for (const side of ['left', 'right', 'top', 'bottom']) this.send(['set_property', `video-margin-ratio-${side}`, m]);
+    this.send(['script-message', 'nocta-ambi-enable', mode === 'off' ? '0' : '1']);
+    this.sendOverlay('mpv:ambimode', mode);
+  }
+
   /** L'interface est prête : on lui envoie la lecture en cours et les infos connues */
   ready() {
     this.sendOverlay('player:init', this.req);
     this.sendOverlay('player:info', this.info);
+    this.sendOverlay('mpv:ambimode', this.ambilight || 'off');
     // Rattrape ce qui s'est passé avant que l'interface soit chargée
     for (const [name, value] of Object.entries(this.props)) this.sendOverlay('mpv:event', { name, value });
     if (this.started) this.sendOverlay('mpv:event', { name: 'playback-restart', value: null });

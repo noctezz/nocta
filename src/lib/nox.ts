@@ -6,6 +6,7 @@ import { episodeTarget, nextUnwatched, pickVerified, playTarget, rankStreams } f
 import { cachedLang } from './langCheck';
 import { langPrefsFor } from './langPrefs';
 import { noxKeys } from './noxKeys';
+import { speak, stopSpeaking } from './speak';
 import { episodeLabel, sortedEpisodes, slimMeta } from './playback';
 import { isUhd, fitsLang } from './sourcePolicy';
 import { useStore } from './store';
@@ -305,7 +306,8 @@ interface NoxState {
   reset: () => void;
   /** Interrompt la réponse en cours */
   stop: () => void;
-  ask: (text: string) => Promise<void>;
+  /** byVoice : question posée au micro (Nox répond alors à voix haute si c'est réglé ainsi) */
+  ask: (text: string, opts?: { byVoice?: boolean }) => Promise<void>;
 }
 
 let seq = 0;
@@ -339,13 +341,14 @@ export const useNox = create<NoxState>((set, get) => ({
   items: [],
   history: [],
   setOpen: (open) => set({ open }),
-  reset: () => { run++; set({ items: [], history: [], busy: false }); },
+  reset: () => { run++; stopSpeaking(); set({ items: [], history: [], busy: false }); },
   stop: () => {
+    stopSpeaking();
     if (!get().busy) return;
     run++;
     set((s) => ({ busy: false, items: [...s.items, { id: ++seq, role: 'activity', text: '⏹️ Arrêté' }] }));
   },
-  ask: async (text) => {
+  ask: async (text, opts = {}) => {
     const q = text.trim();
     if (!q || get().busy) return;
     const keys = noxKeys(useStore.getState().settings);
@@ -355,6 +358,7 @@ export const useNox = create<NoxState>((set, get) => ({
       return item.id;
     };
     const update = (id: number, t: string) => set((s) => ({ items: s.items.map((i) => (i.id === id ? { ...i, text: t } : i)) }));
+    stopSpeaking();
     push('user', q);
     const me = ++run;
     set({ busy: true, since: Date.now() });
@@ -375,7 +379,11 @@ export const useNox = create<NoxState>((set, get) => ({
         const parts: Part[] = res.content.parts || [];
         history.push({ role: 'model', parts });
         const said = parts.filter((p) => typeof p.text === 'string' && !p.thought).map((p) => p.text).join('').trim();
-        if (said) push('nox', said);
+        if (said) {
+          push('nox', said);
+          const voice = useStore.getState().settings.noxVoice || 'mic';
+          if (voice === 'always' || (voice === 'mic' && opts.byVoice)) speak(said);
+        }
         const calls = parts.filter((p) => p.functionCall).map((p) => p.functionCall as { name: string; args?: Input; id?: string });
         if (!calls.length) {
           if (!said) push('nox', /SAFETY|BLOCK|PROHIBITED/.test(res.finishReason || '') ? 'Désolé, je ne peux pas t\'aider là-dessus.' : 'Hmm, je n\'ai rien trouvé à répondre. Tu peux reformuler ?');

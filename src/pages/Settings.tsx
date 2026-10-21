@@ -6,6 +6,8 @@ import { UpdateSettings } from '../components/UpdateBanner';
 import { testKey } from '../lib/torbox';
 import { NoxOwl } from '../components/Nox';
 import { NoxKeyList } from '../components/NoxKeys';
+import { noxKeys } from '../lib/noxKeys';
+import { frenchVoices, GEMINI_VOICES, previewVoice } from '../lib/speak';
 
 const ENCODERS: Record<string, string> = {
   libx264: 'Processeur (compatible partout)',
@@ -90,7 +92,67 @@ function NoxSettings() {
         </div>
         <NoxKeyList />
       </div>
+      <NoxVoiceSettings />
     </section>
+  );
+}
+
+/** Voix de Nox : quand il parle, et avec quelle voix */
+function NoxVoiceSettings() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const [winVoices, setWinVoices] = useState(() => frenchVoices());
+  useEffect(() => {
+    if (typeof speechSynthesis === 'undefined') return;
+    const load = () => setWinVoices(frenchVoices());
+    speechSynthesis.addEventListener('voiceschanged', load);
+    load();
+    return () => speechSynthesis.removeEventListener('voiceschanged', load);
+  }, []);
+  const mode = settings.noxVoice || 'mic';
+  const engine = settings.noxVoiceEngine || 'windows';
+  const hasGemini = noxKeys(settings).some((k) => k.provider === 'gemini');
+  const names = engine === 'gemini' ? GEMINI_VOICES.map(([n, d]) => ({ id: n, label: `${n} · ${d}` })) : winVoices.map((v) => ({ id: v.name, label: v.name.replace(/^Microsoft /, '').replace(/ - .*$/, '') }));
+  const current = names.find((n) => n.id === settings.noxVoiceName)?.id || names[0]?.id || '';
+  return (
+    <>
+      <div className="setting">
+        <div>
+          <strong>Nox parle</strong>
+          <span>Nox lit ses réponses à voix haute. Il se tait dès que le film démarre ou que tu reprends la parole (bouton 🔊 dans la discussion pour le couper).</span>
+        </div>
+        <div className="seg">
+          {([['off', 'Jamais'], ['mic', 'Quand je lui parle'], ['always', 'Toujours']] as const).map(([v, label]) => (
+            <button key={v} className={mode === v ? 'is-on' : ''} onClick={() => update({ noxVoice: v })}>{label}</button>
+          ))}
+        </div>
+      </div>
+      {mode !== 'off' && (
+        <div className="setting">
+          <div>
+            <strong>Voix</strong>
+            <span>
+              {engine === 'gemini'
+                ? 'Voix naturelle de Gemini (avec ta clé gratuite, quota limité par jour) : si elle n\'est pas disponible, Nox prend la voix de Windows.'
+                : 'Voix française de Windows : gratuite, instantanée et sans Internet.'}
+              {engine === 'gemini' && !hasGemini && ' Ajoute une clé Gemini ci-dessus pour l\'utiliser.'}
+            </span>
+          </div>
+          <div className="voice-row">
+            <div className="seg">
+              <button className={engine === 'windows' ? 'is-on' : ''} onClick={() => update({ noxVoiceEngine: 'windows', noxVoiceName: undefined })}>Windows</button>
+              <button className={engine === 'gemini' ? 'is-on' : ''} onClick={() => update({ noxVoiceEngine: 'gemini', noxVoiceName: undefined })}>Gemini naturelle</button>
+            </div>
+            {names.length > 1 && (
+              <select className="input voice-select" value={current} onChange={(e) => update({ noxVoiceName: e.target.value })}>
+                {names.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
+              </select>
+            )}
+            <button className="btn-outline" onClick={previewVoice}>Écouter</button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -151,6 +213,17 @@ export function Settings() {
               <div className="seg">
                 <button className={settings.preferFrench ? 'is-on' : ''} onClick={() => update({ preferFrench: true })}>VF</button>
                 <button className={!settings.preferFrench ? 'is-on' : ''} onClick={() => update({ preferFrench: false })}>VO · sous-titres FR</button>
+              </div>
+            </div>
+            <div className="setting">
+              <div>
+                <strong>Ambilight</strong>
+                <span>Un halo aux couleurs de l'image autour de la vidéo, comme les TV Philips. « Immersif » réduit un peu la vidéo pour que la lumière l'entoure. Aussi dans le lecteur : bouton ☀ ou touche L.</span>
+              </div>
+              <div className="seg">
+                {([['off', 'Non'], ['bars', 'Bandes noires'], ['immersive', 'Immersif']] as const).map(([v, label]) => (
+                  <button key={v} className={(settings.ambilight || 'immersive') === v ? 'is-on' : ''} onClick={() => update({ ambilight: v })}>{label}</button>
+                ))}
               </div>
             </div>
             <Toggle

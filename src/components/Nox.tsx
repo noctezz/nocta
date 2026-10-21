@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowUp, Mic, RotateCcw, Square, X } from 'lucide-react';
+import { ArrowUp, Mic, RotateCcw, Square, Volume2, VolumeX, X } from 'lucide-react';
+import { stopSpeaking, useSpeaking } from '../lib/speak';
 import { useNox } from '../lib/nox';
 import { useStore } from '../lib/store';
 import { listen, type Listening } from '../lib/voice';
@@ -11,11 +12,11 @@ import { NoxKeyAdder } from './NoxKeys';
  * Nox, la chouette de NOCTA (dessin original en SVG) : flotte, cligne des yeux,
  * suit la souris du regard et réfléchit quand elle travaille.
  */
-export function NoxOwl({ size = 72, thinking = false, look = { x: 0, y: 0 } }: { size?: number; thinking?: boolean; look?: { x: number; y: number } }) {
+export function NoxOwl({ size = 72, thinking = false, speaking = false, look = { x: 0, y: 0 } }: { size?: number; thinking?: boolean; speaking?: boolean; look?: { x: number; y: number } }) {
   const px = thinking ? 0 : look.x * 3.2;
   const py = thinking ? -3.5 : look.y * 2.6;
   return (
-    <svg className={`nox-owl ${thinking ? 'is-thinking' : ''}`} width={size} height={size} viewBox="0 0 100 100" aria-hidden>
+    <svg className={`nox-owl ${thinking ? 'is-thinking' : ''} ${speaking ? 'is-speaking' : ''}`} width={size} height={size} viewBox="0 0 100 100" aria-hidden>
       <defs>
         <radialGradient id="noxBody" cx="45%" cy="35%" r="75%">
           <stop offset="0" stopColor="#5b2b86" />
@@ -62,7 +63,7 @@ export function NoxOwl({ size = 72, thinking = false, look = { x: 0, y: 0 } }: {
         <rect className="nox-lid" x="52" y="30" width="24" height="0" fill="#2c1446" />
       </g>
       {/* bec */}
-      <path d="M46 55 L54 55 L50 62 Z" fill="#ffb347" />
+      <path className="nox-beak" d="M46 55 L54 55 L50 62 Z" fill="#ffb347" />
       {/* petite lune sur la tête */}
       <path d="M50 12 a7 7 0 1 0 6 10 a5.5 5.5 0 1 1 -6 -10 Z" fill="#ff3b5c" className="nox-moon" />
     </svg>
@@ -92,6 +93,7 @@ function suggestions(): string[] {
 /** Bouton chouette en bas à gauche + fenêtre de discussion */
 export function Nox() {
   const { open, busy, since, via, items, setOpen, ask, reset, stop } = useNox();
+  const speaking = useSpeaking((s) => s.speaking);
   // Temps de réflexion affiché (rassure quand Gemini prend son temps)
   const [, tick] = useState(0);
   useEffect(() => {
@@ -102,6 +104,7 @@ export function Nox() {
   const waited = busy ? Math.floor((Date.now() - since) / 1000) : 0;
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
+  const voiceMode = settings.noxVoice || 'mic';
   const setPage = useStore((s) => s.setPage);
   useStore((s) => s.detail);
   const [text, setText] = useState('');
@@ -179,6 +182,7 @@ export function Nox() {
       return;
     }
     rec.current = r;
+    stopSpeaking();
     setVoice('listening');
     const audio = await r.done;
     rec.current = null;
@@ -189,7 +193,7 @@ export function Nox() {
     if (!res.ok) { setVoiceError(res.error || 'Transcription impossible'); return; }
     const said = (res.text || '').trim();
     if (said.length < 2) { setVoiceError('Je n\'ai pas compris, tu peux répéter ?'); return; }
-    ask(said);
+    ask(said, { byVoice: true });
   };
   const recording = voice === 'listening' || voice === 'speaking';
 
@@ -211,7 +215,7 @@ export function Nox() {
         title="Nox, ton assistant"
         data-nav-skip
       >
-        <NoxOwl size={74} thinking={busy} look={look} />
+        <NoxOwl size={74} thinking={busy} speaking={speaking} look={look} />
       </button>
 
       <AnimatePresence>
@@ -225,11 +229,18 @@ export function Nox() {
             transition={{ type: 'spring', stiffness: 300, damping: 28 }}
           >
             <div className="nox-head">
-              <NoxOwl size={42} thinking={busy} />
+              <NoxOwl size={42} thinking={busy} speaking={speaking} />
               <div>
                 <strong>Nox</strong>
                 <small>{busy ? `réfléchit…${waited >= 3 ? ` ${waited} s` : ''}` : via ? `ton assistant ciné · via ${via}` : 'ton assistant ciné'}</small>
               </div>
+              <button
+                className={`nox-icon ${speaking ? 'is-lit' : ''}`}
+                onClick={() => (speaking ? stopSpeaking() : update({ noxVoice: voiceMode === 'off' ? 'always' : 'off' }))}
+                title={speaking ? 'Arrêter la lecture' : voiceMode === 'off' ? 'Nox est muet · cliquer pour qu\'il parle' : voiceMode === 'always' ? 'Nox lit ses réponses · cliquer pour le rendre muet' : 'Nox parle quand tu lui parles au micro · cliquer pour le rendre muet'}
+              >
+                {voiceMode === 'off' && !speaking ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              </button>
               {items.length > 0 && <button className="nox-icon" onClick={reset} title="Nouvelle discussion"><RotateCcw size={16} /></button>}
               <button className="nox-icon" data-nav-back onClick={() => setOpen(false)} title="Fermer"><X size={18} /></button>
             </div>

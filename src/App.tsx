@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { stopSpeaking } from './lib/speak';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Intro } from './components/Intro';
 import { ProfileGate } from './components/ProfileGate';
@@ -130,6 +131,8 @@ export default function App() {
 
   // Le lecteur a démarré : l'écran de chargement de la fenêtre principale disparaît
   useEffect(() => { if (player) useBusy.getState().set(null, null); }, [player]);
+  // Le film démarre : Nox se tait
+  useEffect(() => { if (player) stopSpeaking(); }, [player]);
 
   // Pas de défilement de la page derrière les fenêtres
   useEffect(() => {

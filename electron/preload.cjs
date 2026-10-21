@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('nocta', {
     remoteState: (st) => ipcRenderer.invoke('player:remote', st),
     subsync: (job) => ipcRenderer.invoke('player:subsync', job),
     action: (name, data) => ipcRenderer.invoke('player:action', name, data),
+    ambilight: (mode) => ipcRenderer.invoke('player:ambilight', mode),
     on: (channel, cb) => {
       const fn = (_e, data) => cb(data);
       ipcRenderer.on(channel, fn);
@@ -74,6 +75,7 @@ contextBridge.exposeInMainWorld('nocta', {
   assistant: {
     create: (req) => ipcRenderer.invoke('assistant:create', req),
     transcribe: (req) => ipcRenderer.invoke('assistant:transcribe', req),
+    tts: (req) => ipcRenderer.invoke('assistant:tts', req),
     testKey: (key) => ipcRenderer.invoke('assistant:testKey', key),
   },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),

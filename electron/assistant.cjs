@@ -440,4 +440,62 @@ async function testKey(arg) {
   }
 }
 
-module.exports = { create, transcribe, testKey };
+// ---------- Voix de Nox (Gemini, voix naturelles) ----------
+const ttsModels = new Map();
+
+/** Modèles « TTS » de Gemini accessibles avec la clé (Flash d'abord, plus rapides et gratuits) */
+async function ttsList(key) {
+  if (ttsModels.has(key)) return ttsModels.get(key);
+  const { res, data } = await request(`${GEMINI}/models?pageSize=200`, { headers: { 'x-goog-api-key': key } }, 15000);
+  if (!res.ok) throw apiError(res.status, data);
+  const list = (data.models || []).map((m) => m.name.replace(/^models\//, '')).filter((n) => /^gemini-.*tts/.test(n))
+    .sort((a, b) => (/flash/.test(b) ? 1 : 0) - (/flash/.test(a) ? 1 : 0) || versionOf(b) - versionOf(a));
+  if (!list.length) throw Object.assign(new Error('Pas de voix Gemini disponible avec cette clé.'), { retry: true });
+  ttsModels.set(key, list);
+  return list;
+}
+
+/**
+ * Nox lit sa réponse avec une voix naturelle Gemini. Renvoie du PCM 16 bits (base64) et sa
+ * fréquence ; en cas d'échec (quota…), l'interface prend la voix de Windows.
+ */
+async function tts(req) {
+  const keys = keysOf(req).filter((k) => k.provider === 'gemini');
+  if (!keys.length) return { ok: false, error: 'Il faut une clé Gemini pour la voix naturelle.' };
+  try {
+    return await eachKey(keys, 'tts', async (k, deadline) => {
+      let lastErr;
+      for (const model of (await ttsList(k.key)).slice(0, 2)) {
+        if (isBenched(`tts:${model}`)) continue;
+        const t = Date.now();
+        let res, data;
+        try {
+          ({ res, data } = await request(`${GEMINI}/models/${model}:generateContent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k.key },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: `Lis ce texte en français, d'un ton chaleureux, enjoué et naturel, comme un ami cinéphile : ${req.text}` }] }],
+              generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: req.voice || 'Puck' } } } },
+            }),
+          }, Math.min(30000, deadline - Date.now())));
+        } catch (e) { lastErr = netError(e); continue; }
+        log(`tts gemini ${tail(k.key)} ${model} ${res.status} ${Date.now() - t}ms`);
+        if (!res.ok) {
+          lastErr = apiError(res.status, data);
+          if (lastErr.auth) throw lastErr;
+          bench(`tts:${model}`, lastErr.quota ? 10 * 60000 : 60000);
+          continue;
+        }
+        const part = ((((data.candidates || [])[0] || {}).content || {}).parts || []).find((p) => p.inlineData);
+        if (!part) { lastErr = Object.assign(new Error('Pas d\'audio reçu.'), { retry: true }); continue; }
+        const rate = Number((/rate=(\d+)/.exec(part.inlineData.mimeType || '') || [])[1]) || 24000;
+        return { ok: true, audio: part.inlineData.data, rate };
+      }
+      throw lastErr || Object.assign(new Error('Voix indisponible pour le moment.'), { retry: true });
+    });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+module.exports = { create, transcribe, testKey, tts };

@@ -127,6 +127,8 @@ export interface Settings {
   autoplayNext: boolean;
   volume: number;
   subtitleSize: number;
+  /** Halo lumineux autour de la vidéo (lecteur intégré) */
+  ambilight?: 'off' | 'bars' | 'immersive';
   preferredSubLang: string;
   playerEngine: 'mpv' | 'web';
   /** Thème saisonnier : auto (selon la date), désactivé, ou forcé */
@@ -155,6 +157,12 @@ export interface Settings {
   noxKeys?: { provider: 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'cerebras'; key: string }[];
   /** Afficher Nox en bas de l'écran */
   noxVisible?: boolean;
+  /** Nox répond à voix haute : jamais, quand on lui parle au micro, ou toujours */
+  noxVoice?: 'off' | 'mic' | 'always';
+  /** Voix de Nox : celle de Windows (hors ligne) ou une voix naturelle Gemini */
+  noxVoiceEngine?: 'windows' | 'gemini';
+  /** Nom de la voix choisie (Windows ou Gemini) */
+  noxVoiceName?: string;
   /** Passer automatiquement le générique (sinon : bouton) */
   autoSkipIntro: boolean;
   /** Détection du générique par analyse audio */
