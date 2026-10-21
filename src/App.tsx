@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { stopSpeaking } from './lib/speak';
+import { JarvisHost } from './components/Jarvis';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Intro } from './components/Intro';
 import { ProfileGate } from './components/ProfileGate';
@@ -177,6 +178,7 @@ export default function App() {
       </AnimatePresence>
       <BusyOverlay />
       {!player && <UpdateBanner />}
+      {activeProfileId && <JarvisHost />}
       <Toasts />
     </>
   );

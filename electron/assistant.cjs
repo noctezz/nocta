@@ -380,7 +380,14 @@ async function create(req) {
 }
 
 // ---------- Voix ----------
-const PROMPT = 'Transcris exactement ce message vocal (en français, avec la ponctuation). Réponds uniquement par le texte transcrit, sans guillemets. S\'il n\'y a pas de parole, réponds par une chaîne vide.';
+const PROMPT = 'Transcris exactement ce message vocal (en français, avec la ponctuation). L\'assistant s\'appelle « Nox ». Réponds uniquement par le texte transcrit, sans guillemets. S\'il n\'y a pas de parole, réponds par une chaîne vide.';
+
+/** Phrases inventées par Whisper sur du silence ou du bruit (génériques de sous-titres…) */
+const HALLU = /sous-titr|amara\.org|merci d'avoir regard|abonnez-vous|n'oubliez pas de vous abonner|merci de votre attention|♪|^\W*$/i;
+function cleanHeard(t) {
+  const s = t.replace(/\s+/g, ' ').trim();
+  return HALLU.test(s) && s.length < 90 ? '' : s;
+}
 
 /** Transcription d'un message vocal (WAV en base64) : Whisper chez Groq (rapide), sinon Gemini */
 async function transcribe(req) {
@@ -396,6 +403,8 @@ async function transcribe(req) {
         form.append('model', 'whisper-large-v3-turbo');
         form.append('language', 'fr');
         form.append('response_format', 'json');
+        // Aide Whisper à reconnaître le nom de l'assistant et les titres
+        form.append('prompt', req.prompt || 'Nox, lance-moi Spider-Man. Nox, mets pause.');
         const t = Date.now();
         let res, data;
         try {
@@ -403,13 +412,13 @@ async function transcribe(req) {
         } catch (e) { throw netError(e); }
         log(`voice groq ${tail(k.key)} whisper ${res.status} ${Date.now() - t}ms`);
         if (!res.ok) throw apiError(res.status, data);
-        return { ok: true, text: String(data.text || '').trim() };
+        return { ok: true, text: cleanHeard(String(data.text || '')) };
       }
       const { data } = await geminiCall(k.key, {
         contents: [{ role: 'user', parts: [{ inlineData: { mimeType: mime || 'audio/wav', data: audio } }, { text: PROMPT }] }],
       }, { temperature: 0 }, 'voice', deadline);
       const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
-      return { ok: true, text: parts.filter((p) => p.text && !p.thought).map((p) => p.text).join('').trim() };
+      return { ok: true, text: cleanHeard(parts.filter((p) => p.text && !p.thought).map((p) => p.text).join('')) };
     });
   } catch (e) {
     return fail(e);

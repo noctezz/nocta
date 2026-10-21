@@ -120,7 +120,9 @@ Comment tu travailles :
 - Ne lance une lecture (play) que si l'utilisateur te le demande. Quand il le demande, appelle directement play (avec language s'il précise VF / français / VO) : NOCTA vérifie et démarre tout seul la bonne source, pas besoin de check_language avant. S'il dit juste qu'il va regarder quelque chose, vérifie la VF et propose de lancer.
 - Le contexte de l'écran (fiche ouverte, lecture en cours) t'est donné avec chaque message : « ce film », « cette série » désignent la fiche ouverte.
 - Pour des recommandations, appuie-toi sur tes connaissances et sur ce que l'utilisateur regarde (get_activity), puis vérifie que les titres existent dans le catalogue avec search_titles.
-- N'invente jamais un résultat d'outil. Si un outil échoue, dis-le simplement.`;
+- N'invente jamais un résultat d'outil. Si un outil échoue, dis-le simplement.
+- On peut te parler à voix haute (mode Jarvis) : tes réponses sont alors lues, reste bref et naturel, sans listes longues.
+- Pendant un film, on te donne les dialogues des dernières minutes : réponds sur la scène (qui est qui, pourquoi, ce qui vient de se passer) sans JAMAIS révéler la suite.`;
 
 // ---------- Exécution des outils ----------
 type Input = Record<string, any>;
@@ -307,7 +309,7 @@ interface NoxState {
   /** Interrompt la réponse en cours */
   stop: () => void;
   /** byVoice : question posée au micro (Nox répond alors à voix haute si c'est réglé ainsi) */
-  ask: (text: string, opts?: { byVoice?: boolean }) => Promise<void>;
+  ask: (text: string, opts?: { byVoice?: boolean; context?: string }) => Promise<void>;
 }
 
 let seq = 0;
@@ -364,7 +366,7 @@ export const useNox = create<NoxState>((set, get) => ({
     set({ busy: true, since: Date.now() });
     // Historique en ajout seul : jamais réécrit (les blocs de réflexion doivent revenir intacts)
     const history: Msg[] = [...get().history];
-    const asked: Part = { text: `${screenContext()}\n\n${q}` };
+    const asked: Part = { text: `${screenContext()}${opts.context ? `\n${opts.context}` : ''}\n\n${q}` };
     // Après une erreur, le dernier message peut déjà venir de l'utilisateur : on le complète
     const last = history[history.length - 1];
     if (last?.role === 'user') history[history.length - 1] = { role: 'user', parts: [...last.parts, asked] };

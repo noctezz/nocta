@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUp, Mic, RotateCcw, Square, Volume2, VolumeX, X } from 'lucide-react';
 import { stopSpeaking, useSpeaking } from '../lib/speak';
+import { setManualMic, useJarvis } from '../lib/jarvis';
 import { useNox } from '../lib/nox';
 import { useStore } from '../lib/store';
 import { listen, type Listening } from '../lib/voice';
@@ -94,6 +95,7 @@ function suggestions(): string[] {
 export function Nox() {
   const { open, busy, since, via, items, setOpen, ask, reset, stop } = useNox();
   const speaking = useSpeaking((s) => s.speaking);
+  const jarvisOn = useJarvis((s) => s.status !== 'off' && s.status !== 'error');
   // Temps de réflexion affiché (rassure quand Gemini prend son temps)
   const [, tick] = useState(0);
   useEffect(() => {
@@ -182,10 +184,12 @@ export function Nox() {
       return;
     }
     rec.current = r;
+    setManualMic(true);
     stopSpeaking();
     setVoice('listening');
     const audio = await r.done;
     rec.current = null;
+    setManualMic(false);
     if (!audio) { setVoice('idle'); return; }
     setVoice('transcribing');
     const res = await window.nocta!.assistant.transcribe({ keys, ...audio });
@@ -232,7 +236,7 @@ export function Nox() {
               <NoxOwl size={42} thinking={busy} speaking={speaking} />
               <div>
                 <strong>Nox</strong>
-                <small>{busy ? `réfléchit…${waited >= 3 ? ` ${waited} s` : ''}` : via ? `ton assistant ciné · via ${via}` : 'ton assistant ciné'}</small>
+                <small>{busy ? `réfléchit…${waited >= 3 ? ` ${waited} s` : ''}` : `${jarvisOn ? '🎙 à l\'écoute' : 'ton assistant ciné'}${via ? ` · via ${via}` : ''}`}</small>
               </div>
               <button
                 className={`nox-icon ${speaking ? 'is-lit' : ''}`}

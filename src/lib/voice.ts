@@ -124,3 +124,88 @@ function toBase64(bytes: Uint8Array): string {
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(bin);
 }
+
+// ---------- Écoute continue (mode Jarvis) ----------
+export interface Gate {
+  /** Micro coupé pour l'instant (Nox parle, bouton micro manuel…) */
+  suspended: boolean;
+  /** Exigence : 'room' (menus, pièce calme) ou 'loud' (film en cours : il faut parler plus fort que le film) */
+  level: 'room' | 'loud';
+}
+
+/**
+ * Écoute le micro en permanence et découpe les phrases prononcées. Chaque phrase (WAV 16 kHz
+ * en base64) est confiée à onSegment. Le seuil s'adapte au bruit ambiant (et au son du film).
+ */
+export async function createListener(opts: {
+  onSegment: (audio: { audio: string; mime: string; ms: number }) => void;
+  onLevel?: (v: number) => void;
+  onSpeechStart?: () => void;
+  gate: () => Gate;
+}): Promise<{ stop: () => void }> {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false },
+  });
+  const ctx = new AudioContext();
+  const src = ctx.createMediaStreamSource(stream);
+  const node = ctx.createScriptProcessor(2048, 1, 1);
+  const rate = ctx.sampleRate;
+  const blockMs = (2048 / rate) * 1000;
+  const preBlocks = Math.ceil(PRE_ROLL_MS / blockMs);
+  let ring: Float32Array[] = [];
+  let seg: Float32Array[] | null = null;
+  let noise = 0.006;
+  let loudMs = 0, quietMs = 0, speechMs = 0, segMs = 0;
+  let stopped = false;
+
+  const flush = () => {
+    const s = seg;
+    seg = null;
+    if (!s || speechMs < 350) return;
+    opts.onSegment({ audio: toBase64(wav(downsample(s, rate))), mime: 'audio/wav', ms: segMs });
+  };
+
+  node.onaudioprocess = (e) => {
+    if (stopped) return;
+    const g = opts.gate();
+    const data = new Float32Array(e.inputBuffer.getChannelData(0));
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+    const rms = Math.sqrt(sum / data.length);
+    opts.onLevel?.(Math.min(1, rms * 14));
+    if (g.suspended) { seg = null; ring = []; loudMs = 0; return; }
+    const loudGate = g.level === 'loud';
+    const threshold = Math.max(loudGate ? 0.03 : 0.014, noise * (loudGate ? 4.2 : 3));
+    const loud = rms > threshold;
+    // Bruit de fond (et son du film) suivi en continu, plus lentement pendant qu'on parle
+    noise = noise * (seg ? 0.995 : 0.97) + rms * (seg ? 0.005 : 0.03);
+    if (!seg) {
+      ring.push(data);
+      if (ring.length > preBlocks + 6) ring.shift();
+      loudMs = loud ? loudMs + blockMs : 0;
+      if (loudMs >= 160) {
+        seg = [...ring];
+        ring = [];
+        speechMs = loudMs; quietMs = 0; segMs = seg.length * blockMs;
+        opts.onSpeechStart?.();
+      }
+      return;
+    }
+    seg.push(data);
+    segMs += blockMs;
+    if (loud) { speechMs += blockMs; quietMs = 0; } else quietMs += blockMs;
+    // Fin de phrase : court silence ; phrases trop longues coupées (le son du film peut ne jamais s'arrêter)
+    if (quietMs >= 750 || segMs >= (loudGate ? 9000 : 14000)) { flush(); loudMs = 0; }
+  };
+  src.connect(node);
+  node.connect(ctx.destination);
+  return {
+    stop: () => {
+      stopped = true;
+      node.disconnect();
+      src.disconnect();
+      stream.getTracks().forEach((t) => t.stop());
+      ctx.close().catch(() => {});
+    },
+  };
+}

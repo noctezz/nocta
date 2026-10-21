@@ -163,6 +163,10 @@ export interface Settings {
   noxVisible?: boolean;
   /** Nox répond à voix haute : jamais, quand on lui parle au micro, ou toujours */
   noxVoice?: 'off' | 'mic' | 'always';
+  /** Mode Jarvis : Nox écoute en permanence (mot magique « Nox ») */
+  jarvis?: boolean;
+  /** Dans les menus : seulement après « Nox », ou toutes les phrases */
+  jarvisWake?: 'nox' | 'all';
   /** Voix de Nox : celle de Windows (hors ligne) ou une voix naturelle Gemini */
   noxVoiceEngine?: 'windows' | 'gemini';
   /** Nom de la voix choisie (Windows ou Gemini) */
