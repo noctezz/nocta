@@ -1,13 +1,15 @@
 // Mode Jarvis : Nox écoute en permanence. « Nox, lance-moi Spider-Man » depuis les menus,
 // « Nox, c'est qui ce mec ? » pendant un film (pause, réponse à voix haute, puis reprise).
 // Le mot magique « Nox » évite que le son du film ou une conversation déclenche quoi que ce soit.
+// Pendant un film, on n'attend pas que tu parles plus fort que lui : l'audio est transcrit en
+// continu et « Nox », dit à voix normale, suffit à mettre en pause ; la suite se dit au calme.
 import { create } from 'zustand';
 import { noxKeys } from './noxKeys';
 import { useNox } from './nox';
 import { nowTime } from './playerClock';
 import { speak, stopSpeaking, useSpeaking } from './speak';
 import { useStore } from './store';
-import { createListener, type Gate } from './voice';
+import { createListener, type Gate, type Segment } from './voice';
 import { sceneDialogue } from './xray';
 
 type Status = 'off' | 'idle' | 'speech' | 'heard' | 'thinking' | 'error';
@@ -21,15 +23,26 @@ interface JarvisState {
 }
 export const useJarvis = create<JarvisState>(() => ({ status: 'off', level: 0, heard: '', error: '' }));
 
-/** « Nox », « OK Nox », « Dis Nox »… (et les variantes que la transcription produit parfois) */
-const WAKE = /^\W*(?:(?:ok|okay|hey|hé|eh|dis|allez|bon)\s+)?(?:nox|knox|noxe|nocs|noks|nocks|knocks|nok|noxx)\b[\s,.!?:;-]*/i;
+/** « Nox », « OK Nox », « Dis Nox »… n'importe où dans la phrase (et les variantes de transcription) */
+const WAKE = /(?:^|[^\p{L}])(?:(?:ok|okay|hey|hé|eh|dis|allez)[\s,]+)?(?:nox|noxe|knox|nocs|noks|noxx)(?![\p{L}])[\s,.!?:;-]*/giu;
+
+function findWake(text: string): { rest: string } | null {
+  let last: RegExpExecArray | null = null;
+  WAKE.lastIndex = 0;
+  for (let m = WAKE.exec(text); m; m = WAKE.exec(text)) last = m;
+  return last ? { rest: text.slice(last.index + last[0].length).replace(/^[\s,.!?:;-]+|[\s,]+$/g, '').trim() } : null;
+}
 
 let listener: { stop: () => void } | null = null;
 let starting = false;
-let followUntil = 0; // juste après « Nox ? » : la phrase suivante n'a pas besoin du mot magique
+let followUntil = 0; // juste après « Nox » : la phrase suivante n'a pas besoin du mot magique
+let pending = ''; // début de commande entendu juste avant la pause
+let pendingTimer: ReturnType<typeof setTimeout> | undefined;
 let busy = 0; // transcriptions en cours
 let manualMic = false;
 let pausedByJarvis = false;
+let filmPaused = false;
+let lastWake = 0;
 let resumeTimer: ReturnType<typeof setTimeout> | undefined;
 let speakingUntil = 0;
 
@@ -47,13 +60,26 @@ function bubble(b: { state: 'listening' | 'thinking' | 'answer' | 'done' | 'acti
 }
 
 // Nox parle : le micro l'entendrait, on suspend l'écoute (et un peu après)
-useSpeaking.subscribe((s) => { if (!s.speaking) speakingUntil = Date.now() + 700; });
+useSpeaking.subscribe((s) => { if (!s.speaking) speakingUntil = Date.now() + 600; });
 
 function gate(): Gate {
   return {
-    suspended: manualMic || useSpeaking.getState().speaking || Date.now() < speakingUntil || busy > 1,
-    level: inPlayer() && !pausedByJarvis ? 'loud' : 'room',
+    suspended: manualMic || useSpeaking.getState().speaking || Date.now() < speakingUntil,
+    level: inPlayer() && !filmPaused && !pausedByJarvis ? 'stream' : 'room',
   };
+}
+
+/** Indices pour la transcription : le nom de l'assistant et les titres que tu regardes */
+function hint() {
+  const st = useStore.getState();
+  const p = st.profiles.find((x) => x.id === st.activeProfileId);
+  const titles = [
+    st.player?.title,
+    ...Object.values(p?.progress || {}).sort((a, b) => b.updatedAt - a.updatedAt).map((e) => e.meta.name),
+    ...(p?.myList || []).map((m) => m.name),
+  ].filter(Boolean);
+  const uniq = [...new Set(titles)].slice(0, 15).join(', ');
+  return `Nox, lance-moi Spider-Man. Nox, mets pause. Nox, c'est qui lui ?${uniq ? ` Titres : ${uniq}.` : ''}`;
 }
 
 // ---------- Commandes directes du lecteur (sans passer par l'IA : instantané) ----------
@@ -100,47 +126,85 @@ function afterSpeech(cb: () => void) {
   setTimeout(check, 400);
 }
 
-async function handle(text: string) {
-  const wake = WAKE.exec(text);
-  const following = Date.now() < followUntil;
-  const anyPhrase = settings().jarvisWake === 'all' && !inPlayer();
-  if (!wake && !following && !anyPhrase) return;
-  const command = (wake ? text.slice(wake[0].length) : text).replace(/^[\s,.!?:;-]+|[\s,]+$/g, '').trim();
-  followUntil = 0;
+/** « Nox » entendu : pause du film et écoute de la suite au calme */
+function wakeUp(partial: string) {
+  lastWake = Date.now();
   stopSpeaking();
   clearTimeout(resumeTimer);
-  useJarvis.setState({ heard: command || 'Nox ?', status: 'heard' });
-
-  if (inPlayer()) {
-    // Pendant le film : pause tout de suite
+  if (inPlayer() && !filmPaused) {
     player().cmd('set_property', 'pause', true);
     pausedByJarvis = true;
   }
-  if (!command) {
-    followUntil = Date.now() + 8000;
-    bubble({ state: 'listening' });
+  pending = partial;
+  followUntil = Date.now() + 7000;
+  useJarvis.setState({ heard: partial || 'Nox ?', status: 'heard' });
+  bubble({ state: 'listening', heard: partial || undefined });
+  clearTimeout(pendingTimer);
+  if (partial) {
+    // Début de phrase déjà entendu : si rien ne suit, on l'exécute tel quel
+    pendingTimer = setTimeout(() => { if (pending) { const c = pending; pending = ''; followUntil = 0; run(c); } }, 1800);
+  } else {
     speak('Oui ?');
-    setTimeout(() => { if (followUntil && Date.now() > followUntil) { followUntil = 0; scheduleResume(500); } }, 8600);
-    return;
+    pendingTimer = setTimeout(() => {
+      if (Date.now() < followUntil) return;
+      followUntil = 0;
+      if (pausedByJarvis) scheduleResume(500); else bubble(null);
+    }, 7600);
   }
+}
+
+async function handle(text: string, seg: Segment) {
+  const wake = findWake(text);
+  const following = Date.now() < followUntil;
+
+  if (seg.mode === 'stream') {
+    // Film en cours : seul « Nox » compte (le reste, ce sont les dialogues du film)
+    if (!wake || Date.now() - lastWake < 4000) return;
+    // Phrase complète (finie sur un silence) : exécutée tout de suite ; sinon la suite viendra au calme
+    if (wake.rest && !seg.cut) {
+      lastWake = Date.now();
+      if (!filmPaused) { player().cmd('set_property', 'pause', true); pausedByJarvis = true; }
+      return run(wake.rest);
+    }
+    return wakeUp(wake.rest);
+  }
+
+  // Pièce calme (menus, film en pause)
+  const anyPhrase = settings().jarvisWake === 'all' && !inPlayer();
+  if (!wake && !following && !anyPhrase) return;
+  let command = wake ? wake.rest : text.replace(/^[\s,.!?:;-]+/, '').trim();
+  if (following && pending) command = `${pending} ${command}`.trim();
+  pending = '';
+  clearTimeout(pendingTimer);
+  if (!command) return wakeUp('');
+  followUntil = 0;
+  lastWake = Date.now();
+  if (inPlayer() && !filmPaused) { player().cmd('set_property', 'pause', true); pausedByJarvis = true; }
+  run(command);
+}
+
+async function run(command: string) {
+  stopSpeaking();
+  clearTimeout(resumeTimer);
+  useJarvis.setState({ heard: command, status: 'heard' });
 
   if (inPlayer()) {
     const direct = playerCommand(command);
     if (direct) {
       direct.run();
-      if (direct.stay || /pause|reprend|relance|continue|play|lecture/i.test(direct.label)) pausedByJarvis = false;
+      const resumes = !direct.stay && !/pause/i.test(direct.label);
       bubble({ state: 'action', heard: command, text: direct.label });
       setTimeout(() => bubble(null), 2200);
       // Commande qui ne touche pas à la lecture (son, sous-titres, avance) : le film repart
-      if (pausedByJarvis) { pausedByJarvis = false; player().cmd('set_property', 'pause', false); }
+      if (pausedByJarvis && resumes && !/reparti/.test(direct.label)) player().cmd('set_property', 'pause', false);
+      pausedByJarvis = false;
       useJarvis.setState({ status: 'idle' });
       return;
     }
     // Question sur le film : Nox répond avec les dialogues des dernières minutes
     bubble({ state: 'thinking', heard: command });
     useJarvis.setState({ status: 'thinking' });
-    const st = useStore.getState();
-    const p = st.player!;
+    const p = useStore.getState().player!;
     const t = nowTime(true);
     const lines = p.type && p.videoId ? await sceneDialogue({ type: p.type, videoId: p.videoId }, t).catch(() => null) : null;
     const mm = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
@@ -161,22 +225,21 @@ async function handle(text: string) {
   useJarvis.setState({ status: 'idle' });
 }
 
+// Quota : pendant un film, au plus 18 morceaux transcrits par minute (Groq gratuit : 20 / min / modèle)
 const recent: number[] = [];
 
-async function onSegment(seg: { audio: string; mime: string }) {
+async function onSegment(seg: Segment) {
   const keys = voiceKeys();
   if (!keys.length) return;
-  // Pendant un film, le son du film découpe beaucoup de « phrases » : on en transcrit au plus
-  // 12 par minute (quota gratuit), sauf juste après « Nox ? »
   const now = Date.now();
   while (recent.length && now - recent[0] > 60000) recent.shift();
-  if (inPlayer() && !pausedByJarvis && Date.now() > followUntil && recent.length >= 12) return;
+  if (seg.mode === 'stream' && (recent.length >= 18 || busy >= 2)) return;
   recent.push(now);
   busy++;
   try {
-    const r = await window.nocta!.assistant.transcribe({ keys, ...seg });
-    if (r.ok && r.text) await handle(r.text);
-    else if (!r.ok && /quota/i.test(r.error || '')) useJarvis.setState({ error: r.error || '' });
+    const r = await window.nocta!.assistant.transcribe({ keys, audio: seg.audio, mime: seg.mime, prompt: hint() });
+    if (r.ok && r.text) await handle(r.text, seg);
+    else if (!r.ok && /quota/i.test(r.error || '')) useJarvis.setState({ error: 'Quota de transcription atteint' });
   } finally {
     busy--;
     if (useJarvis.getState().status === 'speech') useJarvis.setState({ status: 'idle' });
@@ -187,11 +250,17 @@ let hooked = false;
 
 export async function startJarvis() {
   if (listener || starting || !voiceKeys().length || !navigator.mediaDevices) return;
-  // Depuis le lecteur : « Rester en pause » annule la reprise automatique
   if (!hooked && window.nocta?.player?.on) {
     hooked = true;
+    // Depuis le lecteur : « Rester en pause » annule la reprise automatique
     window.nocta.player.on('player:jarvis', (d: { stay?: boolean }) => {
       if (d?.stay) { clearTimeout(resumeTimer); pausedByJarvis = false; bubble(null); }
+    });
+    // Film en pause (par toi) : la pièce est calme, l'écoute redevient fine
+    window.nocta.player.on('player:paused', (v: boolean) => { filmPaused = v; if (!v && !followUntil) pausedByJarvis = false; });
+    // Le lecteur affiche un petit Nox « à l'écoute »
+    useStore.subscribe((s, prev) => {
+      if (s.player && !prev.player) { filmPaused = false; pausedByJarvis = false; setTimeout(() => player().info({ jarvisOn: !!listener }), 1500); }
     });
   }
   starting = true;
@@ -200,9 +269,17 @@ export async function startJarvis() {
       gate,
       onSegment,
       onLevel: (v) => { if (Math.abs(v - useJarvis.getState().level) > 0.04) useJarvis.setState({ level: v }); },
-      onSpeechStart: () => { if (useJarvis.getState().status === 'idle') useJarvis.setState({ status: 'speech' }); },
+      onSpeechStart: () => {
+        // Tu reprends la parole juste après « Nox » : on attend la fin de ta phrase
+        if (pending) {
+          clearTimeout(pendingTimer);
+          pendingTimer = setTimeout(() => { if (pending) { const c = pending; pending = ''; followUntil = 0; run(c); } }, 6000);
+        }
+        if (useJarvis.getState().status === 'idle') useJarvis.setState({ status: 'speech' });
+      },
     });
     useJarvis.setState({ status: 'idle', error: '' });
+    if (inPlayer()) player().info({ jarvisOn: true });
   } catch (e) {
     useJarvis.setState({ status: 'error', error: (e as DOMException)?.name === 'NotAllowedError' ? 'Micro refusé par Windows' : 'Micro indisponible' });
   } finally {
@@ -214,5 +291,5 @@ export function stopJarvis() {
   listener?.stop();
   listener = null;
   useJarvis.setState({ status: 'off', level: 0 });
+  if (inPlayer()) player().info({ jarvisOn: false });
 }
-

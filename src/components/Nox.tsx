@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUp, Mic, RotateCcw, Square, Volume2, VolumeX, X } from 'lucide-react';
-import { stopSpeaking, useSpeaking } from '../lib/speak';
+import { speak, stopSpeaking, useSpeaking } from '../lib/speak';
 import { setManualMic, useJarvis } from '../lib/jarvis';
 import { useNox } from '../lib/nox';
 import { useStore } from '../lib/store';
@@ -96,6 +96,7 @@ export function Nox() {
   const { open, busy, since, via, items, setOpen, ask, reset, stop } = useNox();
   const speaking = useSpeaking((s) => s.speaking);
   const jarvisOn = useJarvis((s) => s.status !== 'off' && s.status !== 'error');
+  const jarvisLevel = useJarvis((s) => s.level);
   // Temps de réflexion affiché (rassure quand Gemini prend son temps)
   const [, tick] = useState(0);
   useEffect(() => {
@@ -134,15 +135,22 @@ export function Nox() {
     return () => window.removeEventListener('mousemove', onMove);
   }, []);
 
-  // Petite bulle de présentation la première fois
+  // Nox te salue en arrivant dans les menus (une fois par lancement de l'app et par profil)
+  const [helloText, setHelloText] = useState('');
+  const profileId = useStore((s) => s.activeProfileId);
   useEffect(() => {
-    let seen = false;
-    try { seen = localStorage.getItem('nox-hello') === '1'; } catch {}
-    if (seen) return;
-    const t = setTimeout(() => setHello(true), 6000);
-    const t2 = setTimeout(() => setHello(false), 16000);
+    if (!profileId || greeted.has(profileId)) return;
+    greeted.add(profileId);
+    const st = useStore.getState();
+    const text = greeting(st);
+    const t = setTimeout(() => {
+      setHelloText(text);
+      setHello(true);
+      if (st.settings.noxGreet !== false && (st.settings.noxVoice || 'mic') !== 'off') speak(text);
+    }, 1800);
+    const t2 = setTimeout(() => setHello(false), 11000);
     return () => { clearTimeout(t); clearTimeout(t2); };
-  }, []);
+  }, [profileId]);
 
   useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' }); }, [items, busy]);
   useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 200); }, [open]);
@@ -206,14 +214,15 @@ export function Nox() {
       <AnimatePresence>
         {hello && !open && (
           <motion.div className="nox-hello" data-nav-skip initial={{ opacity: 0, y: 10, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }}>
-            Coucou, moi c'est <b>Nox</b> 🦉 Une question sur un film ? Clique sur moi !
+            {helloText || <>Coucou, moi c'est <b>Nox</b> 🦉 Une question sur un film ? Clique sur moi !</>}
           </motion.div>
         )}
       </AnimatePresence>
 
       <button
         ref={btnRef}
-        className={`nox-button ${open ? 'is-open' : ''}`}
+        className={`nox-button ${open ? 'is-open' : ''} ${jarvisOn ? 'is-listening' : ''}`}
+        style={jarvisOn ? { ['--lvl' as any]: jarvisLevel.toFixed(2) } : undefined}
         onClick={() => { setOpen(!open); setHello(false); try { localStorage.setItem('nox-hello', '1'); } catch {} }}
         aria-label="Nox, ton assistant"
         title="Nox, ton assistant"
@@ -325,6 +334,24 @@ export function Nox() {
       </AnimatePresence>
     </>
   );
+}
+
+const greeted = new Set<string>();
+
+/** « Bonsoir Alex ! On reprend Peaky Blinders ? » selon l'heure et ce que tu regardes */
+function greeting(st: ReturnType<typeof useStore.getState>) {
+  const p = st.profiles.find((x) => x.id === st.activeProfileId);
+  const name = p?.name ? ` ${p.name}` : '';
+  const h = new Date().getHours();
+  const hi = h < 5 ? `Encore debout${name} ?` : h < 12 ? `Bonjour${name} !` : h < 18 ? `Salut${name} !` : `Bonsoir${name} !`;
+  const last = Object.values(p?.progress || {}).sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  const recent = last && Date.now() - last.updatedAt < 14 * 86400000;
+  const ideas = ['Qu\'est-ce qu\'on regarde aujourd\'hui ?', 'Prêt pour une bonne séance ?', 'Envie d\'un film ou d\'une série ?'];
+  const next = recent ? `On reprend ${last.meta.name} ?` : ideas[Math.floor(Math.random() * ideas.length)];
+  let first = false;
+  try { first = localStorage.getItem('nox-hello') !== '1'; localStorage.setItem('nox-hello', '1'); } catch {}
+  const jarvis = st.settings.jarvis !== false && noxKeys(st.settings).some((k) => k.provider === 'groq' || k.provider === 'gemini');
+  return `${hi} ${next}${first && jarvis ? ' Dis « Nox » quand tu veux, je t\'écoute.' : ''}`;
 }
 
 /** Première ouverture : une clé d'IA gratuite */

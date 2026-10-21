@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { stopSpeaking } from './lib/speak';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { speak, stopSpeaking } from './lib/speak';
 import { JarvisHost } from './components/Jarvis';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Intro } from './components/Intro';
@@ -132,8 +132,21 @@ export default function App() {
 
   // Le lecteur a démarré : l'écran de chargement de la fenêtre principale disparaît
   useEffect(() => { if (player) useBusy.getState().set(null, null); }, [player]);
-  // Le film démarre : Nox se tait
-  useEffect(() => { if (player) stopSpeaking(); }, [player]);
+  // Le film démarre : Nox se tait… et te souhaite un bon visionnage
+  const wasPlaying = useRef(false);
+  useEffect(() => {
+    const playing = !!player;
+    if (playing && !wasPlaying.current) {
+      stopSpeaking();
+      const st = useStore.getState();
+      if (st.settings.noxGreet !== false && (st.settings.noxVoice || 'mic') !== 'off' && st.settings.noxVisible !== false) {
+        const name = st.profiles.find((p) => p.id === st.activeProfileId)?.name;
+        const lines = [`Bon visionnage${name ? ` ${name}` : ''} !`, 'Bon film !', 'Installe-toi bien, ça commence !'];
+        setTimeout(() => speak(player!.type === 'series' ? (Math.random() < 0.5 ? 'Bon épisode !' : lines[0]) : lines[Math.floor(Math.random() * lines.length)]), 300);
+      }
+    }
+    wasPlaying.current = playing;
+  }, [player]);
 
   // Pas de défilement de la page derrière les fenêtres
   useEffect(() => {

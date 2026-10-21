@@ -190,6 +190,14 @@ function NoxVoiceSettings() {
         </div>
       </div>
       {mode !== 'off' && (
+        <Toggle
+          title="Nox me salue"
+          hint="« Bonsoir ! On reprend Peaky Blinders ? » en arrivant, et « Bon visionnage ! » quand un film démarre."
+          checked={settings.noxGreet !== false}
+          onChange={(v) => update({ noxGreet: v })}
+        />
+      )}
+      {mode !== 'off' && (
         <div className="setting">
           <div>
             <strong>Voix</strong>

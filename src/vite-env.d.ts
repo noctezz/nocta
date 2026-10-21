@@ -88,7 +88,7 @@ interface NoctaBridge {
     create: (req: { keys: { provider: string; key: string }[]; system: string; tools: unknown; contents: unknown }) =>
       Promise<{ ok: boolean; content?: { role: string; parts: any[] }; finishReason?: string; model?: string; via?: string; error?: string }>;
     tts: (req: { keys: { provider: string; key: string }[]; text: string; voice?: string }) => Promise<{ ok: boolean; audio?: string; rate?: number; error?: string }>;
-    transcribe: (req: { keys: { provider: string; key: string }[]; audio: string; mime: string }) => Promise<{ ok: boolean; text?: string; error?: string }>;
+    transcribe: (req: { keys: { provider: string; key: string }[]; audio: string; mime: string; prompt?: string }) => Promise<{ ok: boolean; text?: string; error?: string }>;
     testKey: (k: { provider: string; key: string }) => Promise<{ ok: boolean; model?: string; via?: string; ms?: number; error?: string; keyOk?: boolean }>;
   };
   update: {

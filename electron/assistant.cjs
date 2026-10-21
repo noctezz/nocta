@@ -382,6 +382,9 @@ async function create(req) {
 // ---------- Voix ----------
 const PROMPT = 'Transcris exactement ce message vocal (en français, avec la ponctuation). L\'assistant s\'appelle « Nox ». Réponds uniquement par le texte transcrit, sans guillemets. S\'il n\'y a pas de parole, réponds par une chaîne vide.';
 
+const WHISPER = ['whisper-large-v3-turbo', 'whisper-large-v3'];
+let whisperTurn = 0;
+
 /** Phrases inventées par Whisper sur du silence ou du bruit (génériques de sous-titres…) */
 const HALLU = /sous-titr|amara\.org|merci d'avoir regard|abonnez-vous|n'oubliez pas de vous abonner|merci de votre attention|♪|^\W*$/i;
 function cleanHeard(t) {
@@ -398,21 +401,30 @@ async function transcribe(req) {
   try {
     return await eachKey(keys, 'voice', async (k, deadline) => {
       if (k.provider === 'groq') {
-        const form = new FormData();
-        form.append('file', new Blob([Buffer.from(audio, 'base64')], { type: mime || 'audio/wav' }), 'voix.wav');
-        form.append('model', 'whisper-large-v3-turbo');
-        form.append('language', 'fr');
-        form.append('response_format', 'json');
-        // Aide Whisper à reconnaître le nom de l'assistant et les titres
-        form.append('prompt', req.prompt || 'Nox, lance-moi Spider-Man. Nox, mets pause.');
-        const t = Date.now();
-        let res, data;
-        try {
-          ({ res, data } = await request(`${OPENAI_LIKE.groq.base}/audio/transcriptions`, { method: 'POST', headers: { Authorization: `Bearer ${k.key}` }, body: form }, Math.min(20000, deadline - Date.now())));
-        } catch (e) { throw netError(e); }
-        log(`voice groq ${tail(k.key)} whisper ${res.status} ${Date.now() - t}ms`);
-        if (!res.ok) throw apiError(res.status, data);
-        return { ok: true, text: cleanHeard(String(data.text || '')) };
+        // Deux modèles Whisper, chacun avec son quota gratuit : on alterne (le double d'écoute par jour)
+        const order = WHISPER.map((_, i) => WHISPER[(whisperTurn + i) % WHISPER.length]).filter((m) => !isBenched(`whisper:${k.key}:${m}`));
+        whisperTurn++;
+        let lastErr;
+        for (const model of order.length ? order : WHISPER) {
+          const form = new FormData();
+          form.append('file', new Blob([Buffer.from(audio, 'base64')], { type: mime || 'audio/wav' }), 'voix.wav');
+          form.append('model', model);
+          form.append('language', 'fr');
+          form.append('response_format', 'json');
+          // Aide Whisper à reconnaître le nom de l'assistant et les titres de l'utilisateur
+          form.append('prompt', (req.prompt || 'Nox, lance-moi Spider-Man. Nox, mets pause.').slice(0, 600));
+          const t = Date.now();
+          let res, data;
+          try {
+            ({ res, data } = await request(`${OPENAI_LIKE.groq.base}/audio/transcriptions`, { method: 'POST', headers: { Authorization: `Bearer ${k.key}` }, body: form }, Math.min(15000, deadline - Date.now())));
+          } catch (e) { lastErr = netError(e); continue; }
+          log(`voice groq ${tail(k.key)} ${model} ${res.status} ${Date.now() - t}ms`);
+          if (res.ok) return { ok: true, text: cleanHeard(String(data.text || '')) };
+          lastErr = apiError(res.status, data);
+          if (lastErr.auth) throw lastErr;
+          bench(`whisper:${k.key}:${model}`, lastErr.quota ? Math.max(retryAfter(res, data), 20000) : 60000);
+        }
+        throw lastErr || netError({ name: 'TimeoutError' });
       }
       const { data } = await geminiCall(k.key, {
         contents: [{ role: 'user', parts: [{ inlineData: { mimeType: mime || 'audio/wav', data: audio } }, { text: PROMPT }] }],

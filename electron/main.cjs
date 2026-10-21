@@ -284,6 +284,9 @@ ipcMain.handle('win:setFullscreen', (_e, v) => { win.setFullScreen(!!v); return 
 
 // ---------- Cycle de vie ----------
 
+// Nox peut parler sans clic préalable (bonjour, bon visionnage)
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
 app.whenReady().then(async () => {
   await media.start();
   // Micro autorisé pour parler à Nox (aucune autre permission sensible)

@@ -129,22 +129,39 @@ function toBase64(bytes: Uint8Array): string {
 export interface Gate {
   /** Micro coupé pour l'instant (Nox parle, bouton micro manuel…) */
   suspended: boolean;
-  /** Exigence : 'room' (menus, pièce calme) ou 'loud' (film en cours : il faut parler plus fort que le film) */
-  level: 'room' | 'loud';
+  /**
+   * 'room' : pièce calme (menus, film en pause), on découpe les phrases au silence.
+   * 'stream' : film en cours. Le son du film ne s'arrête jamais : on transcrit l'audio en continu
+   * par morceaux de ~4 s (qui se chevauchent un peu), pour entendre « Nox » même à voix normale.
+   */
+  level: 'room' | 'stream';
 }
 
+export interface Segment {
+  audio: string;
+  mime: string;
+  ms: number;
+  /** Coupé en plein milieu (pas sur un silence) : la phrase continue peut-être après */
+  cut: boolean;
+  mode: 'room' | 'stream';
+}
+
+const STREAM_MIN = 3300;
+const STREAM_MAX = 4500;
+const STREAM_OVERLAP = 700;
+
 /**
- * Écoute le micro en permanence et découpe les phrases prononcées. Chaque phrase (WAV 16 kHz
- * en base64) est confiée à onSegment. Le seuil s'adapte au bruit ambiant (et au son du film).
+ * Écoute le micro en permanence et découpe ce qui est dit. Chaque morceau (WAV 16 kHz en
+ * base64) est confié à onSegment.
  */
 export async function createListener(opts: {
-  onSegment: (audio: { audio: string; mime: string; ms: number }) => void;
+  onSegment: (seg: Segment) => void;
   onLevel?: (v: number) => void;
   onSpeechStart?: () => void;
   gate: () => Gate;
 }): Promise<{ stop: () => void }> {
   const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false },
+    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
   });
   const ctx = new AudioContext();
   const src = ctx.createMediaStreamSource(stream);
@@ -152,18 +169,19 @@ export async function createListener(opts: {
   const rate = ctx.sampleRate;
   const blockMs = (2048 / rate) * 1000;
   const preBlocks = Math.ceil(PRE_ROLL_MS / blockMs);
+  const overlapBlocks = Math.ceil(STREAM_OVERLAP / blockMs);
   let ring: Float32Array[] = [];
   let seg: Float32Array[] | null = null;
-  let noise = 0.006;
+  let segPeak = 0;
+  let mode: 'room' | 'stream' = 'room';
+  let noise = 0.005;
   let loudMs = 0, quietMs = 0, speechMs = 0, segMs = 0;
   let stopped = false;
 
-  const flush = () => {
-    const s = seg;
-    seg = null;
-    if (!s || speechMs < 350) return;
-    opts.onSegment({ audio: toBase64(wav(downsample(s, rate))), mime: 'audio/wav', ms: segMs });
+  const emit = (blocks: Float32Array[], cut: boolean) => {
+    opts.onSegment({ audio: toBase64(wav(downsample(blocks, rate))), mime: 'audio/wav', ms: blocks.length * blockMs, cut, mode });
   };
+  const reset = () => { seg = null; ring = []; loudMs = 0; quietMs = 0; speechMs = 0; segMs = 0; segPeak = 0; };
 
   node.onaudioprocess = (e) => {
     if (stopped) return;
@@ -173,17 +191,39 @@ export async function createListener(opts: {
     for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
     const rms = Math.sqrt(sum / data.length);
     opts.onLevel?.(Math.min(1, rms * 14));
-    if (g.suspended) { seg = null; ring = []; loudMs = 0; return; }
-    const loudGate = g.level === 'loud';
-    const threshold = Math.max(loudGate ? 0.03 : 0.014, noise * (loudGate ? 4.2 : 3));
+    if (g.suspended) { reset(); return; }
+    if (g.level !== mode) { mode = g.level; reset(); }
+
+    if (mode === 'stream') {
+      // Film en cours : morceaux continus, coupés de préférence sur un creux du son
+      if (!seg) { seg = []; segMs = 0; segPeak = 0; quietMs = 0; }
+      seg.push(data);
+      segMs += blockMs;
+      segPeak = Math.max(segPeak, rms);
+      noise = noise * 0.98 + rms * 0.02;
+      quietMs = rms < noise * 0.6 ? quietMs + blockMs : 0;
+      const atPause = segMs >= STREAM_MIN && quietMs >= 250;
+      if (atPause || segMs >= STREAM_MAX) {
+        const blocks = seg;
+        // Le morceau suivant reprend les 0,7 dernière seconde : un « Nox » à cheval n'est pas perdu
+        seg = atPause ? [] : blocks.slice(-overlapBlocks);
+        segMs = seg.length * blockMs;
+        // Silence total (pièce et film muets) : rien à transcrire
+        if (segPeak > 0.006) emit(blocks, !atPause);
+        segPeak = 0;
+      }
+      return;
+    }
+
+    // Pièce calme : on attend qu'on parle, puis on coupe au silence
+    const threshold = Math.max(0.01, noise * 2.6);
     const loud = rms > threshold;
-    // Bruit de fond (et son du film) suivi en continu, plus lentement pendant qu'on parle
     noise = noise * (seg ? 0.995 : 0.97) + rms * (seg ? 0.005 : 0.03);
     if (!seg) {
       ring.push(data);
       if (ring.length > preBlocks + 6) ring.shift();
       loudMs = loud ? loudMs + blockMs : 0;
-      if (loudMs >= 160) {
+      if (loudMs >= 130) {
         seg = [...ring];
         ring = [];
         speechMs = loudMs; quietMs = 0; segMs = seg.length * blockMs;
@@ -194,8 +234,12 @@ export async function createListener(opts: {
     seg.push(data);
     segMs += blockMs;
     if (loud) { speechMs += blockMs; quietMs = 0; } else quietMs += blockMs;
-    // Fin de phrase : court silence ; phrases trop longues coupées (le son du film peut ne jamais s'arrêter)
-    if (quietMs >= 750 || segMs >= (loudGate ? 9000 : 14000)) { flush(); loudMs = 0; }
+    if (quietMs >= 700 || segMs >= 14000) {
+      const blocks = seg;
+      const ok = speechMs >= 300;
+      seg = null; loudMs = 0;
+      if (ok) emit(blocks, segMs >= 14000);
+    }
   };
   src.connect(node);
   node.connect(ctx.destination);

@@ -53,6 +53,8 @@ interface Info {
   xray?: { nonce: number; op: 'scene' | 'person' | 'recap' | 'trivia'; data: any; error?: string };
   xrayOnPause?: boolean;
   /** Mode Jarvis : bulle de Nox par-dessus le film */
+  /** Mode Jarvis actif : petit Nox « à l'écoute » */
+  jarvisOn?: boolean;
   jarvis?: { state: 'listening' | 'thinking' | 'answer' | 'done' | 'action'; heard?: string; text?: string; resumeIn?: number; at: number } | null;
   /** Générique mémorisé pour la série */
   intro?: { start: number; end: number } | null;
@@ -700,7 +702,7 @@ export function MpvOverlay() {
         </>
       )}
       {init && (
-        <JarvisBubble data={info.jarvis} />
+        <JarvisBubble data={info.jarvis} listening={!!info.jarvisOn} />
       )}
       {init && (
         <XRay

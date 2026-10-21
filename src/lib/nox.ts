@@ -21,7 +21,7 @@ type Tool = { name: string; description: string; parameters?: Record<string, unk
 const TOOLS: Tool[] = [
   {
     name: 'search_titles',
-    description: 'Cherche des films ou des séries dans le catalogue de NOCTA à partir d\'un titre (ou d\'un mot-clé). Renvoie les identifiants à utiliser avec les autres outils.',
+    description: 'Cherche des films ou des séries dans le catalogue de NOCTA à partir d\'un titre (ou d\'un mot-clé). Renvoie les identifiants à utiliser avec les autres outils. Donne le titre corrigé (vraie orthographe, souvent le titre original), pas la transcription approximative de la voix.',
     parameters: {
       type: 'object',
       properties: {
@@ -121,8 +121,23 @@ Comment tu travailles :
 - Le contexte de l'écran (fiche ouverte, lecture en cours) t'est donné avec chaque message : « ce film », « cette série » désignent la fiche ouverte.
 - Pour des recommandations, appuie-toi sur tes connaissances et sur ce que l'utilisateur regarde (get_activity), puis vérifie que les titres existent dans le catalogue avec search_titles.
 - N'invente jamais un résultat d'outil. Si un outil échoue, dis-le simplement.
+- Les demandes arrivent souvent à la voix : les titres peuvent être mal transcrits ou mal prononcés (« Piki Blender » = Peaky Blinders, « Spaïderman » = Spider-Man, « la casa de papel » = La Casa de Papel, « Brékine Bad » = Breaking Bad). Devine toujours le vrai titre le plus probable (souvent le titre original anglais) et cherche-le directement ; si search_titles ne trouve rien, réessaie avec d'autres orthographes ou le titre original, sans demander à l'utilisateur.
 - On peut te parler à voix haute (mode Jarvis) : tes réponses sont alors lues, reste bref et naturel, sans listes longues.
 - Pendant un film, on te donne les dialogues des dernières minutes : réponds sur la scène (qui est qui, pourquoi, ce qui vient de se passer) sans JAMAIS révéler la suite.`;
+
+/** Ressemblance entre deux titres (0 à 1), tolérante aux fautes : « piki blender » ≈ « Peaky Blinders » */
+function similar(a: string, b: string) {
+  const norm = (x: string) => x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')
+    .replace(/y/g, 'i').replace(/ph/g, 'f').replace(/k|q/g, 'c').replace(/ee|ea/g, 'i').replace(/(.)\1/g, '$1');
+  const x = norm(a), y = norm(b);
+  if (!x || !y) return 0;
+  if (x === y || y.includes(x) || x.includes(y)) return 1;
+  const grams = (t: string) => { const g = new Map<string, number>(); for (let i = 0; i < t.length - 1; i++) g.set(t.slice(i, i + 2), (g.get(t.slice(i, i + 2)) || 0) + 1); return g; };
+  const gx = grams(x), gy = grams(y);
+  let common = 0;
+  gx.forEach((n, k) => { common += Math.min(n, gy.get(k) || 0); });
+  return (2 * common) / Math.max(1, x.length - 1 + y.length - 1);
+}
 
 // ---------- Exécution des outils ----------
 type Input = Record<string, any>;
@@ -156,6 +171,14 @@ async function runTool(name: string, input: Input, onStatus: (text: string) => v
           seen.add(m.id);
           results.push({ id: m.id, type: m.type, name: m.name, year: m.releaseInfo, imdb: m.imdbRating });
         }
+      }
+      // Rien trouvé (titre mal entendu ?) : on cherche parmi ce que l'utilisateur regarde, par ressemblance
+      if (!results.length) {
+        const p = profile();
+        const known = [...Object.values(p?.progress || {}).map((e) => e.meta), ...(p?.myList || [])];
+        const close = known.map((m) => ({ m, score: similar(q, m.name || '') })).filter((x) => x.score >= 0.45).sort((a, b) => b.score - a.score);
+        for (const { m } of close) if (!seen.has(m.id) && results.length < 5) { seen.add(m.id); results.push({ id: m.id, type: m.type, name: m.name, year: m.releaseInfo, closeMatch: true }); }
+        if (!results.length) return { results, hint: 'Aucun résultat : réessaie avec le titre original probable ou une autre orthographe.' };
       }
       return { results };
     }

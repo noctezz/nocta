@@ -79,8 +79,9 @@ des films en format cinéma) ou désactivé : bouton ☀ du lecteur, touche **L*
 **Mode Jarvis** 🎙 : Nox est toujours à l'écoute. Dis « Nox, lance-moi Spider-Man » n'importe où dans l'app : il
 s'exécute. Pendant un film, « Nox, c'est qui lui ? » met en pause, Nox répond à voix haute (il connaît les dernières
 minutes de dialogue), puis le film reprend. Commandes directes : « Nox, pause / reprends / avance de 30 secondes /
-recule de 2 minutes / monte le son / épisode suivant / enlève les sous-titres ». Il faut une clé Groq (conseillé) ou
-Gemini.
+recule de 2 minutes / monte le son / épisode suivant / enlève les sous-titres ». Pas besoin de parler plus fort que le film :
+pendant la lecture, l'audio est écouté en continu et « Nox » dit à voix normale suffit à mettre en pause. Nox dit aussi
+bonjour en arrivant et « bon visionnage » au lancement. Il faut une clé Groq (conseillé) ou Gemini.
 
 **X-Ray** 🔎 : comme sur Prime Video, mais en mieux. À la pause, les personnages de la scène en cours apparaissent
 (Nox lit les dialogues autour de ce moment pour savoir qui est là). Touche **X** : le panneau complet avec la scène,

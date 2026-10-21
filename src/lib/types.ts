@@ -163,6 +163,8 @@ export interface Settings {
   noxVisible?: boolean;
   /** Nox répond à voix haute : jamais, quand on lui parle au micro, ou toujours */
   noxVoice?: 'off' | 'mic' | 'always';
+  /** Nox dit bonjour en arrivant et « bon visionnage » au lancement */
+  noxGreet?: boolean;
   /** Mode Jarvis : Nox écoute en permanence (mot magique « Nox ») */
   jarvis?: boolean;
   /** Dans les menus : seulement après « Nox », ou toutes les phrases */

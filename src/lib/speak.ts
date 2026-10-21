@@ -51,8 +51,10 @@ function windowsSay(text: string, me: number): Promise<void> {
     u.lang = voice?.lang || 'fr-FR';
     u.rate = 1.05;
     u.pitch = 1.1;
-    u.onend = () => resolve();
-    u.onerror = () => resolve();
+    // Filet de sécurité : si Windows ne signale jamais la fin, Nox ne reste pas « en train de parler »
+    const guard = setTimeout(() => { speechSynthesis.cancel(); resolve(); }, 4000 + text.length * 90);
+    u.onend = () => { clearTimeout(guard); resolve(); };
+    u.onerror = () => { clearTimeout(guard); resolve(); };
     if (me !== run) return resolve();
     try { speechSynthesis.speak(u); } catch { resolve(); }
   });

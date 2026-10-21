@@ -48,7 +48,7 @@ export function JarvisHost() {
             {[0.6, 1, 0.75].map((k, i) => <i key={i} style={{ transform: `scaleY(${Math.max(0.25, Math.min(1, level * k * 2.2))})` }} />)}
           </span>
         ) : on ? <Mic size={13} /> : <MicOff size={13} />}
-        <span>{status === 'error' ? error : !on ? 'Jarvis coupé' : status === 'thinking' ? 'Nox s\'en occupe…' : 'Dis « Nox… »'}</span>
+        <span>{status === 'error' ? error : !on ? 'Micro coupé' : status === 'thinking' ? 'Nox s\'en occupe…' : status === 'speech' ? 'Nox t\'entend…' : 'Nox t\'écoute · dis « Nox »'}</span>
       </button>
       <AnimatePresence>
         {shown && (
@@ -63,7 +63,7 @@ export function JarvisHost() {
 }
 
 /** Bulle de Nox par-dessus le film (fenêtre du lecteur) */
-export function JarvisBubble({ data }: { data?: { state: 'listening' | 'thinking' | 'answer' | 'done' | 'action'; heard?: string; text?: string; resumeIn?: number; at: number } | null }) {
+export function JarvisBubble({ data, listening }: { listening?: boolean; data?: { state: 'listening' | 'thinking' | 'answer' | 'done' | 'action'; heard?: string; text?: string; resumeIn?: number; at: number } | null }) {
   const [count, setCount] = useState<number | null>(null);
   useEffect(() => {
     if (data?.state !== 'done' || !data.resumeIn) { setCount(null); return; }
@@ -77,6 +77,13 @@ export function JarvisBubble({ data }: { data?: { state: 'listening' | 'thinking
   const show = data ? (data.state === 'done' ? last : data) : null;
 
   return (
+    <>
+    {listening && !data && (
+      <div className="jarvis-badge" title="Mode Jarvis : dis « Nox » à voix normale, le film se met en pause">
+        <NoxOwl size={28} />
+        <span>Nox t'écoute</span>
+      </div>
+    )}
     <AnimatePresence>
       {data && show && (
         <motion.div
@@ -103,5 +110,6 @@ export function JarvisBubble({ data }: { data?: { state: 'listening' | 'thinking
         </motion.div>
       )}
     </AnimatePresence>
+    </>
   );
 }
