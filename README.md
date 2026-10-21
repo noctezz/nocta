@@ -76,6 +76,12 @@ seul la fin de la phrase.
 Philips. *Immersif* (la vidéo est un peu réduite, la lumière l'entoure), *Bandes noires* (seulement dans les bandes
 des films en format cinéma) ou désactivé : bouton ☀ du lecteur, touche **L**, ou *Paramètres → Lecture*.
 
+**X-Ray** 🔎 : comme sur Prime Video, mais en mieux. À la pause, les personnages de la scène en cours apparaissent
+(Nox lit les dialogues autour de ce moment pour savoir qui est là). Touche **X** : le panneau complet avec la scène,
+toute la distribution, la fiche de chaque acteur (âge, biographie, autres rôles), un **rattrapage** de ce qui vient de
+se passer (5 dernières minutes ou depuis le début, sans spoiler) et des anecdotes. Clé TMDB facultative pour les
+photos et personnages exacts (*Paramètres → Avancé → X-Ray*).
+
 **Nox parle** 🔊 : Nox lit ses réponses à voix haute (quand on lui parle au micro, ou toujours) avec la voix
 française de Windows, ou une voix naturelle Gemini avec la clé gratuite.
 

@@ -147,6 +147,10 @@ export interface Settings {
   hideUhd?: boolean;
   /** Clé API TorBox (reste sur ce PC) : sert seulement au nettoyage des sources essayées */
   torboxKey?: string;
+  /** Clé TMDB (facultative) : photos et personnages précis pour l'X-Ray */
+  tmdbKey?: string;
+  /** X-Ray affiché tout seul quand on met pause */
+  xrayOnPause?: boolean;
   /** Retirer de TorBox les sources ouvertes pour vérification qui ne sont pas en VF */
   torboxCleanup?: boolean;
   /** Nombre de torrents retirés par ce nettoyage */

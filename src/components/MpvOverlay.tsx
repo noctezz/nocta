@@ -5,6 +5,7 @@ import {
   RotateCcw, RotateCw, SkipForward, Sun, Volume1, Volume2, VolumeX,
 } from 'lucide-react';
 import { Ambilight } from './Ambilight';
+import { XRay } from './XRay';
 import { formatTime } from '../lib/playback';
 import { langName } from '../lib/subs';
 import type { MetaPreview } from '../lib/types';
@@ -47,6 +48,9 @@ interface Info {
   progress?: number;
   autoplayNext?: boolean;
   autoSkipIntro?: boolean;
+  /** X-Ray : réponse de la fenêtre principale, et affichage à la pause */
+  xray?: { nonce: number; op: 'scene' | 'person' | 'recap' | 'trivia'; data: any; error?: string };
+  xrayOnPause?: boolean;
   /** Générique mémorisé pour la série */
   intro?: { start: number; end: number } | null;
 }
@@ -602,6 +606,10 @@ export function MpvOverlay() {
 
               {info.next && <button className="player-btn" onClick={goNext} title="Épisode suivant (N)"><SkipForward size={30} /></button>}
 
+              <button className="player-btn xr-btn" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x' }))} title="X-Ray : qui est à l'écran (X)">
+                X-Ray
+              </button>
+
               <button className={`player-btn ${ambi !== 'off' ? 'is-lit' : ''}`} onClick={cycleAmbi} title={`${AMBI_LABEL[ambi]} (L pour changer)`}>
                 <Sun size={28} />
               </button>
@@ -687,6 +695,20 @@ export function MpvOverlay() {
             </div>
           </div>
         </>
+      )}
+      {init && (
+        <XRay
+          time={time}
+          paused={paused}
+          controls={controls}
+          reply={info.xray}
+          onPause={() => cmd('set_property', 'pause', true)}
+          onPlay={() => cmd('set_property', 'pause', false)}
+          title={init.title}
+          subtitle={init.subtitle}
+          autoOnPause={info.xrayOnPause !== false}
+          started={started && !error}
+        />
       )}
     </div>
   );

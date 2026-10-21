@@ -362,7 +362,7 @@ async function create(req) {
         const { data, model } = await geminiCall(k.key, {
           systemInstruction: { parts: [{ text: system }] },
           contents: forGemini(contents),
-          tools: [{ functionDeclarations: tools }],
+          ...(tools && tools.length ? { tools: [{ functionDeclarations: tools }] } : {}),
         }, { temperature: 0.7, maxOutputTokens: 8192 }, 'chat', deadline);
         const cand = (data.candidates || [])[0];
         if (!cand || !cand.content) {

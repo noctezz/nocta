@@ -64,7 +64,7 @@ interface NoctaBridge {
     fullscreen: () => Promise<boolean>;
     minimize: () => Promise<void>;
     remoteState: (st: { skip: 'intro' | 'recap' | null }) => Promise<void>;
-    action: (name: 'failed' | 'retry' | 'pickOther', data?: unknown) => Promise<void>;
+    action: (name: 'failed' | 'retry' | 'pickOther' | 'xray', data?: unknown) => Promise<void>;
     ambilight: (mode: 'off' | 'bars' | 'immersive') => Promise<void>;
     subsync: (job: { src: string; url: string; duration: number }) =>
       Promise<{ status: 'ok' | 'synced' | 'unsure'; file?: string; offset?: number; scale?: number }>;

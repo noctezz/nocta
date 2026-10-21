@@ -3,6 +3,7 @@ import { getMeta, getSubtitles } from '../lib/addons';
 import { useStore } from '../lib/store';
 import { useLatest } from '../lib/useLatest';
 import { detectIntro, findAlternative } from '../lib/autoplay';
+import { getCast, getPerson, getRecap, getScene, getTrivia, type XContext } from '../lib/xray';
 import { langPrefsFor } from '../lib/langPrefs';
 import { episodeTitleOf, errMsg, nextEpisode, prepareNextEpisode, recordProgress, resolveNextEpisode, slimMeta, streamToDesc } from '../lib/playback';
 import type { Meta, PlayRequest } from '../lib/types';
@@ -48,6 +49,7 @@ export function MpvBridge() {
       p.info({
         autoplayNext: settings.autoplayNext,
         autoSkipIntro: settings.autoSkipIntro,
+        xrayOnPause: settings.xrayOnPause !== false,
         langMode: langPrefsFor(r.meta?.id).vo ? 'vo' : 'vf',
         // Sous-titres FR dès que l'audio n'est pas en français (toujours actif)
         autoFrenchSubs: true,
@@ -139,6 +141,28 @@ export function MpvBridge() {
         if (r.type === 'series' && r.meta) {
           st().setIntroMark(r.meta.id, mark);
           if (r.videoId) st().setIntroMark(r.videoId, mark);
+        }
+      }),
+      // X-Ray : demandes du lecteur (distribution, scène, fiche acteur, rattrapage, anecdotes)
+      p.on('player:xray', async (q: { op: 'scene' | 'person' | 'recap' | 'trivia'; nonce: number; time?: number; person?: any; range?: 'recent' | 'all' }) => {
+        const r = reqRef.current;
+        const reply = (data: unknown, error?: string) => { if (alive()) p.info({ xray: { nonce: q.nonce, op: q.op, data, error } }); };
+        try {
+          if (!r.meta || !r.videoId || !r.type) return reply(null, 'Pas d\'informations sur cette vidéo');
+          const meta = metaRef.current?.id === r.meta.id ? metaRef.current : await getMeta(st().addons, r.type, r.meta.id).catch(() => null);
+          if (!meta) return reply(null, 'Fiche introuvable');
+          metaRef.current = meta;
+          const ctx: XContext = { meta, type: r.type, videoId: r.videoId, season: r.season, episode: r.episode, subtitle: r.subtitle };
+          if (q.op === 'scene') {
+            const cast = await getCast(ctx);
+            reply({ cast });
+            const scene = await getScene(ctx, q.time || 0, cast);
+            reply({ cast, scene });
+          } else if (q.op === 'person') reply(await getPerson(q.person));
+          else if (q.op === 'recap') reply(await getRecap(ctx, q.time || 0, q.range || 'recent'));
+          else if (q.op === 'trivia') reply(await getTrivia(ctx));
+        } catch (e) {
+          reply(null, errMsg(e));
         }
       }),
       p.on('player:state', (s: { time: number; duration: number }) => {

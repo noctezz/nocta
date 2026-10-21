@@ -7,6 +7,7 @@ import { testKey } from '../lib/torbox';
 import { NoxOwl } from '../components/Nox';
 import { NoxKeyList } from '../components/NoxKeys';
 import { noxKeys } from '../lib/noxKeys';
+import { testTmdb } from '../lib/xray';
 import { frenchVoices, GEMINI_VOICES, previewVoice } from '../lib/speak';
 
 const ENCODERS: Record<string, string> = {
@@ -93,6 +94,46 @@ function NoxSettings() {
         <NoxKeyList />
       </div>
       <NoxVoiceSettings />
+    </section>
+  );
+}
+
+/** X-Ray : affichage à la pause et clé TMDB facultative (photos et personnages précis) */
+function XRaySettings() {
+  const settings = useStore((s) => s.settings);
+  const update = useStore((s) => s.updateSettings);
+  const [key, setKey] = useState(settings.tmdbKey || '');
+  const [state, setState] = useState<{ busy?: boolean; ok?: boolean; text?: string }>({});
+  const save = async () => {
+    const k = key.trim();
+    if (!k) { update({ tmdbKey: undefined }); setState({}); return; }
+    setState({ busy: true });
+    const ok = await testTmdb(k).catch(() => false);
+    if (ok) update({ tmdbKey: k });
+    setState(ok ? { ok: true, text: 'Clé TMDB enregistrée : photos et personnages précis activés' } : { ok: false, text: 'Clé refusée par TMDB' });
+  };
+  return (
+    <section className="settings-card">
+      <h2><span className="xr-logo xr-logo-lg">X-RAY</span></h2>
+      <p className="muted">Pendant la lecture : qui est à l'écran, qui joue qui, ce qui vient de se passer. Bouton X-Ray du lecteur ou touche X.</p>
+      <Toggle
+        title="Afficher l'X-Ray à la pause"
+        hint="Quand tu mets pause, les personnages de la scène apparaissent en bas de l'image."
+        checked={settings.xrayOnPause !== false}
+        onChange={(v) => update({ xrayOnPause: v })}
+      />
+      <div className="setting setting-col">
+        <div>
+          <strong>Clé TMDB (facultative, gratuite)</strong>
+          <span>Sans clé, l'X-Ray utilise le casting de la fiche et les photos de Wikipédia. Avec une clé TMDB : photos de tout le casting, personnages exacts, invités de chaque épisode et filmographies. Crée un compte, puis Paramètres → API → « Clé d'API ».</span>
+        </div>
+        <div className="key-row">
+          <input className="input" type="password" placeholder="Clé d'API TMDB" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} />
+          <button className="btn-outline" onClick={() => window.nocta?.openExternal('https://www.themoviedb.org/settings/api')}>Créer ma clé ↗</button>
+          <button className="btn-outline" disabled={state.busy} onClick={save}>{state.busy ? 'Test…' : 'Enregistrer'}</button>
+        </div>
+        {state.text && <div className={`status ${state.ok ? 'ok' : 'err'}`}>{state.text}</div>}
+      </div>
     </section>
   );
 }
@@ -324,6 +365,7 @@ export function Settings() {
           </section>
 
           <NoxSettings />
+          <XRaySettings />
 
           <section className="settings-card">
             <h2>Générique</h2>
