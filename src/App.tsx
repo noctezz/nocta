@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+// La Galaxie (three.js, lourde) n'est chargée qu'à l'ouverture
+const Galaxy = lazy(() => import('./pages/Galaxy').then((m) => ({ default: m.Galaxy })));
 import { speak, stopSpeaking } from './lib/speak';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Intro } from './components/Intro';
@@ -173,6 +175,7 @@ export default function App() {
               {page === 'settings' && <Settings />}
               {page === 'browse' && <CatalogView />}
               {page === 'catalogs' && <Catalogs />}
+              {page === 'galaxy' && <Suspense fallback={null}><Galaxy /></Suspense>}
             </main>
             <HoverPreview />
             {!player && <Nox />}

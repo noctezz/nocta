@@ -301,6 +301,16 @@ app.whenReady().then(async () => {
       cb({ requestHeaders: headers });
     },
   );
+  // Galaxie (3D) : les affiches servent de textures WebGL, ce qui exige l'autorisation CORS de leur site
+  electronSession.defaultSession.webRequest.onHeadersReceived(
+    { urls: ['https://images.metahub.space/*', 'https://image.tmdb.org/*', 'https://m.media-amazon.com/*', 'https://*.metahub.space/*'] },
+    (details, cb) => {
+      const headers = {};
+      for (const [k, v] of Object.entries(details.responseHeaders || {})) if (k.toLowerCase() !== 'access-control-allow-origin') headers[k] = v;
+      headers['Access-Control-Allow-Origin'] = ['*'];
+      cb({ responseHeaders: headers });
+    },
+  );
   createWindow();
   updater.init((st) => { if (win && !win.isDestroyed()) win.webContents.send('update:status', st); });
   remote.init(app.getPath('userData'), {

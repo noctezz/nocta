@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { CINEMETA_FALLBACK, CINEMETA_URL, OPENSUBTITLES_URL } from './addons';
 import type { Avatar, InstalledAddon, Meta, MetaPreview, PlayRequest, Profile, ProgressEntry, Settings, IntroMark, LangMode } from './types';
 
-export type Page = 'home' | 'series' | 'movies' | 'mylist' | 'search' | 'addons' | 'settings' | 'browse' | 'catalogs';
+export type Page = 'home' | 'series' | 'movies' | 'mylist' | 'search' | 'addons' | 'settings' | 'browse' | 'catalogs' | 'galaxy';
 
 /** Une catégorie complète à parcourir (« Tout voir ») */
 export interface BrowseDef {
