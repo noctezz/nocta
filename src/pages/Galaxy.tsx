@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Compass, Loader2, Orbit, Plane, Search, Sparkles, Star } from 'lucide-react';
-import { loadGalaxy, myTitles, type Nebula } from '../lib/galaxy';
+import { loadGalaxy, MY_PLANET, myTitles, type Nebula } from '../lib/galaxy';
 import { GalaxyScene } from '../lib/galaxyScene';
 import { useProfile, useStore } from '../lib/store';
 import type { MetaPreview } from '../lib/types';
@@ -20,6 +20,8 @@ export function Galaxy() {
   const overlay = useRef<HTMLDivElement>(null);
   const scene = useRef<GalaxyScene | null>(null);
   const [nebulae, setNebulae] = useState<Nebula[] | null>(null);
+  /** Planètes telles qu'affichées (ta planète comprise), dans le même ordre que la scène */
+  const [system, setSystem] = useState<Nebula[]>([]);
   const [error, setError] = useState('');
   const [hover, setHover] = useState<{ meta: MetaPreview; neb?: Nebula } | null>(null);
   const [near, setNear] = useState<string | null>(null);
@@ -35,17 +37,14 @@ export function Galaxy() {
   // Création de la scène quand les données sont là
   useEffect(() => {
     if (!nebulae || !canvas.current || !overlay.current) return;
-    // Tes titres absents des nébuleuses rejoignent celle de leur genre (ou la première)
-    const placed = new Set(nebulae.flatMap((n) => n.stars.map((s) => s.id)));
-    const withMine = nebulae.map((n) => ({ ...n, stars: [...n.stars] }));
-    for (const m of mine) {
-      if (placed.has(m.id) || !m.poster) continue;
-      const g = (m as MetaPreview & { genres?: string[] }).genres || [];
-      const target = withMine.find((n) => g.includes(n.genre)) || withMine[0];
-      target.stars.unshift(m);
-      placed.add(m.id);
-    }
-    const s = new GalaxyScene(canvas.current, overlay.current, withMine, mine, {
+    // Ta planète dorée (tes titres) en premier ; ces titres quittent les planètes de genre
+    const mineIds = new Set(mine.map((m) => m.id));
+    const planets: Nebula[] = [
+      ...(mine.length ? [{ ...MY_PLANET, stars: mine.filter((m) => m.poster) }] : []),
+      ...nebulae.map((n) => ({ ...n, stars: n.stars.filter((x) => !mineIds.has(x.id)) })),
+    ];
+    setSystem(planets);
+    const s = new GalaxyScene(canvas.current, overlay.current, planets, mine, {
       onHover: (meta, neb) => setHover(meta ? { meta, neb } : null),
       onPick: (meta) => openDetail({ type: meta.type, id: meta.id, preview: meta }),
       onNear: (l) => setNear((prev) => (prev === l ? prev : l)),
@@ -58,7 +57,7 @@ export function Galaxy() {
   // Fiche ouverte ou film lancé : la galaxie se met en veille
   useEffect(() => { scene.current?.setPaused(blocked); }, [blocked]);
 
-  const all = useMemo(() => (nebulae || []).flatMap((n) => n.stars.map((s) => ({ s, n }))), [nebulae]);
+  const all = useMemo(() => system.flatMap((n) => n.stars.map((s) => ({ s, n }))), [system]);
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
@@ -82,14 +81,14 @@ export function Galaxy() {
       {nebulae && (
         <>
           <motion.div className="gx-hud gx-title" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 2 }}>
-            <h1><Sparkles size={20} /> Galaxie NOCTA</h1>
-            <p>{count} étoiles · {nebulae.length} nébuleuses{mine.length ? ` · ta constellation : ${mine.length} titres` : ''}</p>
-            <AnimatePresence>{near && <motion.span className="gx-near" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>Tu survoles la nébuleuse <b>{near}</b></motion.span>}</AnimatePresence>
+            <h1><Sparkles size={20} /> Système NOCTA</h1>
+            <p>{count} titres · {system.length} planètes{mine.length ? ` · ta planète : ${mine.length} titres` : ''}</p>
+            <AnimatePresence>{near && <motion.span className="gx-near" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>Planète <b>{near}</b></motion.span>}</AnimatePresence>
           </motion.div>
 
           <motion.div className="gx-hud gx-search" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 2.2 }}>
             <Search size={16} />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rejoindre une étoile…" onKeyDown={(e) => {
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rejoindre un titre…" onKeyDown={(e) => {
               if (e.key === 'Enter' && results[0]) { scene.current?.focusStar(results[0].s.id); setQuery(''); }
             }} />
             {results.length > 0 && (
@@ -106,12 +105,12 @@ export function Galaxy() {
 
           <motion.div className="gx-hud gx-actions" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 2.4 }}>
             <button onClick={() => { setAuto(false); scene.current?.overview(); }}><Orbit size={16} /> Vue d'ensemble</button>
-            {mine.length > 1 && <button className="gold" onClick={() => { setAuto(false); scene.current?.showConstellation(); }}><Star size={16} /> Ma constellation</button>}
+            {mine.length > 0 && <button className="gold" onClick={() => { setAuto(false); scene.current?.showConstellation(); }}><Star size={16} /> Ta planète</button>}
             <button className={auto ? 'is-on' : ''} onClick={() => { const v = !auto; setAuto(v); scene.current?.setAutopilot(v); }}><Plane size={16} /> {auto ? 'Pilote auto…' : 'Pilote auto'}</button>
           </motion.div>
 
           <div className="gx-hud gx-nebulae">
-            {nebulae.map((n, i) => (
+            {system.map((n, i) => (
               <button key={n.genre} style={{ ['--c' as any]: n.color }} onClick={() => { setAuto(false); scene.current?.flyToNebula(i); }}>
                 <i />{n.label}
               </button>
@@ -136,7 +135,7 @@ export function Galaxy() {
             <span>
               {[hover.meta.type === 'series' ? 'Série' : 'Film', hover.meta.releaseInfo, hover.meta.imdbRating ? `★ ${hover.meta.imdbRating}` : null].filter(Boolean).join(' · ')}
             </span>
-            {mine.some((m) => m.id === hover.meta.id) && <em>✦ Dans ta constellation</em>}
+            {mine.some((m) => m.id === hover.meta.id) && <em>✦ Sur ta planète</em>}
             <small>Clic pour ouvrir</small>
           </motion.div>
         )}

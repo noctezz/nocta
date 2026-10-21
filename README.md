@@ -76,10 +76,10 @@ seul la fin de la phrase.
 Philips. *Immersif* (la vidéo est un peu réduite, la lumière l'entoure), *Bandes noires* (seulement dans les bandes
 des films en format cinéma) ou désactivé : bouton ☀ du lecteur, touche **L**, ou *Paramètres → Lecture*.
 
-**Galaxie** ✦ : tout le catalogue en 3D. Chaque genre est une nébuleuse colorée posée sur les bras d'une galaxie
-spirale, chaque film ou série une affiche qui flotte dedans. Tes titres (en cours, Ma liste) brillent en or et sont
-reliés en constellation. On vole dedans à la souris, on rejoint une étoile par la recherche, on laisse le pilote
-automatique faire la visite, et un clic sur une affiche ouvre sa fiche.
+**Galaxie** ✦ : tout le catalogue en système planétaire 3D. Chaque genre est une planète (lave, glace, continents,
+géante gazeuse à anneaux…) autour d'un soleil, et ses films et séries tournent autour d'elle en anneaux d'affiches.
+Ta planète dorée porte tes titres. Orbites, lunes, ceinture d'astéroïdes, comètes ; on vole dedans à la souris, le
+pilote automatique fait la visite, un clic sur une affiche ouvre sa fiche.
 
 **X-Ray** 🔎 : comme sur Prime Video, mais en mieux. À la pause, les personnages de la scène en cours apparaissent
 (Nox lit les dialogues autour de ce moment pour savoir qui est là). Touche **X** : le panneau complet avec la scène,
