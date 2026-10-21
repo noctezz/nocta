@@ -81,6 +81,12 @@ géante gazeuse à anneaux…) autour d'un soleil, et ses films et séries tourn
 Ta planète dorée porte tes titres. Orbites, lunes, ceinture d'astéroïdes, comètes ; on vole dedans à la souris, le
 pilote automatique fait la visite, un clic sur une affiche ouvre sa fiche.
 
+**Machine à remonter le temps** ⏳ (onglet *Voyage*) : un tunnel 3D à travers l'histoire du cinéma, de 1920 à
+aujourd'hui. Chaque année est une porte lumineuse avec son millésime, les affiches de l'année tapissent les parois, et
+l'image prend l'allure de chaque époque : muet noir et blanc granuleux qui scintille (avec le cliquetis du
+projecteur), Technicolor, sépia des années 70, grille néon et soleil rétro des années 80, VHS des années 90… Molette
+pour voyager, frise des décennies pour sauter, voyage automatique, clic sur une affiche pour l'ouvrir.
+
 **X-Ray** 🔎 : comme sur Prime Video, mais en mieux. À la pause, les personnages de la scène en cours apparaissent
 (Nox lit les dialogues autour de ce moment pour savoir qui est là). Touche **X** : le panneau complet avec la scène,
 toute la distribution, la fiche de chaque acteur (âge, biographie, autres rôles), un **rattrapage** de ce qui vient de
