@@ -262,13 +262,6 @@ export function getPerson(p: XPerson): Promise<XPersonDetails> {
   return job;
 }
 
-/** Dialogues des dernières minutes de la vidéo en cours (pour répondre à une question pendant le film) */
-export async function sceneDialogue(ctx: { type: string; videoId: string }, time: number): Promise<string | null> {
-  const lines = await loadLines(ctx as XContext);
-  if (!lines) return null;
-  return dialogue(lines, Math.max(0, time - 180), time + 2, 4000) || null;
-}
-
 /** Rattrapage : ce qui vient de se passer (5 dernières minutes) ou depuis le début */
 export async function getRecap(ctx: XContext, time: number, range: 'recent' | 'all'): Promise<string> {
   const lines = await loadLines(ctx);

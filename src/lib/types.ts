@@ -165,10 +165,6 @@ export interface Settings {
   noxVoice?: 'off' | 'mic' | 'always';
   /** Nox dit bonjour en arrivant et « bon visionnage » au lancement */
   noxGreet?: boolean;
-  /** Mode Jarvis : Nox écoute en permanence (mot magique « Nox ») */
-  jarvis?: boolean;
-  /** Dans les menus : seulement après « Nox », ou toutes les phrases */
-  jarvisWake?: 'nox' | 'all';
   /** Voix de Nox : celle de Windows (hors ligne) ou une voix naturelle Gemini */
   noxVoiceEngine?: 'windows' | 'gemini';
   /** Nom de la voix choisie (Windows ou Gemini) */

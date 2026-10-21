@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { Ambilight } from './Ambilight';
 import { XRay } from './XRay';
-import { JarvisBubble } from './Jarvis';
 import { formatTime } from '../lib/playback';
 import { langName } from '../lib/subs';
 import type { MetaPreview } from '../lib/types';
@@ -52,10 +51,6 @@ interface Info {
   /** X-Ray : réponse de la fenêtre principale, et affichage à la pause */
   xray?: { nonce: number; op: 'scene' | 'person' | 'recap' | 'trivia'; data: any; error?: string };
   xrayOnPause?: boolean;
-  /** Mode Jarvis : bulle de Nox par-dessus le film */
-  /** Mode Jarvis actif : petit Nox « à l'écoute » */
-  jarvisOn?: boolean;
-  jarvis?: { state: 'listening' | 'thinking' | 'answer' | 'done' | 'action'; heard?: string; text?: string; resumeIn?: number; at: number } | null;
   /** Générique mémorisé pour la série */
   intro?: { start: number; end: number } | null;
 }
@@ -700,9 +695,6 @@ export function MpvOverlay() {
             </div>
           </div>
         </>
-      )}
-      {init && (
-        <JarvisBubble data={info.jarvis} listening={!!info.jarvisOn} />
       )}
       {init && (
         <XRay

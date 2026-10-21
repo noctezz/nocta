@@ -139,7 +139,7 @@ ipcMain.handle('player:next', () => session && session.sendMain('player:next'));
 ipcMain.handle('player:intro', (_e, mark) => session && session.sendMain('player:intro', mark));
 // Source illisible / bloquée, « Réessayer » ou « Choisir une autre source » : géré par la fenêtre principale
 ipcMain.handle('player:action', (_e, name, data) => {
-  if (session && ['failed', 'retry', 'pickOther', 'xray', 'jarvis'].includes(name)) session.sendMain(`player:${name}`, data);
+  if (session && ['failed', 'retry', 'pickOther', 'xray'].includes(name)) session.sendMain(`player:${name}`, data);
 });
 // Ambilight changé depuis le lecteur : appliqué tout de suite et mémorisé dans les réglages
 ipcMain.handle('player:ambilight', (_e, mode) => {

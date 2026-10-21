@@ -153,31 +153,10 @@ function NoxVoiceSettings() {
   const mode = settings.noxVoice || 'mic';
   const engine = settings.noxVoiceEngine || 'windows';
   const hasGemini = noxKeys(settings).some((k) => k.provider === 'gemini');
-  const hasVoiceKey = noxKeys(settings).some((k) => k.provider === 'gemini' || k.provider === 'groq');
   const names = engine === 'gemini' ? GEMINI_VOICES.map(([n, d]) => ({ id: n, label: `${n} · ${d}` })) : winVoices.map((v) => ({ id: v.name, label: v.name.replace(/^Microsoft /, '').replace(/ - .*$/, '') }));
   const current = names.find((n) => n.id === settings.noxVoiceName)?.id || names[0]?.id || '';
   return (
     <>
-      <Toggle
-        title="Mode Jarvis : Nox toujours à l'écoute"
-        hint={hasVoiceKey
-          ? 'Plus besoin de cliquer : dis « Nox, lance-moi Spider-Man » n\'importe où dans l\'app. Pendant un film, « Nox, c\'est qui lui ? » met en pause, Nox répond, puis le film reprend. Aussi : « Nox, avance de 30 secondes », « Nox, monte le son », « Nox, épisode suivant »…'
-          : 'Il faut une clé Groq (conseillé, rapide) ou Gemini pour que Nox t\'entende.'}
-        checked={settings.jarvis !== false && hasVoiceKey}
-        onChange={(v) => update({ jarvis: v })}
-      />
-      {settings.jarvis !== false && hasVoiceKey && (
-        <div className="setting">
-          <div>
-            <strong>Dans les menus, Nox réagit…</strong>
-            <span>Pendant un film, il faut toujours dire « Nox » (sinon le son du film le déclencherait).</span>
-          </div>
-          <div className="seg">
-            <button className={(settings.jarvisWake || 'nox') === 'nox' ? 'is-on' : ''} onClick={() => update({ jarvisWake: 'nox' })}>Après « Nox »</button>
-            <button className={settings.jarvisWake === 'all' ? 'is-on' : ''} onClick={() => update({ jarvisWake: 'all' })}>À toutes mes phrases</button>
-          </div>
-        </div>
-      )}
       <div className="setting">
         <div>
           <strong>Nox parle</strong>

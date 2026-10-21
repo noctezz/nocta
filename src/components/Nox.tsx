@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUp, Mic, RotateCcw, Square, Volume2, VolumeX, X } from 'lucide-react';
 import { speak, stopSpeaking, useSpeaking } from '../lib/speak';
-import { setManualMic, useJarvis } from '../lib/jarvis';
 import { useNox } from '../lib/nox';
 import { useStore } from '../lib/store';
 import { listen, type Listening } from '../lib/voice';
@@ -95,8 +94,6 @@ function suggestions(): string[] {
 export function Nox() {
   const { open, busy, since, via, items, setOpen, ask, reset, stop } = useNox();
   const speaking = useSpeaking((s) => s.speaking);
-  const jarvisOn = useJarvis((s) => s.status !== 'off' && s.status !== 'error');
-  const jarvisLevel = useJarvis((s) => s.level);
   // Temps de réflexion affiché (rassure quand Gemini prend son temps)
   const [, tick] = useState(0);
   useEffect(() => {
@@ -192,12 +189,10 @@ export function Nox() {
       return;
     }
     rec.current = r;
-    setManualMic(true);
     stopSpeaking();
     setVoice('listening');
     const audio = await r.done;
     rec.current = null;
-    setManualMic(false);
     if (!audio) { setVoice('idle'); return; }
     setVoice('transcribing');
     const res = await window.nocta!.assistant.transcribe({ keys, ...audio });
@@ -221,8 +216,7 @@ export function Nox() {
 
       <button
         ref={btnRef}
-        className={`nox-button ${open ? 'is-open' : ''} ${jarvisOn ? 'is-listening' : ''}`}
-        style={jarvisOn ? { ['--lvl' as any]: jarvisLevel.toFixed(2) } : undefined}
+        className={`nox-button ${open ? 'is-open' : ''}`}
         onClick={() => { setOpen(!open); setHello(false); try { localStorage.setItem('nox-hello', '1'); } catch {} }}
         aria-label="Nox, ton assistant"
         title="Nox, ton assistant"
@@ -245,7 +239,7 @@ export function Nox() {
               <NoxOwl size={42} thinking={busy} speaking={speaking} />
               <div>
                 <strong>Nox</strong>
-                <small>{busy ? `réfléchit…${waited >= 3 ? ` ${waited} s` : ''}` : `${jarvisOn ? '🎙 à l\'écoute' : 'ton assistant ciné'}${via ? ` · via ${via}` : ''}`}</small>
+                <small>{busy ? `réfléchit…${waited >= 3 ? ` ${waited} s` : ''}` : `ton assistant ciné${via ? ` · via ${via}` : ''}`}</small>
               </div>
               <button
                 className={`nox-icon ${speaking ? 'is-lit' : ''}`}
@@ -348,10 +342,7 @@ function greeting(st: ReturnType<typeof useStore.getState>) {
   const recent = last && Date.now() - last.updatedAt < 14 * 86400000;
   const ideas = ['Qu\'est-ce qu\'on regarde aujourd\'hui ?', 'Prêt pour une bonne séance ?', 'Envie d\'un film ou d\'une série ?'];
   const next = recent ? `On reprend ${last.meta.name} ?` : ideas[Math.floor(Math.random() * ideas.length)];
-  let first = false;
-  try { first = localStorage.getItem('nox-hello') !== '1'; localStorage.setItem('nox-hello', '1'); } catch {}
-  const jarvis = st.settings.jarvis !== false && noxKeys(st.settings).some((k) => k.provider === 'groq' || k.provider === 'gemini');
-  return `${hi} ${next}${first && jarvis ? ' Dis « Nox » quand tu veux, je t\'écoute.' : ''}`;
+  return `${hi} ${next}`;
 }
 
 /** Première ouverture : une clé d'IA gratuite */

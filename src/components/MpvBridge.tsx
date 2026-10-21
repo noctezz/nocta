@@ -4,7 +4,6 @@ import { useStore } from '../lib/store';
 import { useLatest } from '../lib/useLatest';
 import { detectIntro, findAlternative } from '../lib/autoplay';
 import { getCast, getPerson, getRecap, getScene, getTrivia, type XContext } from '../lib/xray';
-import { playerClock } from '../lib/playerClock';
 import { langPrefsFor } from '../lib/langPrefs';
 import { episodeTitleOf, errMsg, nextEpisode, prepareNextEpisode, recordProgress, resolveNextEpisode, slimMeta, streamToDesc } from '../lib/playback';
 import type { Meta, PlayRequest } from '../lib/types';
@@ -168,7 +167,6 @@ export function MpvBridge() {
       }),
       p.on('player:state', (s: { time: number; duration: number }) => {
         stateRef.current = s;
-        Object.assign(playerClock, { time: s.time, duration: s.duration, at: Date.now() });
         if (Date.now() - lastSave > 5000) {
           lastSave = Date.now();
           recordProgress(reqRef.current, s.time, s.duration, nextOf());

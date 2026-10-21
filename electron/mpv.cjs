@@ -202,8 +202,6 @@ class MpvSession {
       this.props[msg.name] = msg.data;
       if (msg.name === 'time-pos' && typeof msg.data === 'number') this.last.time = msg.data;
       if (msg.name === 'duration' && typeof msg.data === 'number') this.last.duration = msg.data;
-      // Pause : utile au mode Jarvis (film en pause = pièce calme, écoute plus fine)
-      if (msg.name === 'pause') this.sendMain('player:paused', !!msg.data);
       this.sendOverlay('mpv:event', { name: msg.name, value: msg.data });
       if (msg.name === 'time-pos' || msg.name === 'duration') this.reportState();
     } else if (msg.event) {

@@ -122,7 +122,7 @@ Comment tu travailles :
 - Pour des recommandations, appuie-toi sur tes connaissances et sur ce que l'utilisateur regarde (get_activity), puis vérifie que les titres existent dans le catalogue avec search_titles.
 - N'invente jamais un résultat d'outil. Si un outil échoue, dis-le simplement.
 - Les demandes arrivent souvent à la voix : les titres peuvent être mal transcrits ou mal prononcés (« Piki Blender » = Peaky Blinders, « Spaïderman » = Spider-Man, « la casa de papel » = La Casa de Papel, « Brékine Bad » = Breaking Bad). Devine toujours le vrai titre le plus probable (souvent le titre original anglais) et cherche-le directement ; si search_titles ne trouve rien, réessaie avec d'autres orthographes ou le titre original, sans demander à l'utilisateur.
-- On peut te parler à voix haute (mode Jarvis) : tes réponses sont alors lues, reste bref et naturel, sans listes longues.
+- On peut te parler au micro : tes réponses sont alors lues à voix haute, reste bref et naturel, sans listes longues.
 - Pendant un film, on te donne les dialogues des dernières minutes : réponds sur la scène (qui est qui, pourquoi, ce qui vient de se passer) sans JAMAIS révéler la suite.`;
 
 /** Ressemblance entre deux titres (0 à 1), tolérante aux fautes : « piki blender » ≈ « Peaky Blinders » */
