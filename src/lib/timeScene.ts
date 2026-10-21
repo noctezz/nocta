@@ -228,6 +228,7 @@ export class TimeScene {
   private ray = new THREE.Raycaster();
   private mouse = new THREE.Vector2(-9, -9);
   private hovered: THREE.Mesh | null = null;
+  private lastHover: { mesh: THREE.Mesh; at: number } | null = null;
   private down: { x: number; y: number; moved: number; mesh: THREE.Mesh | null } | null = null;
   private z = zOf(LAST_YEAR) + 900;
   private vel = 0;
@@ -459,7 +460,9 @@ export class TimeScene {
   private onDown = (e: PointerEvent) => {
     this.ray.setFromCamera(this.mouse, this.camera);
     const hit = this.ray.intersectObjects(this.posterMeshes, false)[0];
-    this.down = { x: e.clientX, y: e.clientY, moved: 0, mesh: (hit?.object as THREE.Mesh) || this.hovered };
+    // Les affiches bougent un peu : on accepte aussi celle survolée il y a un instant
+    const recent = this.lastHover && performance.now() - this.lastHover.at < 700 ? this.lastHover.mesh : null;
+    this.down = { x: e.clientX, y: e.clientY, moved: 0, mesh: (hit?.object as THREE.Mesh) || this.hovered || recent };
   };
   private onUp = () => {
     const d = this.down;
@@ -588,6 +591,7 @@ export class TimeScene {
     this.ray.setFromCamera(this.mouse, this.camera);
     const hit = speed < 600 ? this.ray.intersectObjects(this.posterMeshes, false)[0] : undefined;
     const h = (hit?.object as THREE.Mesh) || null;
+    if (h) this.lastHover = { mesh: h, at: performance.now() };
     if (h !== this.hovered) {
       this.hovered = h;
       this.canvas.style.cursor = h ? 'pointer' : 'default';

@@ -68,6 +68,7 @@ export function TimeMachine() {
           <motion.div key={era.title} className="tm-era" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
             <strong>{era.title}</strong>
             <p>{era.text}</p>
+            <em>★ Les films et séries les mieux notés de {year}</em>
           </motion.div>
         </AnimatePresence>
       </div>

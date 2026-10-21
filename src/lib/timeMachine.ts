@@ -32,7 +32,23 @@ export const eraOf = (year: number) => [...ERAS].reverse().find((e) => year >= e
 
 const cache = new Map<number, Promise<MetaPreview[]>>();
 
-/** Films (et quelques séries) les plus populaires d'une année */
+const rating = (m: MetaPreview) => parseFloat(String(m.imdbRating || '')) || 0;
+
+/**
+ * Les mieux notés : note IMDb d'au moins 7 (6,5 si l'année en a trop peu), du meilleur au
+ * moins bon. Les titres sans note passent en dernier, seulement s'il manque de quoi remplir.
+ */
+function best(list: MetaPreview[], n: number): MetaPreview[] {
+  const seen = new Set<string>();
+  const uniq = list.filter((x) => x.poster && !seen.has(x.id) && seen.add(x.id));
+  const sorted = [...uniq].sort((a, b) => rating(b) - rating(a));
+  let pick = sorted.filter((x) => rating(x) >= 7);
+  if (pick.length < n) pick = sorted.filter((x) => rating(x) >= 6.5);
+  if (pick.length < Math.min(6, n)) pick = sorted;
+  return pick.slice(0, n);
+}
+
+/** Les films (et quelques séries) les mieux notés d'une année */
 export function loadYear(addons: InstalledAddon[], year: number): Promise<MetaPreview[]> {
   if (cache.has(year)) return cache.get(year)!;
   const job = (async () => {
@@ -46,12 +62,15 @@ export function loadYear(addons: InstalledAddon[], year: number): Promise<MetaPr
       return main[0] ? { addon: main[0], c: { id: 'year' } } : null;
     };
     const m = find('movie'), s = year >= 1950 ? find('series') : null;
-    const [movies, series] = await Promise.all([
-      m ? getCatalogPage(m.addon, 'movie', m.c.id, { genre: String(year) }).catch(() => []) : [],
-      s ? getCatalogPage(s.addon, 'series', s.c.id, { genre: String(year) }).catch(() => []) : [],
-    ]);
-    const seen = new Set<string>();
-    return [...movies.slice(0, 14), ...series.slice(0, 4)].filter((x) => x.poster && !seen.has(x.id) && seen.add(x.id));
+    // Les plus populaires de l'année (deux pages), puis on ne garde que les mieux notés
+    const fetchAll = async (f: typeof m, type: string) => {
+      if (!f) return [] as MetaPreview[];
+      const first = await getCatalogPage(f.addon, type, f.c.id, { genre: String(year) }).catch(() => [] as MetaPreview[]);
+      const more = first.length >= 40 ? await getCatalogPage(f.addon, type, f.c.id, { genre: String(year) }, first.length).catch(() => [] as MetaPreview[]) : [];
+      return [...first, ...more];
+    };
+    const [movies, series] = await Promise.all([fetchAll(m, 'movie'), fetchAll(s, 'series')]);
+    return [...best(movies, 14), ...best(series, 4)];
   })();
   cache.set(year, job);
   job.catch(() => cache.delete(year));

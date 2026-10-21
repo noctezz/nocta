@@ -301,7 +301,7 @@ app.whenReady().then(async () => {
       cb({ requestHeaders: headers });
     },
   );
-  // Galaxie (3D) : les affiches servent de textures WebGL, ce qui exige l'autorisation CORS de leur site
+  // Machine à remonter le temps (3D) : les affiches servent de textures WebGL, ce qui exige l'autorisation CORS de leur site
   electronSession.defaultSession.webRequest.onHeadersReceived(
     { urls: ['https://images.metahub.space/*', 'https://image.tmdb.org/*', 'https://m.media-amazon.com/*', 'https://*.metahub.space/*'] },
     (details, cb) => {

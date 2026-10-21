@@ -76,13 +76,9 @@ seul la fin de la phrase.
 Philips. *Immersif* (la vidéo est un peu réduite, la lumière l'entoure), *Bandes noires* (seulement dans les bandes
 des films en format cinéma) ou désactivé : bouton ☀ du lecteur, touche **L**, ou *Paramètres → Lecture*.
 
-**Galaxie** ✦ : tout le catalogue en système planétaire 3D. Chaque genre est une planète (lave, glace, continents,
-géante gazeuse à anneaux…) autour d'un soleil, et ses films et séries tournent autour d'elle en anneaux d'affiches.
-Ta planète dorée porte tes titres. Orbites, lunes, ceinture d'astéroïdes, comètes ; on vole dedans à la souris, le
-pilote automatique fait la visite, un clic sur une affiche ouvre sa fiche.
-
 **Machine à remonter le temps** ⏳ (onglet *Voyage*) : un tunnel 3D à travers l'histoire du cinéma, de 1920 à
-aujourd'hui. Chaque année est une porte lumineuse avec son millésime, les affiches de l'année tapissent les parois, et
+aujourd'hui. Chaque année est une porte lumineuse avec son millésime, les films et séries les mieux notés de l'année
+tapissent les parois, et
 l'image prend l'allure de chaque époque : muet noir et blanc granuleux qui scintille (avec le cliquetis du
 projecteur), Technicolor, sépia des années 70, grille néon et soleil rétro des années 80, VHS des années 90… Molette
 pour voyager, frise des décennies pour sauter, voyage automatique, clic sur une affiche pour l'ouvrir.
