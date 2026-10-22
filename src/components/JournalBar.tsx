@@ -1,6 +1,6 @@
-import { NotebookPen, PenLine } from 'lucide-react';
+import { NotebookPen, PenLine, Trash2 } from 'lucide-react';
 import { useProfile } from '../lib/store';
-import { episodeKey, journalOf, markFilm, markPart, openLog, seasonKey } from '../lib/journal';
+import { episodeKey, inJournal, journalOf, markFilm, markPart, openLog, removeTitle, seasonKey } from '../lib/journal';
 import type { MetaPreview } from '../lib/types';
 import { LikeButton, ratingLabel, StarInput } from './Stars';
 
@@ -27,6 +27,9 @@ export function JournalBar({ meta }: { meta: MetaPreview }) {
           </span>
         )}
         {last?.review && <button className="jbar-btn" onClick={() => openLog(meta, { entry: last })}><PenLine size={16} /> Ta critique</button>}
+        {inJournal(j, meta.id) && (
+          <button className="jbar-icon" onClick={() => removeTitle(meta)} title="Retirer de mon journal"><Trash2 size={16} /></button>
+        )}
         <button className="jbar-btn is-main" onClick={() => openLog(meta)}><NotebookPen size={16} /> {last ? 'Revu' : 'Ajouter au journal'}</button>
       </div>
     </div>

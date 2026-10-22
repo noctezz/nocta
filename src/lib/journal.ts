@@ -23,6 +23,53 @@ function change(fn: (j: Journal) => Journal) {
   }));
 }
 
+/** Un titre noté de nouveau revient normalement dans le journal */
+const back = (j: Journal, id: string): Journal => (j.removed?.includes(id) ? { ...j, removed: j.removed.filter((x) => x !== id) } : j);
+
+const activeJournal = () => {
+  const s = useStore.getState();
+  return journalOf(s.profiles.find((p) => p.id === s.activeProfileId));
+};
+
+/** Dernier titre retiré, pour pouvoir annuler */
+export const useJournalUndo = create<{ name: string | null; snapshot: Journal | null; profileId?: string | null }>(() => ({ name: null, snapshot: null }));
+let undoTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Retire un titre du journal : séances, note, coup de cœur, saisons, épisodes et favori */
+export function removeTitle(meta: MetaPreview) {
+  const snapshot = activeJournal();
+  const id = meta.id;
+  const inside = (k: string) => k === id || k.startsWith(`${id}:`);
+  const drop = <T,>(m?: Record<string, T>) => (m ? Object.fromEntries(Object.entries(m).filter(([k]) => !inside(k))) : m);
+  change((j) => ({
+    ...j,
+    entries: j.entries.filter((e) => e.meta.id !== id),
+    marks: drop(j.marks) || {},
+    seasons: drop(j.seasons),
+    episodes: drop(j.episodes),
+    favorites: (j.favorites || []).filter((x) => x !== id),
+    skipped: (j.skipped || []).filter((k) => !inside(k)),
+    removed: [...new Set([...(j.removed || []), id])],
+  }));
+  useJournalUndo.setState({ name: meta.name, snapshot, profileId: useStore.getState().activeProfileId });
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => useJournalUndo.setState({ name: null, snapshot: null }), 8000);
+}
+
+export function undoRemove() {
+  const { snapshot, profileId } = useJournalUndo.getState();
+  if (snapshot) useStore.setState((s) => ({ profiles: s.profiles.map((p) => (p.id === profileId ? { ...p, journal: snapshot } : p)) }));
+  clearTimeout(undoTimer);
+  useJournalUndo.setState({ name: null, snapshot: null });
+}
+
+/** Le titre a-t-il quoi que ce soit dans le journal ? */
+export function inJournal(j: Journal, id: string) {
+  const inside = (k: string) => k.startsWith(`${id}:`);
+  return !!j.marks[id] || j.entries.some((e) => e.meta.id === id)
+    || Object.keys(j.seasons || {}).some(inside) || Object.keys(j.episodes || {}).some(inside);
+}
+
 export const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -42,7 +89,7 @@ export function markFilm(meta: MetaPreview, patch: { rating?: number | null; lik
     const marks = { ...j.marks };
     if (!next.rating && !next.liked && !j.entries.some((e) => e.meta.id === meta.id)) delete marks[meta.id];
     else marks[meta.id] = next;
-    return { ...j, marks };
+    return back({ ...j, marks }, meta.id);
   });
 }
 
@@ -71,7 +118,7 @@ export function markPart(meta: MetaPreview, season: number, episode: number | nu
     if (!next.rating && !next.liked) delete map[key]; else map[key] = next;
     // La série apparaît dans le journal dès qu'une saison ou un épisode est noté
     const marks = j.marks[meta.id] ? j.marks : { ...j.marks, [meta.id]: { meta: slim(meta), at: Date.now() } };
-    return { ...j, [field]: map, marks };
+    return back({ ...j, [field]: map, marks }, meta.id);
   });
 }
 
@@ -84,7 +131,7 @@ export function saveEntry(e: Omit<JournalEntry, 'id' | 'at'> & { id?: string }) 
     const key = keyOf(entry);
     const latest = entries.filter((x) => keyOf(x) === key).sort((a, b) => b.date.localeCompare(a.date) || b.at - a.at)[0];
     const level = levelOf(entry);
-    const out = { ...j, entries, skipped: (j.skipped || []).filter((id) => id !== key) };
+    const out = { ...back(j, entry.meta.id), entries, skipped: (j.skipped || []).filter((id) => id !== key) };
     if (level === 'title') {
       out.marks = { ...j.marks, [entry.meta.id]: { meta: entry.meta, rating: latest.rating, liked: latest.liked ?? j.marks[entry.meta.id]?.liked, at: Date.now() } };
     } else {

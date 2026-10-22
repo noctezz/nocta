@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Eye, EyeOff, Heart, MessageSquareText, NotebookPen, Pencil, Plus, Repeat, Search as SearchIcon, X } from 'lucide-react';
+import { Eye, EyeOff, Heart, MessageSquareText, NotebookPen, Pencil, Plus, Repeat, Search as SearchIcon, Trash2, X } from 'lucide-react';
 import { create } from 'zustand';
 import { Avatar } from '../components/Avatar';
 import { LikeButton, StarInput, Stars } from '../components/Stars';
@@ -8,7 +8,7 @@ import { getMeta } from '../lib/addons';
 import { useProfile, useStore } from '../lib/store';
 import { backdropOf, posterOf, year } from '../lib/ui';
 import {
-  dayOf, journalOf, markFilm, markPart, openLog, partLabel, saveEntry, seasonKey, setFavorites, skipToRate, statsOf,
+  dayOf, journalOf, markFilm, markPart, openLog, partLabel, removeTitle, saveEntry, seasonKey, setFavorites, skipToRate, statsOf,
 } from '../lib/journal';
 import { sortedEpisodes } from '../lib/playback';
 import type { Journal as JournalT, JournalEntry, Meta, MetaPreview, Profile } from '../lib/types';
@@ -306,6 +306,7 @@ function Films({ j }: { j: JournalT }) {
             <button className="jr-film-poster" onClick={() => openTitle(m.meta)} title={m.meta.name}>
               <img src={posterOf(m.meta)} alt={m.meta.name} loading="lazy" />
             </button>
+            <button className="jr-film-remove" onClick={() => removeTitle(m.meta)} title="Retirer du journal"><Trash2 size={14} /></button>
             <div className="jr-film-marks">
               <Stars value={m.rating} size={12} />
               {m.liked && <Heart size={12} className="jr-heart" fill="currentColor" />}
@@ -383,9 +384,13 @@ function useSeriesIds(j: JournalT, p: Profile | null) {
     for (const k of [...Object.keys(j.seasons || {}), ...Object.keys(j.episodes || {})]) ids.add(k.split(':')[0]);
     for (const e of j.entries) if (e.meta.type === 'series') ids.add(e.meta.id);
     for (const id of Object.keys(watchedBySeries(p))) ids.add(id);
+    for (const id of j.removed || []) if (!inJournalLite(j, id)) ids.delete(id);
     return [...ids];
   }, [j, p?.watched]);
 }
+
+/** Le titre a-t-il encore quelque chose dans le journal (noté de nouveau après avoir été retiré) ? */
+const inJournalLite = (j: JournalT, id: string) => !!j.marks[id] || j.entries.some((e) => e.meta.id === id);
 
 const seriesCache = new Map<string, Meta | null>();
 
@@ -483,7 +488,10 @@ function SeriesRow({ j, meta, full, w, i }: { j: JournalT; meta: MetaPreview; fu
           })}
         </div>
       </div>
-      <button className="jr-row-edit" onClick={() => openLog(meta)} title="Ajouter au journal"><NotebookPen size={15} /></button>
+      <div className="jr-srow-tools">
+        <button className="jr-row-edit" onClick={() => openLog(meta)} title="Ajouter au journal"><NotebookPen size={15} /></button>
+        <button className="jr-row-edit" onClick={() => removeTitle(meta)} title="Retirer du journal"><Trash2 size={15} /></button>
+      </div>
     </motion.div>
   );
 }
@@ -501,7 +509,7 @@ function useToRate(j: JournalT): Pending[] {
   const [metas, setMetas] = useState<Record<string, MetaPreview | null>>({});
   const skipped = j.skipped || [];
   const ids = useMemo(() => Object.entries(profile?.watched || {})
-    .filter(([id]) => /^tt\d+$/.test(id) && !j.marks[id] && !skipped.includes(id))
+    .filter(([id]) => /^tt\d+$/.test(id) && !j.marks[id] && !skipped.includes(id) && !(j.removed || []).includes(id))
     .sort((a, b) => b[1] - a[1])
     .slice(0, 60), [profile?.watched, j]);
 
@@ -526,6 +534,7 @@ function useToRate(j: JournalT): Pending[] {
   const full = useSeriesMetas(sids);
   const seasonsDone: Pending[] = [];
   for (const id of sids) {
+    if (j.removed?.includes(id)) continue;
     const m = full(id);
     if (!m) continue;
     for (const [sn, eps] of Object.entries(seasonsOf(m))) {

@@ -161,6 +161,8 @@ export interface Journal {
   episodes?: Record<string, PartMark>;
   /** 4 films favoris maximum (identifiants) */
   favorites?: string[];
+  /** Titres retirés du journal : ils ne reviennent pas tout seuls (séries commencées, « À noter ») */
+  removed?: string[];
   /** Titres vus mais qu'on ne veut pas noter (« À noter ») */
   skipped?: string[];
 }
