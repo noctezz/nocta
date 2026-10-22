@@ -54,9 +54,26 @@ function scrollParent(el: HTMLElement): HTMLElement | null {
   return null;
 }
 
-/** Garde l'élément sélectionné bien visible (défilement vertical seulement) */
+/** Rangée qui défile à l'horizontale (frise d'une saga…) contenant l'élément */
+function hScrollParent(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    const ox = getComputedStyle(p).overflowX;
+    if ((ox === 'auto' || ox === 'scroll') && p.scrollWidth > p.clientWidth + 2) return p;
+  }
+  return null;
+}
+
+/** Garde l'élément sélectionné bien visible */
 function ensureVisible(el: HTMLElement) {
   if (getComputedStyle(el).position === 'fixed' || el.closest('.navbar')) return;
+  // À l'horizontale : la rangée défile pour suivre la sélection
+  const h = hScrollParent(el);
+  if (h) {
+    const er = el.getBoundingClientRect(), hr = h.getBoundingClientRect();
+    if (er.left < hr.left + 60 || er.right > hr.right - 60) {
+      h.scrollBy({ left: er.left + er.width / 2 - (hr.left + hr.width / 2), behavior: SCROLL });
+    }
+  }
   const r = el.getBoundingClientRect();
   const parent = scrollParent(el);
   if (parent) {
@@ -66,7 +83,8 @@ function ensureVisible(el: HTMLElement) {
     }
     return;
   }
-  const top = 110, bottom = window.innerHeight - 60;
+  // Sur la TV, marge plus grande en bas : la sélection ne reste jamais collée au bord de l'écran
+  const top = 110, bottom = window.innerHeight - (IS_TV ? 110 : 60);
   // Élément visible en entier tout en haut de la page (boutons de la grande image) : on remonte
   // jusqu'en haut, pour revoir l'image en entier au lieu d'une image coupée
   if (r.top < top && r.bottom + window.scrollY < bottom) { window.scrollTo({ top: 0, behavior: SCROLL }); return; }

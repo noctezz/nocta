@@ -158,8 +158,12 @@ function loadLines(ctx: XContext): Promise<Line[] | null> {
     const tracks = await getSubtitles(st.addons, ctx.type, ctx.videoId).catch(() => []);
     const pick = tracks.filter((t) => /^(fr|fre|fra)/i.test(t.lang)).concat(tracks.filter((t) => /^(en|eng)/i.test(t.lang)));
     const port = await window.nocta!.media.port();
+    // Sur la TV, pas de serveur local : le fichier de sous-titres (SRT ou VTT) est lu directement
+    const read = (url: string) => (port
+      ? fetch(`http://127.0.0.1:${port}/subs?src=${encodeURIComponent(url)}`).then((r) => r.text())
+      : window.nocta!.http(url, { timeout: 20000 }).then((r) => (r.ok && typeof r.data === 'string' ? r.data : '')));
     for (const t of pick.slice(0, 3)) {
-      const text = await fetch(`http://127.0.0.1:${port}/subs?src=${encodeURIComponent(t.url)}`).then((r) => r.text()).catch(() => '');
+      const text = await read(t.url).catch(() => '');
       const cues = parseVtt(text);
       if (cues.length > 50) {
         return cues.map((c) => ({ t: c.start, text: c.html.replace(/<br\/?>/g, ' ').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim() })).filter((l) => l.text);

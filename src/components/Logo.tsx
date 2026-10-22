@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { useSeasonTheme, type SeasonTheme } from '../lib/theme';
+import { IS_TV } from '../lib/tv';
 
 const GRADIENTS: Record<SeasonTheme, [string, string, string]> = {
   none: ['#ff3b5c', '#e50f3a', '#99001f'],
@@ -45,7 +46,8 @@ function WitchHat() {
 export function Logo({ height = 28, glow = false, season }: { height?: number; glow?: boolean; season?: SeasonTheme }) {
   const id = useId().replace(/:/g, '');
   const active = useSeasonTheme();
-  const theme = season ?? active;
+  // Sur la TV, le logo reste toujours dans sa version normale
+  const theme: SeasonTheme = IS_TV ? 'none' : season ?? active;
   const [a, b, c] = GRADIENTS[theme];
   const width = (height * 320) / 92;
   return (

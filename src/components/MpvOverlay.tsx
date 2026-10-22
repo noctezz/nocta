@@ -404,6 +404,19 @@ export function MpvOverlay() {
       if (TV) {
         const dir = ({ ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' } as const)[e.key as 'ArrowUp'];
         const pop = panel ? document.querySelector<HTMLElement>('.pop') : null;
+        // Panneau X-Ray ouvert : les flèches passent d'un élément à l'autre, OK valide ;
+        // Retour est géré par l'X-Ray (fiche d'acteur, puis fermeture du panneau)
+        const xr = document.querySelector<HTMLElement>('.xr-panel');
+        if (xr) {
+          if (dir) { e.preventDefault(); navWithin(xr, dir); return; }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const el = document.activeElement as HTMLElement | null;
+            if (el && xr.contains(el)) el.click();
+            return;
+          }
+          if (e.key !== 'Escape') return;
+        }
         if (pop) {
           // Panneau ouvert : les flèches passent d'un choix à l'autre, OK valide
           if (dir) { e.preventDefault(); navWithin(pop, dir); return; }

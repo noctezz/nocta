@@ -3,6 +3,7 @@
 // L'interface reste la même : le lecteur imite les commandes et événements de mpv.
 import { Capacitor, CapacitorHttp, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
+import { create as aiCreate, testKey as aiTestKey } from './assistant';
 
 interface NativePlayer {
   open(o: { src: string; startAt?: number; volume?: number; alang?: string }): Promise<{ ok: boolean; error?: string }>;
@@ -199,10 +200,8 @@ function install() {
       openWindow: async (url) => { window.open(url, '_blank'); },
       onInstall: () => () => {},
     },
-    assistant: {
-      create: async () => ({ ok: false, error: 'L\'IA de l\'X-Ray n\'est pas encore disponible sur la TV' }),
-      testKey: async () => ({ ok: false, error: 'Indisponible sur la TV' }),
-    },
+    // IA de l'X-Ray : mêmes services et mêmes clés que sur PC
+    assistant: { create: aiCreate, testKey: aiTestKey },
     update: undefined as unknown as NoctaBridge['update'],
     remote: undefined as unknown as NoctaBridge['remote'],
     win: {

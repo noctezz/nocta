@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ChevronRight, Clapperboard, History, Loader2, Sparkles, Users, X } from 'lucide-react';
 import type { XPerson, XPersonDetails, XScene } from '../lib/xray';
+import { IS_TV } from '../lib/tv';
+import { navFocus } from '../lib/spatialNav';
 
 type Op = 'scene' | 'person' | 'recap' | 'trivia';
 type Reply = { nonce: number; op: Op; data: any; error?: string };
@@ -126,6 +128,16 @@ export function XRay({ time, paused, controls, reply, onPause, onPlay, title, su
       ask('person', { person: p }, p.id);
     }
   };
+
+  // TV : à l'ouverture (ou en changeant de fiche), la télécommande se place dans le panneau
+  useEffect(() => {
+    if (!IS_TV || !open) return;
+    const t = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>('.xr-panel .xr-tabs .is-on') || document.querySelector<HTMLElement>('.xr-panel button');
+      if (el) navFocus(el);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [open, person]);
 
   // Touche X : ouvrir / fermer ; Échap ferme le panneau avant le lecteur
   useEffect(() => {
