@@ -4,27 +4,70 @@ import { create } from 'zustand';
 import { getCatalog, getMeta, mainAddons, searchableCatalogs } from './addons';
 import { useStore } from './store';
 import type { MetaPreview, Profile } from './types';
-import { SAGAS, type SagaDef } from './sagaList';
+import { SAGAS, type Film, type SagaDef } from './sagaList';
 
-export { SAGAS, SAGA_CATS, type SagaDef, type SagaCat } from './sagaList';
+export { SAGAS, SAGA_CATS, type Film, type SagaDef, type SagaCat } from './sagaList';
 
-const KEY = 'nocta-sagas-v2';
+const KEY = 'nocta-sagas-v3';
 const MISS_RETRY = 6 * 3600_000; // un film introuvable est recherché de nouveau quelques heures plus tard
 
-export const filmKey = (f: [string, number]) => `${f[0]}@${f[1]}`;
+export const filmKey = (f: Film) => `${f[0]}@${f[1]}`;
 /** Titre affiché tant que le film n'est pas trouvé */
-export const filmLabel = (f: [string, number]) => f[0].split('|')[0];
+export const filmLabel = (f: Film) => f[0].split('|')[0];
+
+// ---- Comparaison de titres
+const ROMAN: Record<string, string> = { i: '1', ii: '2', iii: '3', iv: '4', v: '5', vi: '6', vii: '7', viii: '8', ix: '9', x: '10' };
+const norm = (s: string) => s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  .replace(/&/g, ' and ').replace(/['’*]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+const SMALL = new Set(['the', 'a', 'an', 'and', 'of', 'le', 'la', 'les', 'de', 'du', 'des', 'et', 'l', 'd']);
+const words = (s: string) => norm(s).split(' ').filter((t) => t && !SMALL.has(t)).map((t) => ROMAN[t] || t);
+const isNum = (t: string) => /^\d+$/.test(t);
+
+/**
+ * Le résultat est-il bien ce film ? 0 = non. Il faut que tous les mots importants de l'un se
+ * retrouvent dans l'autre (« Star Wars » ↔ « Star Wars: Episode IV - A New Hope »), et que les
+ * numéros de suite soient les mêmes (II = 2). « Fistful of Knuckles » n'est pas « A Fistful of Dollars ».
+ */
+function likeness(query: string, name: string) {
+  const q = words(query), n = words(name);
+  if (!q.length || !n.length) return norm(query) === norm(name) ? 1 : 0;
+  if (q.join(' ') === n.join(' ')) return 1;
+  const qn = q.filter(isNum).sort().join(), nn = n.filter(isNum).sort().join();
+  if (qn !== nn) return 0;
+  const ns = new Set(n), qs = new Set(q);
+  const a = q.filter((t) => ns.has(t)).length / q.length; // part de la recherche dans le résultat
+  const b = n.filter((t) => qs.has(t)).length / n.length; // part du résultat dans la recherche
+  if (a === 1 && b >= 0.5) return 0.7 + 0.3 * b;
+  if (b === 1 && a >= 0.5) return 0.6 + 0.3 * a;
+  if (a >= 0.85 && b >= 0.85) return 0.6;
+  return 0;
+}
 
 /** manual : film choisi à la main, jamais remplacé par une recherche automatique */
 type Hit = (MetaPreview & { manual?: boolean }) | { miss: number };
+
+const FILMS = new Map<string, Film>(SAGAS.flatMap((s) => s.films.map((f) => [filmKey(f), f] as [string, Film])));
+
+/** Un film déjà retrouvé est-il vraisemblable (bon identifiant, ou bon titre et bonne année) ? */
+function plausible(f: Film, m: MetaPreview) {
+  if (f[2]) return m.id === f[2];
+  const y = parseInt(String(m.releaseInfo || ''), 10);
+  return (!y || Math.abs(y - f[1]) <= 1) && f[0].split('|').some((t) => likeness(t, m.name) > 0);
+}
 
 function load(): Record<string, Hit> {
   try {
     const now = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (now) return now;
-    // Ancienne version : on garde les films trouvés, et on recherche de nouveau les autres
-    const old = JSON.parse(localStorage.getItem('nocta-sagas-v1') || '{}') || {};
-    return Object.fromEntries(Object.entries(old).filter(([, h]) => h && !('miss' in (h as object)))) as Record<string, Hit>;
+    // Anciennes versions : on ne garde que les films sûrs (et ceux choisis à la main)
+    const old: Record<string, Hit> = { ...JSON.parse(localStorage.getItem('nocta-sagas-v1') || '{}'), ...JSON.parse(localStorage.getItem('nocta-sagas-v2') || '{}') };
+    const out: Record<string, Hit> = {};
+    for (const [k, h] of Object.entries(old)) {
+      const f = FILMS.get(k);
+      if (!f || !h || 'miss' in h) continue;
+      if (h.manual || plausible(f, h)) out[k] = h;
+    }
+    return out;
   } catch { return {}; }
 }
 
@@ -39,29 +82,10 @@ function remember(key: string, hit: Hit) {
   }, 800);
 }
 
-export function filmOf(hits: Record<string, Hit>, f: [string, number]): MetaPreview | null | undefined {
+export function filmOf(hits: Record<string, Hit>, f: Film): MetaPreview | null | undefined {
   const h = hits[filmKey(f)];
   if (!h) return undefined;
   return 'miss' in h ? null : h;
-}
-
-const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-  .replace(/&/g, ' and ').replace(/['’]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
-const SMALL = new Set(['the', 'a', 'an', 'and', 'of', 'le', 'la', 'les', 'de', 'du', 'des', 'et', 'l', 'd']);
-const words = (s: string) => norm(s).split(' ').filter((t) => t && !SMALL.has(t));
-
-/**
- * Ressemblance entre le titre cherché et un résultat (0 = rien à voir). Accepte « Star Wars »
- * pour « Star Wars: Episode IV - A New Hope », et l'inverse.
- */
-function likeness(query: string, name: string) {
-  const q = words(query), n = words(name);
-  if (!q.length || !n.length) return norm(query) === norm(name) ? 1 : 0;
-  if (q.join(' ') === n.join(' ')) return 1;
-  const ns = new Set(n), qs = new Set(q);
-  const a = q.filter((t) => ns.has(t)).length / q.length; // le résultat contient la recherche
-  const b = n.filter((t) => qs.has(t)).length / n.length; // la recherche contient le résultat
-  return Math.max(a * 0.9 + b * 0.1, b * 0.75 + a * 0.25);
 }
 
 interface Candidate { id: string; name: string; year?: number; at: number; meta?: MetaPreview; poster?: string }
@@ -73,7 +97,7 @@ function best(cands: Candidate[], queries: string[], year: number): Candidate | 
   for (const c of cands) {
     if (!c.year || Math.abs(c.year - year) > 1 || !/^tt\d+$/.test(c.id)) continue;
     const like = Math.max(...queries.map((q) => likeness(q, c.name)));
-    if (like < 0.5) continue;
+    if (!like) continue;
     const score = like * 10 + (c.year === year ? 3 : 0) - c.at * 0.04;
     if (score > topScore) { topScore = score; top = c; }
   }
@@ -191,15 +215,35 @@ async function toMeta(c: Candidate, year: number): Promise<MetaPreview> {
   if (c.meta && c.meta.poster) return slim(c.meta);
   const full = await getMeta(useStore.getState().addons, 'movie', c.id).catch(() => null);
   // La fiche doit bien être celle de ce film (même identifiant, titre proche)
-  if (full && (full.id === c.id || likeness(c.name, full.name) >= 0.5)) {
+  if (full && (full.id === c.id || likeness(c.name, full.name) > 0)) {
     return slim({ ...full, id: c.id, type: 'movie', releaseInfo: full.releaseInfo || String(c.year || year) });
   }
   return { id: c.id, type: 'movie', name: c.name, releaseInfo: String(c.year || year), poster: c.poster };
 }
 
+/**
+ * Film dont l'identifiant IMDb est connu : on vérifie quand même que la fiche correspond (titre et
+ * année), au cas où l'identifiant serait faux. null = ne correspond pas, on cherchera par le titre.
+ */
+async function fromKnownId(f: Film): Promise<MetaPreview | null> {
+  const [raw, year, id] = f;
+  if (!id) return null;
+  const titles = raw.split('|');
+  const fits = (name?: string, y?: number) => !!name && (!y || Math.abs(y - year) <= 1) &&
+    titles.some((t) => likeness(t, name) > 0 || words(t).some((w) => !isNum(w) && words(name).includes(w)));
+  const full = await getMeta(useStore.getState().addons, 'movie', id).catch(() => null);
+  if (full && fits(full.name, yearOf(full.releaseInfo || (full as { year?: string }).year))) {
+    return slim({ ...full, id, type: 'movie', releaseInfo: full.releaseInfo || String(year) });
+  }
+  // Pas de fiche dans le catalogue : IMDb confirme le titre et l'année
+  const c = (await fromImdb(id)).find((x) => x.id === id);
+  if (c && fits(c.name, c.year)) return { id, type: 'movie', name: c.name, releaseInfo: String(c.year || year), poster: c.poster };
+  return null;
+}
+
 const inflight = new Map<string, Promise<void>>();
 
-function resolveFilm(f: [string, number], force = false): Promise<void> {
+function resolveFilm(f: Film, force = false): Promise<void> {
   const key = filmKey(f);
   const known = useSagaFilms.getState().hits[key];
   if (known && (!('miss' in known) || (!force && Date.now() - known.miss < MISS_RETRY))) return Promise.resolve();
@@ -224,7 +268,15 @@ function resolveFilm(f: [string, number], force = false): Promise<void> {
       } catch { failed++; }
       return false;
     };
-    // Titres exacts d'abord, sur chaque source, puis les variantes
+    // Identifiant IMDb connu : le bon film à coup sûr
+    if (f[2]) {
+      tried++;
+      try {
+        const m = await fromKnownId(f);
+        if (m) return remember(key, m);
+      } catch { failed++; }
+    }
+    // Sinon : titres exacts d'abord, sur chaque source, puis les variantes
     for (const q of titles) if (await attempt(q, () => fromCinemeta(q))) return;
     for (const q of titles) if (await attempt(q, () => fromImdb(q))) return;
     for (const q of titles) if (await attempt(q, () => fromTmdb(q, year))) return;
@@ -240,7 +292,7 @@ function resolveFilm(f: [string, number], force = false): Promise<void> {
 }
 
 /** Le bon film choisi à la main : retenu pour toujours */
-export function setFilm(f: [string, number], m: MetaPreview) {
+export function setFilm(f: Film, m: MetaPreview) {
   remember(filmKey(f), { ...slim(m), manual: true });
 }
 
@@ -301,7 +353,7 @@ export function sagaProgress(p: Profile | null, hits: Record<string, Hit>, s: Sa
  * Le prochain film à regarder dans l'ordre choisi. Un film pas encore trouvé n'est jamais sauté :
  * m vaut undefined (recherche en cours) ou null (à choisir à la main).
  */
-export function nextStep(p: Profile | null, hits: Record<string, Hit>, s: SagaDef, chrono: boolean): { f: [string, number]; m: MetaPreview | null | undefined } | null {
+export function nextStep(p: Profile | null, hits: Record<string, Hit>, s: SagaDef, chrono: boolean): { f: Film; m: MetaPreview | null | undefined } | null {
   for (const f of orderOf(s, chrono)) {
     const m = filmOf(hits, f);
     if (!m || !isSeen(p, m.id)) return { f, m };

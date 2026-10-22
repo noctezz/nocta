@@ -1337,8 +1337,12 @@ html[data-season='christmas'] .loading-vignette { background: radial-gradient(el
 .sg-poster-blank.is-pick { display: flex; flex-direction: column; justify-content: center; gap: 14px; color: #fff; }
 .sg-poster-blank.is-pick em { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 99px; font-style: normal; font-size: 12.5px; font-weight: 800; color: #000; background: var(--sg); }
 .sg-film.is-missing:hover .sg-poster-blank.is-pick em { box-shadow: 0 0 18px var(--sg); }
-.sg-wrong { margin-top: 6px; font-size: 12.5px; font-weight: 600; color: rgba(255, 255, 255, 0.45); text-decoration: underline; text-underline-offset: 3px; }
-.sg-wrong:hover { color: #fff; }
+.sg-edit {
+  position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  color: #fff; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(6px); opacity: 0; transition: opacity 0.2s, background 0.2s;
+}
+.sg-poster:hover .sg-edit { opacity: 0.8; }
+.sg-edit:hover { opacity: 1 !important; background: rgba(0, 0, 0, 0.85); }
 .sg-fix-back { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); }
 .sg-fix {
   position: relative; width: min(880px, 100%); max-height: min(780px, 90vh); overflow-y: auto; padding: 28px 30px; border-radius: 18px;
