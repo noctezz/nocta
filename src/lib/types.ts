@@ -114,6 +114,40 @@ export interface Profile {
   watched?: Record<string, number>;
   /** Langue choisie pour un titre précis (id du film / de la série) : VF ou VO sous-titrée */
   langPrefs?: Record<string, LangMode>;
+  /** Journal : notes, coups de cœur, critiques et films favoris */
+  journal?: Journal;
+}
+
+/** Une séance notée dans le journal */
+export interface JournalEntry {
+  id: string;
+  meta: MetaPreview;
+  /** Jour où le titre a été vu (AAAA-MM-JJ) */
+  date: string;
+  /** De 0,5 à 5 étoiles */
+  rating?: number;
+  liked?: boolean;
+  review?: string;
+  spoilers?: boolean;
+  rewatch?: boolean;
+  at: number;
+}
+
+/** Ce qu'on pense d'un titre (la dernière note donnée) */
+export interface FilmMark {
+  meta: MetaPreview;
+  rating?: number;
+  liked?: boolean;
+  at: number;
+}
+
+export interface Journal {
+  entries: JournalEntry[];
+  marks: Record<string, FilmMark>;
+  /** 4 films favoris maximum (identifiants) */
+  favorites?: string[];
+  /** Titres vus mais qu'on ne veut pas noter (« À noter ») */
+  skipped?: string[];
 }
 
 export type LangMode = 'vf' | 'vo';

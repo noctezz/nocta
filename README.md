@@ -81,6 +81,14 @@ Conjuring, Astérix…) classées par genre, avec une recherche. Chaque saga a s
 ou dans l'ordre chronologique de l'histoire, ceux déjà vus cochés, et un bouton *Continuer* qui lance le prochain film
 à voir. Les films sont retrouvés dans Cinemeta à la première visite, puis gardés en mémoire.
 
+**Journal** ⭐ (onglet *Journal*, ton Letterboxd à toi) : note chaque film ou série en demi-étoiles, ❤ tes coups de
+cœur et écris tes critiques (masquées si elles contiennent des spoilers), depuis la barre *Ta note* de chaque fiche.
+*Ajouter au journal* enregistre la séance avec sa date (et « je l'avais déjà vu »). À la fin d'un film, une carte
+*Ta note ?* propose de le noter en un clic. La page Journal : ton profil et tes 4 films favoris, tes statistiques
+(titres, cette année, heures, critiques, coups de cœur, répartition des notes), le journal mois par mois, la grille
+de tout ce que tu as noté (tri et filtres), tes critiques, et *À noter* : les films déjà vus dans NOCTA mais pas
+encore notés, ajoutés au journal à la date où tu les as vus. Chaque profil a son propre journal.
+
 **X-Ray** 🔎 : comme sur Prime Video, mais en mieux. À la pause, les personnages de la scène en cours apparaissent
 (une IA lit les dialogues autour de ce moment pour savoir qui est là). Touche **X** : le panneau complet avec la scène,
 toute la distribution, la fiche de chaque acteur (âge, biographie, autres rôles), un **rattrapage** de ce qui vient de

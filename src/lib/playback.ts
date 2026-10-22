@@ -1,3 +1,4 @@
+import { filmFinished } from './journal';
 import { useStore } from './store';
 import { getStreams } from './addons';
 import type { Meta, MetaPreview, PlayRequest, Stream, StreamDesc, Video } from './types';
@@ -102,6 +103,8 @@ export function recordProgress(req: PlayRequest, pos: number, duration: number, 
       });
     } else {
       st.removeProgress(req.meta.id);
+      // Film terminé : « Ta note ? » s'affichera à la sortie du lecteur
+      if (req.meta.type !== 'series') filmFinished(req.meta);
     }
     return;
   }

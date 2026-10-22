@@ -14,6 +14,7 @@ const LINKS: { page: Page; label: string }[] = [
   { page: 'catalogs', label: 'Plateformes' },
   { page: 'sagas', label: 'Sagas' },
   { page: 'timemachine', label: 'Voyage' },
+  { page: 'journal', label: 'Journal' },
   { page: 'mylist', label: 'Ma liste' },
   { page: 'addons', label: 'Addons' },
 ];

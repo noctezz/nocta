@@ -1,5 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Sagas } from './pages/Sagas';
+import { Journal } from './pages/Journal';
+import { LogModal } from './components/LogModal';
+import { RatePrompt } from './components/RatePrompt';
 // La Machine à remonter le temps (three.js, lourde) n'est chargée qu'à l'ouverture
 const TimeMachine = lazy(() => import('./pages/TimeMachine').then((m) => ({ default: m.TimeMachine })));
 import { AnimatePresence, motion } from 'framer-motion';
@@ -160,6 +163,7 @@ export default function App() {
               {page === 'browse' && <CatalogView />}
               {page === 'catalogs' && <Catalogs />}
               {page === 'sagas' && <Sagas />}
+              {page === 'journal' && <Journal />}
               {page === 'timemachine' && <Suspense fallback={null}><TimeMachine /></Suspense>}
             </main>
             <HoverPreview />
@@ -175,6 +179,8 @@ export default function App() {
           ? <MpvBridge key="mpv" />
           : <Player key={player.src + (player.videoId || '')} />)}
       </AnimatePresence>
+      <LogModal />
+      <RatePrompt />
       <BusyOverlay />
       {!player && <UpdateBanner />}
       <Toasts />

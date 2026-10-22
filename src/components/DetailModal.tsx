@@ -4,6 +4,7 @@ import { Check, CheckCheck, CircleCheck, Circle, ListVideo, Play, Plus, X } from
 import { getMeta, GENRE_FR } from '../lib/addons';
 import { useLatest } from '../lib/useLatest';
 import { TrailerPreview } from './TrailerPreview';
+import { JournalBar } from './JournalBar';
 import { useProfile, useStore } from '../lib/store';
 import { backdropOf, logoOf, resumeEntry, year } from '../lib/ui';
 import { episodeLabel, formatTime, slimMeta, sortedEpisodes } from '../lib/playback';
@@ -168,6 +169,8 @@ export function DetailModal() {
             )}
           </div>
         </div>
+
+        <JournalBar meta={meta} />
 
         <div className="detail-body">
           <div className="detail-main">
