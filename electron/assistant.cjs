@@ -1,8 +1,7 @@
-// Nox, l'assistant de NOCTA, réfléchit avec des IA gratuites : Gemini (Google), Groq, OpenRouter,
-// Mistral, Cerebras. On peut enregistrer plusieurs clés : si l'une est saturée ou à court de
-// quota, Nox passe tout seul à la suivante. Les appels se font ici, dans le processus principal,
-// pour que les clés ne passent jamais par l'interface. La boucle d'outils (recherche, casting,
-// VF, lecture…) tourne dans l'interface, qui envoie l'historique complet (au format Gemini).
+// L'IA de l'X-Ray (scène, rattrapage, anecdotes) passe par des services gratuits : Gemini (Google),
+// Groq, OpenRouter, Mistral, Cerebras. On peut enregistrer plusieurs clés : si l'une est saturée ou
+// à court de quota, on passe toute seule à la suivante. Les appels se font ici, dans le processus
+// principal, pour que les clés ne passent jamais par l'interface (messages au format Gemini).
 const { app } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -41,10 +40,10 @@ const OPENAI_LIKE = {
 };
 const NAMES = { gemini: 'Gemini', ...Object.fromEntries(Object.entries(OPENAI_LIKE).map(([k, v]) => [k, v.name])) };
 
-/** Petit journal (userData/nox-log.txt) pour comprendre un souci de connexion */
+/** Petit journal (userData/ia-log.txt) pour comprendre un souci de connexion */
 function log(line) {
   try {
-    const file = path.join(app.getPath('userData'), 'nox-log.txt');
+    const file = path.join(app.getPath('userData'), 'ia-log.txt');
     try { if (fs.statSync(file).size > 200000) fs.rmSync(file); } catch {}
     fs.appendFileSync(file, `${new Date().toISOString()} ${line}\n`);
   } catch {}
@@ -57,7 +56,7 @@ const tail = (k) => `…${String(k).slice(-4)}`;
 function apiError(status, data) {
   const msg = (data && data.error && (data.error.message || data.error)) || (data && data.message) || '';
   const text = typeof msg === 'string' ? msg : JSON.stringify(msg);
-  if (status === 401 || (status === 400 && /API key not valid|API_KEY_INVALID|invalid api key/i.test(text))) return Object.assign(new Error('Clé API refusée : vérifie-la dans Paramètres → Avancé → Assistant Nox.'), { status, auth: true });
+  if (status === 401 || (status === 400 && /API key not valid|API_KEY_INVALID|invalid api key/i.test(text))) return Object.assign(new Error('Clé API refusée : vérifie-la dans Paramètres → Avancé → X-Ray.'), { status, auth: true });
   if (status === 403) return Object.assign(new Error('Cette clé n\'a pas accès à ce service (droits ou région).'), { status, auth: true });
   if (status === 429 || status === 402) return Object.assign(new Error('Quota gratuit atteint pour le moment : réessaie dans une minute.'), { status, retry: true, quota: true });
   if (status >= 500) return Object.assign(new Error('Le service est saturé pour le moment, réessaie dans un instant.'), { status, retry: true });
@@ -323,7 +322,7 @@ function orderKeys(keys) {
 
 /** Message final quand aucune clé n'a pu répondre */
 function finalError(errors) {
-  if (!errors.length) return new Error('Aucune clé API : ajoute une clé dans Paramètres → Avancé → Assistant Nox.');
+  if (!errors.length) return new Error('Aucune clé API : ajoute une clé dans Paramètres → Avancé → X-Ray.');
   if (errors.every((e) => e.auth)) return errors[0];
   if (errors.some((e) => e.quota) && errors.every((e) => e.quota || e.auth)) return new Error('Quota gratuit atteint sur toutes tes clés : réessaie dans une minute, ou ajoute une autre clé (Groq, OpenRouter…) dans les paramètres.');
   return new Error(errors.length > 1 ? 'Tous les services sont saturés pour le moment : réessaie dans un instant.' : errors[errors.length - 1].message);
@@ -379,64 +378,6 @@ async function create(req) {
   }
 }
 
-// ---------- Voix ----------
-const PROMPT = 'Transcris exactement ce message vocal (en français, avec la ponctuation). L\'assistant s\'appelle « Nox ». Réponds uniquement par le texte transcrit, sans guillemets. S\'il n\'y a pas de parole, réponds par une chaîne vide.';
-
-const WHISPER = ['whisper-large-v3-turbo', 'whisper-large-v3'];
-let whisperTurn = 0;
-
-/** Phrases inventées par Whisper sur du silence ou du bruit (génériques de sous-titres…) */
-const HALLU = /sous-titr|amara\.org|merci d'avoir regard|abonnez-vous|n'oubliez pas de vous abonner|merci de votre attention|♪|^\W*$/i;
-function cleanHeard(t) {
-  const s = t.replace(/\s+/g, ' ').trim();
-  return HALLU.test(s) && s.length < 90 ? '' : s;
-}
-
-/** Transcription d'un message vocal (WAV en base64) : Whisper chez Groq (rapide), sinon Gemini */
-async function transcribe(req) {
-  const { audio, mime } = req;
-  const keys = keysOf(req).filter((k) => k.provider === 'groq' || k.provider === 'gemini')
-    .sort((a, b) => (a.provider === 'groq' ? 0 : 1) - (b.provider === 'groq' ? 0 : 1));
-  if (!keys.length) return { ok: false, error: 'Pour parler à Nox, il faut une clé Gemini ou Groq.' };
-  try {
-    return await eachKey(keys, 'voice', async (k, deadline) => {
-      if (k.provider === 'groq') {
-        // Deux modèles Whisper, chacun avec son quota gratuit : on alterne (le double d'écoute par jour)
-        const order = WHISPER.map((_, i) => WHISPER[(whisperTurn + i) % WHISPER.length]).filter((m) => !isBenched(`whisper:${k.key}:${m}`));
-        whisperTurn++;
-        let lastErr;
-        for (const model of order.length ? order : WHISPER) {
-          const form = new FormData();
-          form.append('file', new Blob([Buffer.from(audio, 'base64')], { type: mime || 'audio/wav' }), 'voix.wav');
-          form.append('model', model);
-          form.append('language', 'fr');
-          form.append('response_format', 'json');
-          // Aide Whisper à reconnaître le nom de l'assistant et les titres de l'utilisateur
-          form.append('prompt', (req.prompt || 'Nox, lance-moi Spider-Man. Nox, mets pause.').slice(0, 600));
-          const t = Date.now();
-          let res, data;
-          try {
-            ({ res, data } = await request(`${OPENAI_LIKE.groq.base}/audio/transcriptions`, { method: 'POST', headers: { Authorization: `Bearer ${k.key}` }, body: form }, Math.min(15000, deadline - Date.now())));
-          } catch (e) { lastErr = netError(e); continue; }
-          log(`voice groq ${tail(k.key)} ${model} ${res.status} ${Date.now() - t}ms`);
-          if (res.ok) return { ok: true, text: cleanHeard(String(data.text || '')) };
-          lastErr = apiError(res.status, data);
-          if (lastErr.auth) throw lastErr;
-          bench(`whisper:${k.key}:${model}`, lastErr.quota ? Math.max(retryAfter(res, data), 20000) : 60000);
-        }
-        throw lastErr || netError({ name: 'TimeoutError' });
-      }
-      const { data } = await geminiCall(k.key, {
-        contents: [{ role: 'user', parts: [{ inlineData: { mimeType: mime || 'audio/wav', data: audio } }, { text: PROMPT }] }],
-      }, { temperature: 0 }, 'voice', deadline);
-      const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
-      return { ok: true, text: cleanHeard(parts.filter((p) => p.text && !p.thought).map((p) => p.text).join('')) };
-    });
-  } catch (e) {
-    return fail(e);
-  }
-}
-
 /** Vérifie une clé par une vraie petite question : service, modèle et temps de réponse */
 async function testKey(arg) {
   const k = typeof arg === 'string' ? { provider: 'gemini', key: arg } : arg;
@@ -461,62 +402,4 @@ async function testKey(arg) {
   }
 }
 
-// ---------- Voix de Nox (Gemini, voix naturelles) ----------
-const ttsModels = new Map();
-
-/** Modèles « TTS » de Gemini accessibles avec la clé (Flash d'abord, plus rapides et gratuits) */
-async function ttsList(key) {
-  if (ttsModels.has(key)) return ttsModels.get(key);
-  const { res, data } = await request(`${GEMINI}/models?pageSize=200`, { headers: { 'x-goog-api-key': key } }, 15000);
-  if (!res.ok) throw apiError(res.status, data);
-  const list = (data.models || []).map((m) => m.name.replace(/^models\//, '')).filter((n) => /^gemini-.*tts/.test(n))
-    .sort((a, b) => (/flash/.test(b) ? 1 : 0) - (/flash/.test(a) ? 1 : 0) || versionOf(b) - versionOf(a));
-  if (!list.length) throw Object.assign(new Error('Pas de voix Gemini disponible avec cette clé.'), { retry: true });
-  ttsModels.set(key, list);
-  return list;
-}
-
-/**
- * Nox lit sa réponse avec une voix naturelle Gemini. Renvoie du PCM 16 bits (base64) et sa
- * fréquence ; en cas d'échec (quota…), l'interface prend la voix de Windows.
- */
-async function tts(req) {
-  const keys = keysOf(req).filter((k) => k.provider === 'gemini');
-  if (!keys.length) return { ok: false, error: 'Il faut une clé Gemini pour la voix naturelle.' };
-  try {
-    return await eachKey(keys, 'tts', async (k, deadline) => {
-      let lastErr;
-      for (const model of (await ttsList(k.key)).slice(0, 2)) {
-        if (isBenched(`tts:${model}`)) continue;
-        const t = Date.now();
-        let res, data;
-        try {
-          ({ res, data } = await request(`${GEMINI}/models/${model}:generateContent`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k.key },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts: [{ text: `Lis ce texte en français, d'un ton chaleureux, enjoué et naturel, comme un ami cinéphile : ${req.text}` }] }],
-              generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: req.voice || 'Puck' } } } },
-            }),
-          }, Math.min(30000, deadline - Date.now())));
-        } catch (e) { lastErr = netError(e); continue; }
-        log(`tts gemini ${tail(k.key)} ${model} ${res.status} ${Date.now() - t}ms`);
-        if (!res.ok) {
-          lastErr = apiError(res.status, data);
-          if (lastErr.auth) throw lastErr;
-          bench(`tts:${model}`, lastErr.quota ? 10 * 60000 : 60000);
-          continue;
-        }
-        const part = ((((data.candidates || [])[0] || {}).content || {}).parts || []).find((p) => p.inlineData);
-        if (!part) { lastErr = Object.assign(new Error('Pas d\'audio reçu.'), { retry: true }); continue; }
-        const rate = Number((/rate=(\d+)/.exec(part.inlineData.mimeType || '') || [])[1]) || 24000;
-        return { ok: true, audio: part.inlineData.data, rate };
-      }
-      throw lastErr || Object.assign(new Error('Voix indisponible pour le moment.'), { retry: true });
-    });
-  } catch (e) {
-    return fail(e);
-  }
-}
-
-module.exports = { create, transcribe, testKey, tts };
+module.exports = { create, testKey };

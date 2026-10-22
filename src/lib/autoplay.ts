@@ -14,8 +14,6 @@ export interface PlayTarget {
   season?: number;
   episode?: number;
   episodeTitle?: string;
-  /** Démarrer tout seul la 1re source confirmée dans la bonne langue (demande à Nox) */
-  autoLaunch?: boolean;
 }
 
 /** Lien débrid déjà en cache (lecture instantanée) */

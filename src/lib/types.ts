@@ -157,18 +157,8 @@ export interface Settings {
   torboxCleaned?: number;
   /** Ancienne clé Gemini unique (remplacée par noxKeys) */
   noxKey?: string;
-  /** Clés des services d'IA de Nox, dans l'ordre d'essai */
+  /** Clés des services d'IA gratuits de l'X-Ray, dans l'ordre d'essai (nom gardé pour les réglages existants) */
   noxKeys?: { provider: 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'cerebras'; key: string }[];
-  /** Afficher Nox en bas de l'écran */
-  noxVisible?: boolean;
-  /** Nox répond à voix haute : jamais, quand on lui parle au micro, ou toujours */
-  noxVoice?: 'off' | 'mic' | 'always';
-  /** Nox dit bonjour en arrivant et « bon visionnage » au lancement */
-  noxGreet?: boolean;
-  /** Voix de Nox : celle de Windows (hors ligne) ou une voix naturelle Gemini */
-  noxVoiceEngine?: 'windows' | 'gemini';
-  /** Nom de la voix choisie (Windows ou Gemini) */
-  noxVoiceName?: string;
   /** Passer automatiquement le générique (sinon : bouton) */
   autoSkipIntro: boolean;
   /** Détection du générique par analyse audio */

@@ -4,11 +4,8 @@ import { playIntroSound } from '../lib/sound';
 import { RemotePanel } from '../components/RemotePanel';
 import { UpdateSettings } from '../components/UpdateBanner';
 import { testKey } from '../lib/torbox';
-import { NoxOwl } from '../components/Nox';
-import { NoxKeyList } from '../components/NoxKeys';
-import { noxKeys } from '../lib/noxKeys';
+import { AiKeyList } from '../components/AiKeys';
 import { testTmdb } from '../lib/xray';
-import { frenchVoices, GEMINI_VOICES, previewVoice } from '../lib/speak';
 
 const ENCODERS: Record<string, string> = {
   libx264: 'Processeur (compatible partout)',
@@ -73,31 +70,6 @@ function TorboxCleanup() {
   );
 }
 
-/** Nox : clés des IA gratuites (essayées dans l'ordre) et affichage de la mascotte */
-function NoxSettings() {
-  const settings = useStore((s) => s.settings);
-  const update = useStore((s) => s.updateSettings);
-  return (
-    <section className="settings-card">
-      <h2 className="nox-settings-title"><NoxOwl size={34} /> Assistant Nox</h2>
-      <Toggle
-        title="Afficher Nox"
-        hint="La chouette en bas à gauche : casting, recommandations, vérification de la vraie VF, lancement d'un film… Il suffit de lui demander."
-        checked={settings.noxVisible !== false}
-        onChange={(v) => update({ noxVisible: v })}
-      />
-      <div className="setting setting-col">
-        <div>
-          <strong>Clés API (gratuites)</strong>
-          <span>Nox réfléchit avec des IA gratuites. Ajoute plusieurs clés : si un service est saturé ou à court de quota, Nox passe tout seul au suivant, dans l'ordre de la liste. Pour parler au micro, il faut une clé Gemini ou Groq. Les clés restent sur ce PC.</span>
-        </div>
-        <NoxKeyList />
-      </div>
-      <NoxVoiceSettings />
-    </section>
-  );
-}
-
 /** X-Ray : affichage à la pause et clé TMDB facultative (photos et personnages précis) */
 function XRaySettings() {
   const settings = useStore((s) => s.settings);
@@ -134,74 +106,14 @@ function XRaySettings() {
         </div>
         {state.text && <div className={`status ${state.ok ? 'ok' : 'err'}`}>{state.text}</div>}
       </div>
-    </section>
-  );
-}
-
-/** Voix de Nox : quand il parle, et avec quelle voix */
-function NoxVoiceSettings() {
-  const settings = useStore((s) => s.settings);
-  const update = useStore((s) => s.updateSettings);
-  const [winVoices, setWinVoices] = useState(() => frenchVoices());
-  useEffect(() => {
-    if (typeof speechSynthesis === 'undefined') return;
-    const load = () => setWinVoices(frenchVoices());
-    speechSynthesis.addEventListener('voiceschanged', load);
-    load();
-    return () => speechSynthesis.removeEventListener('voiceschanged', load);
-  }, []);
-  const mode = settings.noxVoice || 'mic';
-  const engine = settings.noxVoiceEngine || 'windows';
-  const hasGemini = noxKeys(settings).some((k) => k.provider === 'gemini');
-  const names = engine === 'gemini' ? GEMINI_VOICES.map(([n, d]) => ({ id: n, label: `${n} · ${d}` })) : winVoices.map((v) => ({ id: v.name, label: v.name.replace(/^Microsoft /, '').replace(/ - .*$/, '') }));
-  const current = names.find((n) => n.id === settings.noxVoiceName)?.id || names[0]?.id || '';
-  return (
-    <>
-      <div className="setting">
+      <div className="setting setting-col">
         <div>
-          <strong>Nox parle</strong>
-          <span>Nox lit ses réponses à voix haute. Il se tait dès que le film démarre ou que tu reprends la parole (bouton 🔊 dans la discussion pour le couper).</span>
+          <strong>Clés d'IA (gratuites)</strong>
+          <span>L'X-Ray utilise une IA gratuite pour reconnaître la scène, te faire le rattrapage et trouver des anecdotes. Ajoute plusieurs clés : si un service est saturé ou à court de quota, le suivant prend le relais, dans l'ordre de la liste. Les clés restent sur ce PC.</span>
         </div>
-        <div className="seg">
-          {([['off', 'Jamais'], ['mic', 'Quand je lui parle'], ['always', 'Toujours']] as const).map(([v, label]) => (
-            <button key={v} className={mode === v ? 'is-on' : ''} onClick={() => update({ noxVoice: v })}>{label}</button>
-          ))}
-        </div>
+        <AiKeyList />
       </div>
-      {mode !== 'off' && (
-        <Toggle
-          title="Nox me salue"
-          hint="« Bonsoir ! On reprend Peaky Blinders ? » en arrivant, et « Bon visionnage ! » quand un film démarre."
-          checked={settings.noxGreet !== false}
-          onChange={(v) => update({ noxGreet: v })}
-        />
-      )}
-      {mode !== 'off' && (
-        <div className="setting">
-          <div>
-            <strong>Voix</strong>
-            <span>
-              {engine === 'gemini'
-                ? 'Voix naturelle de Gemini (avec ta clé gratuite, quota limité par jour) : si elle n\'est pas disponible, Nox prend la voix de Windows.'
-                : 'Voix française de Windows : gratuite, instantanée et sans Internet.'}
-              {engine === 'gemini' && !hasGemini && ' Ajoute une clé Gemini ci-dessus pour l\'utiliser.'}
-            </span>
-          </div>
-          <div className="voice-row">
-            <div className="seg">
-              <button className={engine === 'windows' ? 'is-on' : ''} onClick={() => update({ noxVoiceEngine: 'windows', noxVoiceName: undefined })}>Windows</button>
-              <button className={engine === 'gemini' ? 'is-on' : ''} onClick={() => update({ noxVoiceEngine: 'gemini', noxVoiceName: undefined })}>Gemini naturelle</button>
-            </div>
-            {names.length > 1 && (
-              <select className="input voice-select" value={current} onChange={(e) => update({ noxVoiceName: e.target.value })}>
-                {names.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
-              </select>
-            )}
-            <button className="btn-outline" onClick={previewVoice}>Écouter</button>
-          </div>
-        </div>
-      )}
-    </>
+    </section>
   );
 }
 
@@ -372,7 +284,6 @@ export function Settings() {
             </label>
           </section>
 
-          <NoxSettings />
           <XRaySettings />
 
           <section className="settings-card">

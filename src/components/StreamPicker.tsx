@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AudioLines, ExternalLink, Loader2, Play, Puzzle, X, Zap } from 'lucide-react';
 import { getStreams, streamQuality, streamSize, type StreamGroup } from '../lib/addons';
@@ -92,38 +92,13 @@ export function StreamPicker() {
         setLangVersion((v) => v + 1);
         const fits = fitsVerified(await run, want);
         if (fits === false) discard(s); // mauvaise langue : retirée de TorBox tout de suite
-        if (fits === true) {
-          // Demandé à Nox : la source confirmée démarre toute seule
-          if (picker.autoLaunch && !stop) autoStart.current(s);
-          return;
-        }
-      }
-      if (picker.autoLaunch && !stop) {
-        setAutoFailed(true);
-        useStore.getState().toast(want === 'vo' ? 'Aucune source en VO confirmée : choisis-en une dans la liste' : 'Aucune vraie VF confirmée : choisis une source dans la liste');
+        if (fits === true) return;
       }
     })();
     return () => { stop = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verify, want, groups]);
 
-
-  // Lancement automatique (Nox) : même chemin qu'un clic sur la source
-  const [autoFailed, setAutoFailed] = useState(false);
-  const autoStart = useRef<(s: Stream) => void>(() => {});
-  autoStart.current = (s) => {
-    const all = (groups || []).flatMap((g) => g.streams.map((st, i) => ({ stream: st, addon: g.addon.manifest.name, key: `${g.addon.url}#${i}` })));
-    const row = all.find((r) => r.stream === s);
-    if (row) choose(row);
-  };
-  // Sans vérification de langue : la 1re source du classement
-  useEffect(() => {
-    if (!picker.autoLaunch || !groups || (verify && want)) return;
-    if (rows[0]) autoStart.current(rows[0].stream);
-    else setAutoFailed(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups]);
-  const autoMode = !!picker.autoLaunch && !autoFailed;
 
   const qualities = useMemo(() => {
     const set = new Set(rows.map((r) => streamQuality(r.stream).label).filter(Boolean));
@@ -190,7 +165,7 @@ export function StreamPicker() {
           <div className="picker-head-fade" />
           <button className="round" data-nav-back onClick={close} aria-label="Fermer"><X size={20} /></button>
           <div>
-            <small>{autoMode ? `Nox lance la première source confirmée en ${want === 'vo' ? 'VO' : 'VF'}…` : 'Choisis une source'}</small>
+            <small>Choisis une source</small>
             <h2>{picker.meta.name}</h2>
             {picker.episodeTitle && <p>{picker.episodeTitle}</p>}
           </div>

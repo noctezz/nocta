@@ -65,18 +65,11 @@ seuls (ceux du fichier, sinon ceux des addons). Réglable dans *Paramètres*.
 Décalés ou qui dérivent (version 25 / 23,976 images par seconde) : ils sont recalés tout seuls (« Français · recalés
 par NOCTA »). En cas de doute, ils restent tels quels.
 
-**Nox, l'assistant** 🦉 : la chouette en bas à gauche. Clique dessus et pose tes questions : casting, durée,
-recommandations, « il est dispo en vraie VF ? » (Nox vérifie les fichiers pour de vrai), « lance l'épisode 3 »… Il
-sait quelle fiche est ouverte. Nox réfléchit avec des IA gratuites : Gemini (Google), Groq, OpenRouter, Mistral ou
-Cerebras (*Paramètres → Avancé → Assistant Nox*, un lien par service pour créer la clé). Avec plusieurs clés, Nox
-passe tout seul à la suivante quand un service est saturé ou à court de quota. On peut aussi lui parler : bouton 🎤 dans la discussion, Nox détecte tout
-seul la fin de la phrase.
-
 **Ambilight** ✨ : pendant la lecture, un halo aux couleurs de l'image déborde autour de la vidéo, comme les TV
 Philips. *Immersif* (la vidéo est un peu réduite, la lumière l'entoure), *Bandes noires* (seulement dans les bandes
 des films en format cinéma) ou désactivé : bouton ☀ du lecteur, touche **L**, ou *Paramètres → Lecture*.
 
-**Machine à remonter le temps** ⏳ (onglet *Voyage*) : un tunnel 3D à travers l'histoire du cinéma, de 1920 à
+**Machine à remonter le temps** (onglet *Voyage*) : un tunnel 3D à travers l'histoire du cinéma, de 1920 à
 aujourd'hui. Chaque année est une porte lumineuse avec son millésime, les films et séries les mieux notés de l'année
 tapissent les parois, et
 l'image prend l'allure de chaque époque : muet noir et blanc granuleux qui scintille (avec le cliquetis du
@@ -89,13 +82,11 @@ ou dans l'ordre chronologique de l'histoire, ceux déjà vus cochés, et un bout
 à voir. Les films sont retrouvés dans Cinemeta à la première visite, puis gardés en mémoire.
 
 **X-Ray** 🔎 : comme sur Prime Video, mais en mieux. À la pause, les personnages de la scène en cours apparaissent
-(Nox lit les dialogues autour de ce moment pour savoir qui est là). Touche **X** : le panneau complet avec la scène,
+(une IA lit les dialogues autour de ce moment pour savoir qui est là). Touche **X** : le panneau complet avec la scène,
 toute la distribution, la fiche de chaque acteur (âge, biographie, autres rôles), un **rattrapage** de ce qui vient de
-se passer (5 dernières minutes ou depuis le début, sans spoiler) et des anecdotes. Clé TMDB facultative pour les
-photos et personnages exacts (*Paramètres → Avancé → X-Ray*).
-
-**Nox parle** 🔊 : Nox lit ses réponses à voix haute (quand on lui parle au micro, ou toujours) avec la voix
-française de Windows, ou une voix naturelle Gemini avec la clé gratuite.
+se passer (5 dernières minutes ou depuis le début, sans spoiler) et des anecdotes. Dans *Paramètres → Avancé → X-Ray* :
+les clés d'IA gratuites (Gemini, Groq, OpenRouter, Mistral, Cerebras ; avec plusieurs clés, la suivante prend le relais
+quand un service est saturé) et une clé TMDB facultative pour les photos et personnages exacts.
 
 **Mises à jour automatiques** : au lancement, NOCTA regarde s'il existe une nouvelle version. Une carte propose
 *Mettre à jour* : téléchargement, installation et redémarrage tout seuls. Aussi dans *Paramètres → Mises à jour*.

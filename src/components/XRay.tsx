@@ -152,7 +152,7 @@ export function XRay({ time, paused, controls, reply, onPause, onPlay, title, su
               <small>{inScene.length ? 'Dans cette scène' : sceneBusy ? 'Analyse de la scène…' : 'Distribution'}</small>
             </button>
             <div className="xr-strip-people">
-              {!cast && <div className="xr-strip-loading"><Loader2 size={16} className="spin" /> Nox regarde la scène…</div>}
+              {!cast && <div className="xr-strip-loading"><Loader2 size={16} className="spin" /> Analyse de la scène…</div>}
               {stripPeople.slice(0, 5).map((p) => (
                 <motion.button key={p.id} className="xr-chip" onClick={() => openPanel('scene', p)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} layout>
                   <Face p={p} size="sm" />
@@ -206,7 +206,7 @@ export function XRay({ time, paused, controls, reply, onPause, onPlay, title, su
               ) : tab === 'scene' ? (
                 <>
                   {scene?.moment && <p className="xr-moment">{scene.moment}</p>}
-                  {sceneBusy && <div className="xr-loading"><Loader2 size={18} className="spin" /> Nox analyse la scène…</div>}
+                  {sceneBusy && <div className="xr-loading"><Loader2 size={18} className="spin" /> Analyse de la scène…</div>}
                   {scene?.noSubs && <p className="xr-muted">Pas de sous-titres pour cette vidéo : impossible de savoir qui est à l'écran. Voici la distribution.</p>}
                   {!sceneBusy && scene && !scene.noSubs && !inScene.length && <p className="xr-muted">Personne de la distribution n'a été repéré dans cette scène.</p>}
                   <div className="xr-grid">
@@ -235,25 +235,25 @@ export function XRay({ time, paused, controls, reply, onPause, onPlay, title, su
                 </div>
               ) : tab === 'recap' ? (
                 <div className="xr-recap">
-                  <p className="xr-muted">Décroché un instant ? Nox relit les dialogues et te raconte, sans rien dévoiler de la suite.</p>
+                  <p className="xr-muted">Décroché un instant ? L'IA relit les dialogues et te raconte, sans rien dévoiler de la suite.</p>
                   <div className="xr-recap-btns">
                     <button className={recap?.range === 'recent' ? 'is-on' : ''} onClick={() => { setRecap({ range: 'recent', at: time }); ask('recap', { range: 'recent' }); }}>Les 5 dernières minutes</button>
                     <button className={recap?.range === 'all' ? 'is-on' : ''} onClick={() => { setRecap({ range: 'all', at: time }); ask('recap', { range: 'all' }); }}>Depuis le début</button>
                   </div>
                   {recap && (recap.text
                     ? <div className="xr-recap-text">{recap.text.split('\n').filter(Boolean).map((l, i) => <p key={i}>{l.replace(/\*\*/g, '')}</p>)}</div>
-                    : <div className="xr-loading"><Loader2 size={18} className="spin" /> Nox relit {recap.range === 'recent' ? 'les dernières minutes' : 'depuis le début'}…</div>)}
+                    : <div className="xr-loading"><Loader2 size={18} className="spin" /> Lecture des dialogues {recap.range === 'recent' ? 'les dernières minutes' : 'depuis le début'}…</div>)}
                 </div>
               ) : (
                 <div className="xr-trivia">
-                  {trivia === 'loading' && <div className="xr-loading"><Loader2 size={18} className="spin" /> Nox fouille les coulisses…</div>}
+                  {trivia === 'loading' && <div className="xr-loading"><Loader2 size={18} className="spin" /> Recherche dans les coulisses…</div>}
                   {Array.isArray(trivia) && !trivia.length && <p className="xr-muted">Pas d'anecdote sûre pour celui-ci.</p>}
                   {Array.isArray(trivia) && trivia.map((f, i) => (
                     <motion.div key={i} className="xr-fact" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
                       <Sparkles size={14} /> <p>{f}</p>
                     </motion.div>
                   ))}
-                  {Array.isArray(trivia) && trivia.length > 0 && <p className="xr-note">Anecdotes rassemblées par Nox, l'IA peut se tromper.</p>}
+                  {Array.isArray(trivia) && trivia.length > 0 && <p className="xr-note">Anecdotes rassemblées par l'IA, elle peut se tromper.</p>}
                 </div>
               )}
             </div>

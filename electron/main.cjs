@@ -150,10 +150,8 @@ ipcMain.handle('player:ambilight', (_e, mode) => {
 // Détection du générique par empreinte audio
 ipcMain.handle('intro:detect', (_e, job) => intro.detect(job));
 ipcMain.handle('intro:has', (_e, seriesId, videoId) => intro.hasFp(seriesId, videoId));
-// Nox, l'assistant (Gemini)
+// IA de l'X-Ray (services gratuits, clés de l'utilisateur)
 ipcMain.handle('assistant:create', (_e, req) => assistant.create(req));
-ipcMain.handle('assistant:transcribe', (_e, req) => assistant.transcribe(req));
-ipcMain.handle('assistant:tts', (_e, req) => assistant.tts(req));
 ipcMain.handle('assistant:testKey', (_e, key) => assistant.testKey(key));
 // Recalage automatique des sous-titres
 ipcMain.handle('player:subsync', (_e, job) => subsync.sync(job));
@@ -284,13 +282,13 @@ ipcMain.handle('win:setFullscreen', (_e, v) => { win.setFullScreen(!!v); return 
 
 // ---------- Cycle de vie ----------
 
-// Nox peut parler sans clic préalable (bonjour, bon visionnage)
+// Les bandes-annonces et sons peuvent démarrer sans clic préalable
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 app.whenReady().then(async () => {
   await media.start();
-  // Micro autorisé pour parler à Nox (aucune autre permission sensible)
-  const allow = (p) => p === 'media' || p === 'audioCapture' || p === 'clipboard-sanitized-write' || p === 'fullscreen';
+  // Aucune permission sensible (ni micro ni caméra)
+  const allow = (p) => p === 'clipboard-sanitized-write' || p === 'fullscreen';
   electronSession.defaultSession.setPermissionRequestHandler((_wc, p, cb) => cb(allow(p)));
   electronSession.defaultSession.setPermissionCheckHandler((_wc, p) => allow(p));
   electronSession.defaultSession.webRequest.onBeforeSendHeaders(

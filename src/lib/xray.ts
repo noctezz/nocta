@@ -1,11 +1,11 @@
 // X-Ray : qui est à l'écran, qui joue qui, ce qui vient de se passer.
 // - Distribution : TMDB (photos, personnages, invités de l'épisode) si une clé est réglée,
 //   sinon le casting de la fiche + photos et biographies de Wikipédia.
-// - « Dans cette scène » : Nox lit les dialogues autour du moment présent (sous-titres) et en
+// - « Dans cette scène » : l'IA lit les dialogues autour du moment présent (sous-titres) et en
 //   déduit les personnages présents (qui parle, qui est nommé, ce qui se passe).
 // - Rattrapage et anecdotes, toujours sans rien révéler de la suite.
 import { getSubtitles } from './addons';
-import { noxKeys } from './noxKeys';
+import { aiKeys } from './aiKeys';
 import { parseVtt } from './subs';
 import { useStore } from './store';
 import type { Meta } from './types';
@@ -95,7 +95,7 @@ const dedupe = (list: XPerson[]) => {
   return list.filter((p) => !seen.has(p.id) && seen.add(p.id));
 };
 
-// ---------- Sans TMDB : fiche + Wikipédia + Nox pour les personnages ----------
+// ---------- Sans TMDB : fiche + Wikipédia + IA pour les personnages ----------
 async function wiki(name: string): Promise<{ photo?: string; extract?: string; description?: string } | null> {
   for (const lang of ['fr', 'en']) {
     const r = await http(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name.replace(/ /g, '_'))}`).catch(() => null);
@@ -107,9 +107,9 @@ async function wiki(name: string): Promise<{ photo?: string; extract?: string; d
   return null;
 }
 
-/** Réponse JSON de Nox (texte libre nettoyé), null si rien d'exploitable */
+/** Réponse JSON de l'IA (texte libre nettoyé), null si rien d'exploitable */
 async function askJson<T>(prompt: string, system = 'Tu es un expert cinéma et séries. Réponds uniquement par du JSON valide, sans texte autour.'): Promise<T | null> {
-  const keys = noxKeys(useStore.getState().settings);
+  const keys = aiKeys(useStore.getState().settings);
   if (!keys.length) return null;
   const r = await window.nocta!.assistant.create({ keys, system, tools: [], contents: [{ role: 'user', parts: [{ text: prompt }] }] });
   if (!r.ok || !r.content) return null;
@@ -119,11 +119,11 @@ async function askJson<T>(prompt: string, system = 'Tu es un expert cinéma et s
 }
 
 async function askText(prompt: string): Promise<string | null> {
-  const keys = noxKeys(useStore.getState().settings);
+  const keys = aiKeys(useStore.getState().settings);
   if (!keys.length) return null;
   const r = await window.nocta!.assistant.create({
     keys,
-    system: 'Tu es Nox, la chouette cinéphile de NOCTA. Tu réponds en français, de façon claire et vivante, sans titres markdown. Tu ne révèles JAMAIS ce qui se passe après le moment indiqué.',
+    system: 'Tu es le guide cinéphile de NOCTA. Tu réponds en français, de façon claire et vivante, sans titres markdown. Tu ne révèles JAMAIS ce qui se passe après le moment indiqué.',
     tools: [],
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
   });
@@ -280,7 +280,7 @@ export async function getRecap(ctx: XContext, time: number, range: 'recent' | 'a
       : 'Fais un résumé clair de tout ce qui s\'est passé jusqu\'ici, en 6 à 10 phrases ou une petite liste, avec les noms des personnages.') +
     ' Rien sur la suite.',
   );
-  return out || 'Nox n\'a pas pu faire le résumé pour le moment (clé IA saturée ?). Réessaie dans un instant.';
+  return out || 'Le résumé n\'a pas pu être fait pour le moment (clé IA saturée ?). Réessaie dans un instant.';
 }
 
 /** Anecdotes (tournage, casting, coulisses) sans divulgâcher */

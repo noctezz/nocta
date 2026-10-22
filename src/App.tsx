@@ -1,8 +1,7 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Sagas } from './pages/Sagas';
 // La Machine à remonter le temps (three.js, lourde) n'est chargée qu'à l'ouverture
 const TimeMachine = lazy(() => import('./pages/TimeMachine').then((m) => ({ default: m.TimeMachine })));
-import { speak, stopSpeaking } from './lib/speak';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Intro } from './components/Intro';
 import { ProfileGate } from './components/ProfileGate';
@@ -29,7 +28,6 @@ import { errMsg } from './lib/playback';
 import { playLocalFile } from './lib/playback';
 import { useBusy, useHover } from './lib/ui';
 import { UpdateBanner } from './components/UpdateBanner';
-import { Nox } from './components/Nox';
 import { installSpatialNav, navigate, type NavKey } from './lib/spatialNav';
 
 const VIDEO_RE = /\.(mkv|mp4|avi|mov|webm|m4v|ts|wmv|flv)$/i;
@@ -134,21 +132,6 @@ export default function App() {
 
   // Le lecteur a démarré : l'écran de chargement de la fenêtre principale disparaît
   useEffect(() => { if (player) useBusy.getState().set(null, null); }, [player]);
-  // Le film démarre : Nox se tait… et te souhaite un bon visionnage
-  const wasPlaying = useRef(false);
-  useEffect(() => {
-    const playing = !!player;
-    if (playing && !wasPlaying.current) {
-      stopSpeaking();
-      const st = useStore.getState();
-      if (st.settings.noxGreet !== false && (st.settings.noxVoice || 'mic') !== 'off' && st.settings.noxVisible !== false) {
-        const name = st.profiles.find((p) => p.id === st.activeProfileId)?.name;
-        const lines = [`Bon visionnage${name ? ` ${name}` : ''} !`, 'Bon film !', 'Installe-toi bien, ça commence !'];
-        setTimeout(() => speak(player!.type === 'series' ? (Math.random() < 0.5 ? 'Bon épisode !' : lines[0]) : lines[Math.floor(Math.random() * lines.length)]), 300);
-      }
-    }
-    wasPlaying.current = playing;
-  }, [player]);
 
   // Pas de défilement de la page derrière les fenêtres
   useEffect(() => {
@@ -180,7 +163,6 @@ export default function App() {
               {page === 'timemachine' && <Suspense fallback={null}><TimeMachine /></Suspense>}
             </main>
             <HoverPreview />
-            {!player && <Nox />}
             {!player && <SeasonalLayer theme={season} density={0.7} className="app-season" />}
           </motion.div>
         )}
