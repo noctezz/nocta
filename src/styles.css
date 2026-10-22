@@ -1759,3 +1759,12 @@ html.is-tv .pf-hero-logo { max-height: 90px; }
 html.is-tv .pf-hero-desc { -webkit-line-clamp: 2; font-size: 13px; }
 html.is-tv .pf-hero-thumbs { bottom: 16%; }
 html.is-tv .pf-bar { margin-top: -24px; }
+
+/* ---------- TV : calques coûteux des Sagas et Plateformes retirés ---------- */
+html.is-tv .pf-page-glow { display: none; }
+html.is-tv .sg-rail { mask-image: none; -webkit-mask-image: none; }
+html.is-tv .pf-hero-brand, html.is-tv .pf-hero-logo { filter: none; }
+html.is-tv .sg-bg { position: absolute; }
+html.is-tv .sg-poster-blank.is-loading, html.is-tv .skeleton, html.is-tv .skeleton-text { animation: none; }
+html.is-tv .sg-card, html.is-tv .pf-tile, html.is-tv .sg-card-img img, html.is-tv .pf-tile-posters img { transition: none; box-shadow: none; }
+html.is-tv .sg-link.is-lit, html.is-tv .sg-film.is-seen .sg-dot, html.is-tv .sg-card-bar div, html.is-tv .pf-hero-thumbs button.is-on { box-shadow: none; }

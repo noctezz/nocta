@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { MetaPreview, ProgressEntry } from '../lib/types';
 import { useStore } from '../lib/store';
 import { backdropOf, logoOf, posterOf, useHover, type CardVariant } from '../lib/ui';
-import { lightImg } from '../lib/tv';
+import { cardImg, cardImgFailed, lightImg } from '../lib/tv';
 
 export function Card({
   item, variant = 'landscape', rank, entry,
@@ -29,7 +29,7 @@ export function Card({
         <svg className="rank" viewBox="0 0 120 160" aria-hidden>
           <text x="120" y="150" textAnchor="end">{rank}</text>
         </svg>
-        <img src={posterOf(item)} alt={item.name} loading="lazy" decoding="async" draggable={false} />
+        <img src={cardImg(posterOf(item))} alt={item.name} loading="lazy" decoding="async" draggable={false} onError={(e) => cardImgFailed(e.currentTarget, posterOf(item))} />
       </div>
     );
   }
@@ -41,7 +41,7 @@ export function Card({
     <div className="card" tabIndex={0} ref={ref} onMouseEnter={enter} onMouseLeave={leave} onClick={click}>
       <div className="card-img">
         {imgOk ? (
-          <img src={lightImg(backdropOf(item), 'w780')} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setImgOk(false)} />
+          <img src={cardImg(lightImg(backdropOf(item), 'w780'))} alt="" loading="lazy" decoding="async" draggable={false} onError={(e) => { if (!cardImgFailed(e.currentTarget, lightImg(backdropOf(item), 'w780'))) setImgOk(false); }} />
         ) : (
           <div className="card-fallback" />
         )}

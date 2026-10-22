@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { IS_TV } from '../lib/tv';
+import { IS_TV, cardImg, cardImgFailed } from '../lib/tv';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ChevronRight, Info, MonitorPlay, Play, Puzzle } from 'lucide-react';
 import { create } from 'zustand';
@@ -105,7 +105,7 @@ function PlatformTile({ p, i }: { p: Platform; i: number }) {
       onClick={() => openPlatform(p.id)}
     >
       <div className="pf-tile-posters">
-        {posters.map((m, k) => <img key={m.id} src={posterOf(m)} alt="" style={{ ['--k' as string]: k }} loading="lazy" draggable={false} />)}
+        {posters.map((m, k) => <img key={m.id} src={cardImg(posterOf(m))} onError={(e) => cardImgFailed(e.currentTarget, posterOf(m))} alt="" style={{ ['--k' as string]: k }} loading="lazy" draggable={false} />)}
       </div>
       <div className="pf-tile-shade" />
       <div className="pf-tile-body">
@@ -258,7 +258,7 @@ function PlatformHero({ p, items }: { p: Platform; items: MetaPreview[] }) {
   const [logoFail, setLogoFail] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (items.length < 2) return;
+    if (items.length < 2 || IS_TV) return;
     const t = setInterval(() => setN((x) => x + 1), 9000);
     return () => clearInterval(t);
   }, [items.length, n]);
@@ -322,7 +322,7 @@ function PlatformHero({ p, items }: { p: Platform; items: MetaPreview[] }) {
         <div className="pf-hero-thumbs">
           {items.map((x, i) => (
             <button key={x.id} className={i === n % items.length ? 'is-on' : ''} onClick={() => setN(i)} title={x.name}>
-              <img src={posterOf(x)} alt="" loading="lazy" draggable={false} />
+              <img src={cardImg(posterOf(x))} onError={(e) => cardImgFailed(e.currentTarget, posterOf(x))} alt="" loading="lazy" draggable={false} />
             </button>
           ))}
         </div>

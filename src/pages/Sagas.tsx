@@ -6,7 +6,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useProfile, useStore } from '../lib/store';
 import { backdropOf, posterOf, resumeEntry } from '../lib/ui';
 import { playTarget } from '../lib/autoplay';
-import { lightImg } from '../lib/tv';
+import { IS_TV, cardImg, cardImgFailed, lightImg } from '../lib/tv';
 import type { MetaPreview } from '../lib/types';
 import {
   SAGAS, SAGA_CATS, coverOf, ensureSaga, filmKey, filmLabel, filmOf, isSeen, nextOf, nextStep, orderOf, sagaById, sagaProgress,
@@ -129,6 +129,8 @@ function SagaHero() {
   const ready = FEATURED.map(sagaById).filter((s): s is SagaDef => !!s && !!coverOf(hits, s));
   const [n, setN] = useState(0);
   useEffect(() => {
+    // Sur la TV, pas de défilement automatique (chaque changement recharge une grande image)
+    if (IS_TV) return;
     const t = setInterval(() => setN((x) => x + 1), 8000);
     return () => clearInterval(t);
   }, []);
@@ -194,7 +196,7 @@ const SagaCard = memo(function SagaCard({ saga, i, showNext }: { saga: SagaDef; 
       onClick={() => { useSagaView.setState({ open: saga.id }); window.scrollTo({ top: 0 }); }}
     >
       <div className="sg-card-img">
-        {cover && ok ? <img src={lightImg(backdropOf(cover), 'w300')} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setOk(false)} /> : <div className="sg-card-blank" />}
+        {cover && ok ? <img src={cardImg(lightImg(backdropOf(cover), 'w300'))} alt="" loading="lazy" decoding="async" draggable={false} onError={(e) => { if (!cardImgFailed(e.currentTarget, lightImg(backdropOf(cover), 'w300'))) setOk(false); }} /> : <div className="sg-card-blank" />}
       </div>
       <div className="sg-card-shade" />
       <div className="sg-card-body">
@@ -399,7 +401,7 @@ function SagaView({ saga }: { saga: SagaDef }) {
 function Poster({ m }: { m: MetaPreview }) {
   const [ok, setOk] = useState(true);
   return ok
-    ? <img src={posterOf(m)} alt={m.name} loading="lazy" decoding="async" draggable={false} onError={() => setOk(false)} />
+    ? <img src={cardImg(posterOf(m))} alt={m.name} loading="lazy" decoding="async" draggable={false} onError={(e) => { if (!cardImgFailed(e.currentTarget, posterOf(m))) setOk(false); }} />
     : <div className="sg-poster-blank"><span>{m.name}</span></div>;
 }
 

@@ -2,6 +2,10 @@
 // déplacent une sélection d'un élément à l'autre selon leur position à l'écran,
 // OK valide, Retour ferme la fenêtre ouverte ou revient à l'accueil.
 import { useStore } from './store';
+import { IS_TV } from './tv';
+
+// Sur la TV, défilement immédiat : l'animation de défilement saccade sur une box
+const SCROLL: ScrollBehavior = IS_TV ? 'auto' : 'smooth';
 
 export type NavKey = 'up' | 'down' | 'left' | 'right' | 'ok' | 'back' | 'home' | 'playpause';
 
@@ -58,17 +62,20 @@ function ensureVisible(el: HTMLElement) {
   if (parent) {
     const pr = parent.getBoundingClientRect();
     if (r.top < pr.top + 60 || r.bottom > pr.bottom - 60) {
-      parent.scrollBy({ top: r.top + r.height / 2 - (pr.top + pr.height / 2), behavior: 'smooth' });
+      parent.scrollBy({ top: r.top + r.height / 2 - (pr.top + pr.height / 2), behavior: SCROLL });
     }
     return;
   }
   const top = 110, bottom = window.innerHeight - 60;
+  // Élément visible en entier tout en haut de la page (boutons de la grande image) : on remonte
+  // jusqu'en haut, pour revoir l'image en entier au lieu d'une image coupée
+  if (r.top < top && r.bottom + window.scrollY < bottom) { window.scrollTo({ top: 0, behavior: SCROLL }); return; }
   if (r.top < top || r.bottom > bottom) {
     // Rangée sélectionnée vers le haut de l'écran, comme sur les apps TV
     const target = Math.min(window.innerHeight * 0.38, Math.max(top, window.innerHeight - r.height - 80));
     const dy = r.top - target;
-    if (window.scrollY + dy < 40 && r.top < top) window.scrollTo({ top: 0, behavior: 'smooth' });
-    else window.scrollBy({ top: dy, behavior: 'smooth' });
+    if (window.scrollY + dy < 40 && r.top < top) window.scrollTo({ top: 0, behavior: SCROLL });
+    else window.scrollBy({ top: dy, behavior: SCROLL });
   }
 }
 
@@ -157,6 +164,12 @@ function back() {
   if (st.searchQuery) { st.setSearch(''); return; }
   if (st.page !== 'home') { st.setPage('home'); window.scrollTo({ top: 0 }); return; }
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/** Sélectionne un élément précis (télécommande) */
+export function navFocus(el: HTMLElement) {
+  document.documentElement.classList.add('kbd-nav');
+  setCurrent(el, false);
 }
 
 /** Flèches de la télécommande dans un panneau précis (ex. audio et sous-titres du lecteur) */

@@ -10,7 +10,7 @@ import { formatTime } from '../lib/playback';
 import { langName } from '../lib/subs';
 import type { MetaPreview } from '../lib/types';
 import { LoadingScreen } from './LoadingScreen';
-import { navWithin } from '../lib/spatialNav';
+import { navFocus, navWithin } from '../lib/spatialNav';
 
 // Interface du lecteur affichée par-dessus mpv (fenêtre transparente)
 
@@ -86,6 +86,8 @@ export function MpvOverlay() {
   const [subDelay, setSubDelay] = useState(0);
   const [eof, setEof] = useState(false);
   const [controls, setControls] = useState(true);
+  // TV : la télécommande pilote les boutons de la barre (en pause, ou après ↓) au lieu d'avancer le film
+  const [bar, setBar] = useState(false);
   const [panel, setPanel] = useState<'tracks' | 'speed' | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [flash, setFlash] = useState<{ n: number; icon: 'play' | 'pause' | 'fwd' | 'back' } | null>(null);
@@ -384,6 +386,15 @@ export function MpvOverlay() {
     if (paused || panel || !started) { setControls(true); clearTimeout(hideTimer.current); } else poke();
   }, [paused, panel, started, poke]);
 
+  useEffect(() => { if (TV && paused) setBar(true); }, [paused]);
+  useEffect(() => { if (TV && !controls && !paused) setBar(false); }, [controls, paused]);
+  useEffect(() => {
+    if (!TV || !bar) return;
+    // Bouton Lecture/Pause sélectionné en premier
+    const t = setTimeout(() => { const play = document.querySelector<HTMLElement>('.player-row .player-btn'); if (play) navFocus(play); }, 60);
+    return () => clearTimeout(t);
+  }, [bar]);
+
   // ---------- Clavier ----------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -403,6 +414,23 @@ export function MpvOverlay() {
             return;
           }
           if (e.key !== 'Escape') return;
+        } else if (bar) {
+          // Barre de commandes sélectionnée (pause, ou ↓) : ← → passent d'un bouton à l'autre, OK appuie
+          const row = document.querySelector<HTMLElement>('.player-row');
+          if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && row) { e.preventDefault(); navWithin(row, dir!); return; }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const el = document.activeElement as HTMLElement | null;
+            if (el && row?.contains(el)) el.click(); else togglePlay();
+            return;
+          }
+          if (e.key === 'ArrowDown' || (e.key === 'Escape' && !paused)) { e.preventDefault(); setBar(false); return; }
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setPanel('tracks');
+            setTimeout(() => { const p = document.querySelector<HTMLElement>('.pop'); if (p) navWithin(p, 'down'); }, 120);
+            return;
+          }
         } else {
           if (e.key === 'Enter') { e.preventDefault(); togglePlay(); return; }
           if (e.key === 'ArrowUp') {
@@ -411,7 +439,7 @@ export function MpvOverlay() {
             setTimeout(() => { const p = document.querySelector<HTMLElement>('.pop'); if (p) navWithin(p, 'down'); }, 120);
             return;
           }
-          if (e.key === 'ArrowDown') { e.preventDefault(); return; }
+          if (e.key === 'ArrowDown') { e.preventDefault(); setBar(true); return; }
         }
       }
       switch (e.key) {
