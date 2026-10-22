@@ -103,12 +103,16 @@ interface NoctaBridge {
   };
   /** PC : partage des profils et réglages avec l'appli TV */
   transfer?: {
-    start: () => Promise<{ running: boolean; code: string; until: number; ips: string[]; name: string; error?: string }>;
-    stop: () => Promise<unknown>;
-    onDone: (cb: (r: { ok: boolean; reason?: string }) => void) => () => void;
+    scan: () => Promise<{ done: boolean }>;
+    stopScan: () => Promise<void>;
+    send: (ip: string, code: string) => Promise<{ ok: boolean; error?: string; detail?: string }>;
+    onFound: (cb: (tv: { ip: string; name: string }) => void) => () => void;
   };
-  /** Android TV : adresse de la TV sur le réseau local */
-  tv?: { localIp: () => Promise<string> };
+  /** Android TV : adresse de la TV et réception des données envoyées par le PC */
+  tv?: {
+    localIp: () => Promise<string>;
+    receive: (code: string, onData: (r: { data?: string; error?: string }) => void) => Promise<{ ok: boolean; name?: string; error?: string; stop: () => void }>;
+  };
   win: {
     toggleFullscreen: () => Promise<boolean>;
     isFullscreen: () => Promise<boolean>;

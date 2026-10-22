@@ -209,11 +209,10 @@ ipcMain.handle('update:status', () => updater.status());
 ipcMain.handle('update:check', () => updater.check({ manual: true }));
 ipcMain.handle('update:install', () => updater.install());
 
-// Envoyer vers la TV : profils, addons et réglages partagés quelques minutes sur le réseau local
-ipcMain.handle('transfer:start', () => transfer.start(() => store.load(), (r) => {
-  if (win && !win.isDestroyed()) win.webContents.send('transfer:done', r);
-}));
-ipcMain.handle('transfer:stop', () => { transfer.stop(); return transfer.status(); });
+// Envoyer vers la TV : le PC cherche la TV sur le réseau local puis lui envoie ses données
+ipcMain.handle('transfer:scan', (e) => transfer.scan((tv) => { if (!e.sender.isDestroyed()) e.sender.send('transfer:found', tv); }));
+ipcMain.handle('transfer:stopScan', () => transfer.stopScan());
+ipcMain.handle('transfer:send', (_e, ip, code) => transfer.send(ip, code, store.load()));
 ipcMain.handle('remote:status', () => remote.status());
 ipcMain.handle('remote:setEnabled', async (_e, v) => { const st = await remote.setEnabled(v); remoteStatusToRenderer(); return st; });
 ipcMain.handle('remote:reset', async () => { const st = await remote.resetToken(); remoteStatusToRenderer(); return st; });
@@ -331,7 +330,7 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', () => {
   media.stop();
   remote.stop();
-  transfer.stop();
+  transfer.stopScan();
   if (session) session.stop();
   if (process.platform !== 'darwin') app.quit();
 });

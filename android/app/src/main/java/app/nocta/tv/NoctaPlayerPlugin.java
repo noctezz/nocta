@@ -37,8 +37,15 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import org.json.JSONArray;
+import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.Inet4Address;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.ArrayList;
@@ -538,6 +545,134 @@ public class NoctaPlayerPlugin extends Plugin {
         call.resolve(r);
     }
 
+    // ---------------------------------------------------------------- Réception depuis le PC
+    // « Importer depuis mon PC » : la TV attend que le PC lui envoie ses données (le PC se
+    // connecte à la TV, ce que le pare-feu de Windows laisse toujours passer).
+
+    private static final int RECEIVE_PORT = 7991;
+    private ServerSocket receiver;
+    private String receiveCode = "";
+    private int receiveTries = 0;
+
+    @PluginMethod
+    public void receiveStart(PluginCall call) {
+        stopReceiver();
+        receiveCode = call.getString("code", "");
+        receiveTries = 0;
+        try {
+            ServerSocket s = new ServerSocket(RECEIVE_PORT);
+            receiver = s;
+            new Thread(() -> {
+                while (!s.isClosed()) {
+                    try {
+                        Socket c = s.accept();
+                        new Thread(() -> handleReceive(c)).start();
+                    } catch (Exception e) {
+                        break;
+                    }
+                }
+            }).start();
+            JSObject r = new JSObject();
+            r.put("ok", true);
+            r.put("port", RECEIVE_PORT);
+            r.put("name", android.os.Build.MODEL);
+            call.resolve(r);
+        } catch (Exception e) {
+            JSObject r = new JSObject();
+            r.put("ok", false);
+            r.put("error", String.valueOf(e.getMessage()));
+            call.resolve(r);
+        }
+    }
+
+    @PluginMethod
+    public void receiveStop(PluginCall call) {
+        stopReceiver();
+        call.resolve();
+    }
+
+    private void stopReceiver() {
+        try {
+            if (receiver != null) receiver.close();
+        } catch (Exception ignored) {
+        }
+        receiver = null;
+    }
+
+    private void handleReceive(Socket c) {
+        try {
+            c.setSoTimeout(30000);
+            InputStream in = c.getInputStream();
+            // En-têtes HTTP
+            ByteArrayOutputStream head = new ByteArrayOutputStream();
+            int b, matched = 0;
+            while ((b = in.read()) != -1) {
+                head.write(b);
+                matched = (b == "\r\n\r\n".charAt(matched)) ? matched + 1 : (b == '\r' ? 1 : 0);
+                if (matched == 4 || head.size() > 16384) break;
+            }
+            String[] lines = head.toString("UTF-8").split("\r\n");
+            String[] first = lines[0].split(" ");
+            String path = first.length > 1 ? first[1] : "/";
+            int length = 0;
+            for (String l : lines) {
+                if (l.toLowerCase(Locale.ROOT).startsWith("content-length:")) length = Integer.parseInt(l.substring(15).trim());
+            }
+            if (path.startsWith("/nocta")) {
+                respond(c, 200, "{\"nocta\":\"tv\",\"name\":" + JSONObject.quote(android.os.Build.MODEL) + "}");
+                return;
+            }
+            if (!path.startsWith("/import")) {
+                respond(c, 404, "{}");
+                return;
+            }
+            String code = Uri.parse("http://x" + path).getQueryParameter("code");
+            if (receiveCode.isEmpty() || !receiveCode.equals(code)) {
+                respond(c, 403, "{\"error\":\"code\"}");
+                if (++receiveTries >= 8) {
+                    stopReceiver();
+                    JSObject ev = new JSObject();
+                    ev.put("error", "tries");
+                    notifyListeners("transfer", ev);
+                }
+                return;
+            }
+            byte[] body = new byte[Math.max(0, length)];
+            int read = 0;
+            while (read < body.length) {
+                int n = in.read(body, read, body.length - read);
+                if (n < 0) break;
+                read += n;
+            }
+            if (read < body.length) {
+                respond(c, 400, "{\"error\":\"incomplete\"}");
+                return;
+            }
+            respond(c, 200, "{\"ok\":true}");
+            stopReceiver();
+            JSObject ev = new JSObject();
+            ev.put("data", new String(body, StandardCharsets.UTF_8));
+            notifyListeners("transfer", ev);
+        } catch (Exception ignored) {
+            try {
+                c.close();
+            } catch (Exception ignored2) {
+            }
+        }
+    }
+
+    private void respond(Socket c, int status, String json) throws Exception {
+        byte[] body = json.getBytes(StandardCharsets.UTF_8);
+        String reason = status == 200 ? "OK" : status == 403 ? "Forbidden" : status == 404 ? "Not Found" : "Bad Request";
+        String head = "HTTP/1.1 " + status + " " + reason + "\r\nContent-Type: application/json; charset=utf-8\r\n" +
+            "Access-Control-Allow-Origin: *\r\nContent-Length: " + body.length + "\r\nConnection: close\r\n\r\n";
+        OutputStream out = c.getOutputStream();
+        out.write(head.getBytes(StandardCharsets.UTF_8));
+        out.write(body);
+        out.flush();
+        c.close();
+    }
+
     // ---------------------------------------------------------------- Cycle de vie
 
     @Override
@@ -547,6 +682,7 @@ public class NoctaPlayerPlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
+        stopReceiver();
         release();
     }
 

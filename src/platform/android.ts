@@ -10,7 +10,10 @@ interface NativePlayer {
   cmd(o: { args: unknown[] }): Promise<void>;
   probe(o: { src: string }): Promise<NoctaTrackLangs>;
   localIp(): Promise<{ ip: string }>;
+  receiveStart(o: { code: string }): Promise<{ ok: boolean; name?: string; error?: string }>;
+  receiveStop(): Promise<void>;
   addListener(event: 'mpv', cb: (d: { name: string; value: unknown }) => void): Promise<PluginListenerHandle>;
+  addListener(event: 'transfer', cb: (d: { data?: string; error?: string }) => void): Promise<PluginListenerHandle>;
 }
 
 export const isAndroid = () => Capacitor.getPlatform() === 'android';
@@ -141,7 +144,17 @@ function install() {
       subsync: async () => ({ status: 'unsure' as const }),
       on,
     },
-    tv: { localIp: () => Native.localIp().then((r) => r.ip).catch(() => '') },
+    tv: {
+      localIp: () => Native.localIp().then((r) => r.ip).catch(() => ''),
+      // « Importer depuis mon PC » : la TV attend les données que le PC lui envoie
+      receive: async (code, onData) => {
+        const sub = await Native.addListener('transfer', onData);
+        const r = await Native.receiveStart({ code }).catch((e) => ({ ok: false, error: String(e?.message || e) }));
+        const stop = () => { sub.remove(); Native.receiveStop().catch(() => {}); };
+        if (!r.ok) stop();
+        return { ...r, stop };
+      },
+    },
     openVideoDialog: async () => null,
     pathForFile: () => '',
     openExternal: async (url) => { window.open(url, '_blank'); },

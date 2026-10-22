@@ -77,12 +77,13 @@ contextBridge.exposeInMainWorld('nocta', {
     testKey: (key) => ipcRenderer.invoke('assistant:testKey', key),
   },
   transfer: {
-    start: () => ipcRenderer.invoke('transfer:start'),
-    stop: () => ipcRenderer.invoke('transfer:stop'),
-    onDone: (cb) => {
-      const fn = (_e, r) => cb(r);
-      ipcRenderer.on('transfer:done', fn);
-      return () => ipcRenderer.removeListener('transfer:done', fn);
+    scan: () => ipcRenderer.invoke('transfer:scan'),
+    stopScan: () => ipcRenderer.invoke('transfer:stopScan'),
+    send: (ip, code) => ipcRenderer.invoke('transfer:send', ip, code),
+    onFound: (cb) => {
+      const fn = (_e, tv) => cb(tv);
+      ipcRenderer.on('transfer:found', fn);
+      return () => ipcRenderer.removeListener('transfer:found', fn);
     },
   },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),

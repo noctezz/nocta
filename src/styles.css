@@ -1674,7 +1674,13 @@ html.is-tv { cursor: none; }
 .tvx-code-box small { color: var(--muted); }
 .tvx-code { display: flex; gap: 12px; }
 .tvx-code span { width: 64px; height: 78px; display: grid; place-items: center; border-radius: 14px; font-size: 42px; font-weight: 900; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); font-variant-numeric: tabular-nums; }
-.tvx-code-input span.is-on { border-color: var(--accent); box-shadow: 0 0 22px rgba(229, 15, 58, 0.3); }
+.tvx .tvx-code span { width: 96px; height: 116px; font-size: 64px; border-color: rgba(229, 15, 58, 0.6); box-shadow: 0 0 30px rgba(229, 15, 58, 0.25); }
+.tvx-small { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.tvx-small strong { color: #fff; }
+.tvx-ask { color: rgba(255, 255, 255, 0.85); }
+.tvx-code-field { width: 220px; text-align: center; font-size: 40px; font-weight: 900; letter-spacing: 0.4em; padding: 12px 0 12px 0.4em; font-variant-numeric: tabular-nums; }
+.tvx-pcs-pc { min-height: 0; }
+.tvx-pcs-pc .tvx-pc { min-width: 180px; padding: 16px; font-size: 16px; }
 
 .tvx-back { position: fixed; inset: 0; z-index: 150; display: grid; place-items: center; background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(10px); }
 .tvx { position: relative; width: min(860px, 92vw); padding: 44px 48px; border-radius: 24px; background: #121217; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7); display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; }
@@ -1691,10 +1697,6 @@ html.is-tv { cursor: none; }
 .tvx-none { display: flex; flex-direction: column; align-items: center; gap: 14px; color: rgba(255, 255, 255, 0.7); max-width: 560px; }
 .tvx-manual { display: flex; gap: 10px; width: 100%; }
 .tvx-manual .input { flex: 1; }
-.tvx-pad { display: grid; grid-template-columns: repeat(3, 96px); gap: 12px; }
-.tvx-pad button { height: 72px; border-radius: 16px; font-size: 30px; font-weight: 800; background: rgba(255, 255, 255, 0.07); border: 2px solid transparent; display: grid; place-items: center; transition: all 0.15s; }
-.tvx-pad button:focus, .tvx-pad button.nav-focus, .tvx-pad button:hover { background: #fff; color: #000; transform: scale(1.05); }
-.tvx-pad .tvx-pad-small { font-size: 14px; font-weight: 700; }
 .tvx-done { display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--green); }
 .tvx-done h2 { color: #fff; }
 .tvx-done p { color: rgba(255, 255, 255, 0.75); }

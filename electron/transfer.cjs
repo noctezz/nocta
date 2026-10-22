@@ -1,72 +1,61 @@
-// « Envoyer vers la TV » : pendant quelques minutes, le PC partage ses profils, addons et
-// réglages sur le réseau local. L'appli NOCTA de la TV le retrouve toute seule et les récupère
-// avec un code à 4 chiffres affiché sur le PC.
+// « Envoyer vers la TV » : le PC cherche l'appli NOCTA de la TV sur le réseau local et lui
+// envoie ses profils, addons et réglages, avec le code à 4 chiffres affiché sur la TV.
+// C'est le PC qui se connecte à la TV : le pare-feu de Windows ne bloque pas ce sens-là.
 const http = require('node:http');
-const os = require('node:os');
-const crypto = require('node:crypto');
 const remote = require('./remote.cjs');
 
-const PORT = 7990;
-const DURATION = 10 * 60 * 1000;
+const PORT = 7991;
 
-let srv = null;
-let code = '';
-let until = 0;
-let timer = null;
-let tries = 0;
-
-function stop() {
-  clearTimeout(timer);
-  timer = null;
-  if (srv) srv.close();
-  srv = null;
-  code = '';
-}
-
-function status() {
-  return {
-    running: !!srv,
-    code,
-    until,
-    ips: remote.addresses().lan,
-    name: os.hostname(),
-  };
-}
-
-/** Lance le partage ; getData renvoie les données à envoyer, onDone prévient l'interface */
-function start(getData, onDone) {
-  stop();
-  code = String(crypto.randomInt(1000, 10000));
-  until = Date.now() + DURATION;
-  tries = 0;
+function request(ip, path, { method = 'GET', body, timeout = 1500 } = {}) {
   return new Promise((resolve) => {
-    srv = http.createServer((req, res) => {
-      const url = new URL(req.url, 'http://x');
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      // Découverte : la TV cherche les PC qui partagent en ce moment
-      if (url.pathname === '/nocta') return res.end(JSON.stringify({ nocta: true, name: os.hostname() }));
-      if (url.pathname === '/transfer') {
-        // Trop d'essais ratés : le partage s'arrête (protection contre les codes devinés)
-        if (url.searchParams.get('code') !== code) {
-          res.statusCode = 403;
-          res.end(JSON.stringify({ error: 'code' }));
-          if (++tries >= 8) { stop(); onDone({ ok: false, reason: 'tries' }); }
-          return;
-        }
-        res.end(JSON.stringify({ version: 1, data: getData() }));
-        setTimeout(() => { stop(); onDone({ ok: true }); }, 500);
-        return;
-      }
-      res.statusCode = 404;
-      res.end('{}');
+    const req = http.request({
+      host: ip, port: PORT, path, method, timeout,
+      headers: body ? { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': Buffer.byteLength(body) } : {},
+    }, (res) => {
+      let data = '';
+      res.setEncoding('utf8');
+      res.on('data', (c) => { data += c; });
+      res.on('end', () => {
+        let json = null;
+        try { json = JSON.parse(data); } catch { /* réponse vide */ }
+        resolve({ status: res.statusCode, data: json });
+      });
     });
-    srv.on('error', (e) => { stop(); resolve({ ...status(), error: e.code === 'EADDRINUSE' ? 'Le port 7990 est déjà utilisé' : String(e.message || e) }); });
-    srv.listen(PORT, '0.0.0.0', () => {
-      timer = setTimeout(() => { stop(); onDone({ ok: false, reason: 'timeout' }); }, DURATION);
-      resolve(status());
-    });
+    req.on('timeout', () => req.destroy(new Error('timeout')));
+    req.on('error', (e) => resolve({ status: 0, error: e.code || e.message }));
+    if (body) req.write(body);
+    req.end();
   });
 }
 
-module.exports = { start, stop, status, PORT };
+let scanId = 0;
+
+/** Cherche les TV qui attendent un import ; onFound est appelé pour chaque TV trouvée */
+async function scan(onFound) {
+  const id = ++scanId;
+  const own = remote.addresses().lan;
+  const prefixes = [...new Set(own.map((ip) => ip.split('.').slice(0, 3).join('.')))].slice(0, 3);
+  const targets = prefixes.flatMap((p) => Array.from({ length: 254 }, (_, i) => `${p}.${i + 1}`)).filter((x) => !own.includes(x));
+  let next = 0;
+  const worker = async () => {
+    while (next < targets.length && id === scanId) {
+      const ip = targets[next++];
+      const r = await request(ip, '/nocta');
+      if (r.status === 200 && r.data?.nocta === 'tv' && id === scanId) onFound({ ip, name: r.data.name || ip });
+    }
+  };
+  await Promise.all(Array.from({ length: 64 }, worker));
+  return { done: id === scanId };
+}
+
+function stopScan() { scanId++; }
+
+/** Envoie les données à la TV ; 'code' = code faux, 'unreachable' = TV injoignable */
+async function send(ip, code, data) {
+  const r = await request(ip, `/import?code=${encodeURIComponent(code)}`, { method: 'POST', body: JSON.stringify({ version: 1, data }), timeout: 20000 });
+  if (r.status === 200 && r.data?.ok) return { ok: true };
+  if (r.status === 403) return { ok: false, error: 'code' };
+  return { ok: false, error: r.status ? `http ${r.status}` : 'unreachable', detail: r.error };
+}
+
+module.exports = { scan, stopScan, send, PORT };
