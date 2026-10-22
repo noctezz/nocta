@@ -52,7 +52,23 @@ function install() {
     }
   });
 
-  const http: NoctaBridge['http'] = async (url, opts = {}) => {
+  /** Requête par le moteur web : bien plus légère pour la box (pas de copie par le pont natif) */
+  const webFailed = new Set<string>();
+  const viaWeb = async (url: string, timeout: number) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeout);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal, credentials: 'omit' });
+      const text = await r.text();
+      let body: unknown = text;
+      try { body = JSON.parse(text); } catch { /* texte */ }
+      return { ok: r.ok, status: r.status, data: body };
+    } finally {
+      clearTimeout(t);
+    }
+  };
+
+  const viaNative: NoctaBridge['http'] = async (url, opts = {}) => {
     try {
       const headers: Record<string, string> = { 'User-Agent': 'NOCTA', ...(opts.headers || {}) };
       let data: unknown = opts.body;
@@ -75,6 +91,23 @@ function install() {
     } catch (e) {
       return { ok: false, status: 0, error: String((e as Error)?.message || e) };
     }
+  };
+
+  // Lectures simples (catalogues, fiches, sources) par le moteur web quand le serveur l'autorise ;
+  // sinon (serveur fermé aux pages web, en-têtes, envoi de données) par le réseau natif
+  const http: NoctaBridge['http'] = async (url, opts = {}) => {
+    const host = (() => { try { return new URL(url).host; } catch { return ''; } })();
+    const simple = (!opts.method || opts.method === 'GET') && !opts.body && !Object.keys(opts.headers || {}).length;
+    if (simple && host && !webFailed.has(host) && /^https?:/i.test(url)) {
+      try {
+        return await viaWeb(url, opts.timeout || 20000);
+      } catch (e) {
+        // Délai dépassé : le serveur est lent, inutile de réessayer autrement
+        if ((e as Error)?.name === 'AbortError') return { ok: false, status: 0, error: 'timeout' };
+        webFailed.add(host);
+      }
+    }
+    return viaNative(url, opts);
   };
 
   const STORE = 'nocta-data';

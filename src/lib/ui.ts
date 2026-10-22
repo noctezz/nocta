@@ -5,13 +5,14 @@ import { episodeTarget, nextUnwatched, playNextFor, playTarget } from './autopla
 import { getMeta } from './addons';
 import type { MetaPreview, ProgressEntry } from './types';
 import type { LoadingInfo } from '../components/LoadingScreen';
+import { lightImg } from './tv';
 
 export const isImdb = (id: string) => /^tt\d+/.test(id);
 
 export function backdropOf(m: MetaPreview): string | undefined {
-  if (m.background) return m.background;
+  if (m.background) return lightImg(m.background, 'w1280');
   if (isImdb(m.id)) return `https://images.metahub.space/background/medium/${m.id.split(':')[0]}/img`;
-  return m.poster;
+  return lightImg(m.poster, 'w780');
 }
 
 export function logoOf(m: MetaPreview): string | undefined {
@@ -21,7 +22,7 @@ export function logoOf(m: MetaPreview): string | undefined {
 }
 
 export function posterOf(m: MetaPreview): string | undefined {
-  if (m.poster) return m.poster;
+  if (m.poster) return lightImg(m.poster, 'w342');
   if (isImdb(m.id)) return `https://images.metahub.space/poster/medium/${m.id.split(':')[0]}/img`;
   return undefined;
 }

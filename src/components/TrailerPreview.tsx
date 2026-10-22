@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import type { Meta } from '../lib/types';
 import { useStore } from '../lib/store';
+import { IS_TV } from '../lib/tv';
 
 /** ID YouTube de la bande-annonce fournie par l'addon de métadonnées (Cinemeta) */
 export function trailerIdOf(meta: Meta): string | null {
@@ -20,7 +21,8 @@ export function trailerIdOf(meta: Meta): string | null {
  * sans son par défaut, bouton son, rejouer à la fin.
  */
 export function TrailerPreview({ meta, paused, delay = 1500, compact = false }: { meta: Meta; paused?: boolean; delay?: number; compact?: boolean }) {
-  const enabled = useStore((s) => s.settings.autoplayTrailers !== false);
+  // Sur la TV, la bande-annonce YouTube intégrée coûte trop cher à la box
+  const enabled = useStore((s) => s.settings.autoplayTrailers !== false) && !IS_TV;
   const ytId = trailerIdOf(meta);
   const frame = useRef<HTMLIFrameElement>(null);
   const [started, setStarted] = useState(false);

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { SeasonTheme } from '../lib/theme';
+import { IS_TV } from '../lib/tv';
 
 interface Flake { x: number; y: number; r: number; vx: number; vy: number; o: number; phase: number }
 interface Bat { x: number; y: number; vx: number; size: number; t: number; amp: number }
@@ -12,7 +13,7 @@ export function SeasonalLayer({ theme, density = 1, className = '' }: { theme: S
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (theme === 'none') return;
+    if (theme === 'none' || IS_TV) return;
     const canvas = ref.current!;
     const ctx = canvas.getContext('2d')!;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -131,6 +132,7 @@ export function SeasonalLayer({ theme, density = 1, className = '' }: { theme: S
     };
   }, [theme, density]);
 
-  if (theme === 'none') return null;
+  // Sur la TV : pas d'animation permanente (la box n'a pas la puissance d'un PC)
+  if (theme === 'none' || IS_TV) return null;
   return <canvas ref={ref} className={`seasonal-layer ${className}`} aria-hidden />;
 }

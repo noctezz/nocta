@@ -17,6 +17,7 @@ import { Player } from './components/Player';
 import { MpvBridge } from './components/MpvBridge';
 import { LoadingScreen } from './components/LoadingScreen';
 import { SeasonalLayer } from './components/SeasonalLayer';
+import { IS_TV } from './lib/tv';
 import { useSeasonTheme } from './lib/theme';
 import { Home } from './pages/Home';
 import { Browse } from './pages/Browse';
@@ -76,7 +77,8 @@ function BusyOverlay() {
 }
 
 export default function App() {
-  const [intro, setIntro] = useState(true);
+  // Sur la TV, pas d'intro animée : l'appli s'ouvre tout de suite
+  const [intro, setIntro] = useState(!IS_TV);
   const activeProfileId = useStore((s) => s.activeProfileId);
   const page = useStore((s) => s.page);
   const detail = useStore((s) => s.detail);
@@ -167,8 +169,8 @@ export default function App() {
               {page === 'journal' && <Journal />}
               {page === 'timemachine' && <Suspense fallback={null}><TimeMachine /></Suspense>}
             </main>
-            <HoverPreview />
-            {!player && <SeasonalLayer theme={season} density={0.7} className="app-season" />}
+            {!IS_TV && <HoverPreview />}
+            {!player && !IS_TV && <SeasonalLayer theme={season} density={0.7} className="app-season" />}
           </motion.div>
         )}
       </AnimatePresence>

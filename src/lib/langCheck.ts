@@ -3,6 +3,8 @@
 // Les résultats sont mémorisés : une source déjà vérifiée l'est instantanément ensuite.
 import type { Stream } from './types';
 import { cleanup as torboxCleanup, snapshot as torboxSnapshot } from './torbox';
+import { useStore } from './store';
+import { IS_TV } from './tv';
 
 export type LangStatus = 'fr' | 'nofr' | 'unknown';
 export interface LangInfo {
@@ -84,7 +86,7 @@ export function cachedLang(s: Stream): LangInfo | undefined {
 export const canCheck = (s: Stream) =>
   !!s.url && /^https?:/i.test(s.url) && !!window.nocta?.media.langs && /⚡|\+\]|cached|instant/i.test(`${s.name} ${s.title}`);
 
-// ---------- Vérifications (3 en parallèle au plus) ----------
+// ---------- Vérifications (3 en parallèle au plus ; une seule sur la TV) ----------
 const inflight = new Map<string, Promise<LangInfo | null>>();
 /** Liste TorBox prise juste avant chaque vérification : permet de retirer plus tard ce qu'elle a ajouté */
 const befores = new Map<string, Set<number>>();
@@ -98,7 +100,7 @@ function slot<T>(fn: () => Promise<T>): Promise<T> {
       running++;
       fn().then(resolve, reject).finally(() => { running--; queue.shift()?.(); });
     };
-    if (running < 3) run(); else queue.push(run);
+    if (running < (IS_TV ? 1 : 3)) run(); else queue.push(run);
   });
 }
 
@@ -111,6 +113,8 @@ export function checkLang(s: Stream): Promise<LangInfo | null> {
   const cur = inflight.get(key);
   if (cur) return cur;
   const p = slot(async () => {
+    // Sur la TV, pas de vérification pendant la lecture : toute la box est pour la vidéo
+    if (IS_TV && useStore.getState().player) return null;
     // Liste TorBox juste avant d'ouvrir la source : seul ce qui apparaît ensuite pourra être retiré
     const before = await torboxSnapshot();
     if (before) befores.set(key, before);

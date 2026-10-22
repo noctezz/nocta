@@ -461,64 +461,59 @@ public class NoctaPlayerPlugin extends Plugin {
 
     // ---------------------------------------------------------------- Langues d'un fichier (VF vérifiée)
 
-    /** Ouvre le début du fichier, sans l'afficher, pour lire ses pistes audio et sous-titres */
+    /**
+     * Lit seulement l'en-tête du fichier pour connaître ses pistes audio et sous-titres :
+     * pas de lecteur ni de décodeur créés (léger pour la box).
+     */
     @PluginMethod
     public void probe(PluginCall call) {
         final String url = call.getString("src");
-        main.post(() -> {
-            final ExoPlayer p = new ExoPlayer.Builder(getContext(), new DefaultRenderersFactory(getContext())
-                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)).build();
-            p.setVolume(0f);
-            final boolean[] done = { false };
-            final Runnable finish = () -> {
-                if (done[0]) return;
-                done[0] = true;
-                p.release();
-            };
-            p.addListener(new Player.Listener() {
-                @Override
-                public void onTracksChanged(Tracks tracks) {
-                    if (done[0] || tracks.getGroups().isEmpty()) return;
-                    JSArray audios = new JSArray(), subs = new JSArray();
-                    for (Tracks.Group g : tracks.getGroups()) {
-                        for (int i = 0; i < g.length; i++) {
-                            Format f = g.getTrackFormat(i);
-                            JSObject t = new JSObject();
-                            t.put("lang", f.language == null || "und".equals(f.language) ? "" : f.language);
-                            t.put("title", f.label == null ? "" : f.label);
-                            t.put("forced", (f.selectionFlags & C.SELECTION_FLAG_FORCED) != 0);
-                            if (g.getType() == C.TRACK_TYPE_AUDIO) audios.put(t);
-                            if (g.getType() == C.TRACK_TYPE_TEXT) subs.put(t);
-                        }
+        final boolean[] done = { false };
+        final com.google.common.util.concurrent.ListenableFuture<androidx.media3.exoplayer.source.TrackGroupArray> future;
+        try {
+            future = androidx.media3.exoplayer.MetadataRetriever.retrieveMetadata(getContext(), MediaItem.fromUri(url));
+        } catch (Exception e) {
+            JSObject r = new JSObject();
+            r.put("ok", false);
+            call.resolve(r);
+            return;
+        }
+        future.addListener(() -> {
+            if (done[0]) return;
+            done[0] = true;
+            JSObject r = new JSObject();
+            try {
+                androidx.media3.exoplayer.source.TrackGroupArray groups = future.get();
+                JSArray audios = new JSArray(), subs = new JSArray();
+                for (int g = 0; g < groups.length; g++) {
+                    androidx.media3.common.TrackGroup group = groups.get(g);
+                    for (int i = 0; i < group.length; i++) {
+                        Format f = group.getFormat(i);
+                        int type = MimeTypes.getTrackType(f.sampleMimeType);
+                        if (type != C.TRACK_TYPE_AUDIO && type != C.TRACK_TYPE_TEXT) continue;
+                        JSObject t = new JSObject();
+                        t.put("lang", f.language == null || "und".equals(f.language) ? "" : f.language);
+                        t.put("title", f.label == null ? "" : f.label);
+                        t.put("forced", (f.selectionFlags & C.SELECTION_FLAG_FORCED) != 0);
+                        if (type == C.TRACK_TYPE_AUDIO) audios.put(t); else subs.put(t);
                     }
-                    JSObject r = new JSObject();
-                    r.put("ok", true);
-                    r.put("audios", audios);
-                    r.put("subs", subs);
-                    call.resolve(r);
-                    finish.run();
                 }
-
-                @Override
-                public void onPlayerError(PlaybackException e) {
-                    if (done[0]) return;
-                    JSObject r = new JSObject();
-                    r.put("ok", false);
-                    call.resolve(r);
-                    finish.run();
-                }
-            });
-            p.setMediaItem(MediaItem.fromUri(url));
-            p.setPlayWhenReady(false);
-            p.prepare();
-            main.postDelayed(() -> {
-                if (done[0]) return;
-                JSObject r = new JSObject();
+                r.put("ok", true);
+                r.put("audios", audios);
+                r.put("subs", subs);
+            } catch (Exception e) {
                 r.put("ok", false);
-                call.resolve(r);
-                finish.run();
-            }, 20000);
-        });
+            }
+            call.resolve(r);
+        }, main::post);
+        main.postDelayed(() -> {
+            if (done[0]) return;
+            done[0] = true;
+            future.cancel(true);
+            JSObject r = new JSObject();
+            r.put("ok", false);
+            call.resolve(r);
+        }, 20000);
     }
 
     // ---------------------------------------------------------------- Réseau local

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import type { MetaPreview, ProgressEntry } from '../lib/types';
 import { useStore } from '../lib/store';
 import { backdropOf, logoOf, posterOf, useHover, type CardVariant } from '../lib/ui';
+import { lightImg } from '../lib/tv';
 
 export function Card({
   item, variant = 'landscape', rank, entry,
@@ -40,7 +41,7 @@ export function Card({
     <div className="card" tabIndex={0} ref={ref} onMouseEnter={enter} onMouseLeave={leave} onClick={click}>
       <div className="card-img">
         {imgOk ? (
-          <img src={backdropOf(item)} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setImgOk(false)} />
+          <img src={lightImg(backdropOf(item), 'w780')} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setImgOk(false)} />
         ) : (
           <div className="card-fallback" />
         )}

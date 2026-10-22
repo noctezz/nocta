@@ -1664,6 +1664,19 @@ html.native-playing #root { visibility: hidden; }
 /* La TV n'a pas de souris : pas de survol qui reste affiché, sélection bien visible */
 html.is-tv { cursor: none; }
 
+/* ---------- TV : interface allégée pour les box (petit processeur graphique, peu de mémoire) ---------- */
+/* Flous d'arrière-plan : le plus coûteux pour une box, remplacés par des fonds plus opaques */
+html.is-tv *, html.is-tv *::before, html.is-tv *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+html.is-tv .navbar.is-solid { background: #0b0b0e; }
+html.is-tv .log-back, html.is-tv .sg-fix-back, html.is-tv .tvx-back, html.is-tv .editor, html.is-tv .busy { background: rgba(0, 0, 0, 0.92); }
+/* Calques décoratifs flous ou animés en continu : retirés */
+html.is-tv .loading-bg { filter: none; animation: none; opacity: 0.25; }
+html.is-tv .intro-fog, html.is-tv .hero::after, html.is-tv .hero::before, html.is-tv .navbar::after, html.is-tv .navbar::before,
+html.is-tv .jr-hero-bg, html.is-tv .jr-row-glow, html.is-tv .jr-review-bg, html.is-tv .jr-srow-glow { display: none !important; }
+html.is-tv .sg-film.is-next .sg-dot::after { animation: none; }
+/* Ombres larges : recalculées à chaque mouvement, très chères sur une box */
+html.is-tv .card, html.is-tv .card *, html.is-tv .tvx, html.is-tv .update-card { box-shadow: none !important; }
+
 /* ---------- Transfert PC → TV ---------- */
 .tvx-send { display: flex; flex-direction: column; gap: 14px; }
 .tvx-send-head { display: flex; align-items: center; gap: 16px; }
