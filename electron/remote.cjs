@@ -186,4 +186,4 @@ async function resetToken() {
   return status();
 }
 
-module.exports = { init, status, setEnabled, resetToken, pushState, stop, clientCount: () => clients().length };
+module.exports = { init, status, setEnabled, resetToken, pushState, stop, addresses, clientCount: () => clients().length };

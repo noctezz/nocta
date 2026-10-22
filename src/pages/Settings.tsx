@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../lib/store';
 import { playIntroSound } from '../lib/sound';
 import { RemotePanel } from '../components/RemotePanel';
+import { ImportFromPc, SendToTv } from '../components/TvTransfer';
 import { UpdateSettings } from '../components/UpdateBanner';
 import { testKey } from '../lib/torbox';
 import { AiKeyList } from '../components/AiKeys';
@@ -113,6 +114,19 @@ function XRaySettings() {
         </div>
         <AiKeyList />
       </div>
+    </section>
+  );
+}
+
+/** TV : récupérer les profils et réglages du PC */
+function ImportCard() {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="settings-card">
+      <h2>Importer depuis mon PC</h2>
+      <p className="muted">Copie sur la TV les profils, le journal, les addons, la clé TorBox et les réglages de NOCTA sur ton PC. Sur le PC : Paramètres → Envoyer vers la TV.</p>
+      <button className="btn btn-white" onClick={() => setOpen(true)}>Importer depuis mon PC</button>
+      {open && <ImportFromPc onClose={() => setOpen(false)} />}
     </section>
   );
 }
@@ -251,10 +265,20 @@ export function Settings() {
             </div>
           </section>
 
-          <section className="settings-card">
-            <h2>Télécommande</h2>
-            <RemotePanel />
-          </section>
+          {window.nocta?.platform !== 'android' && (
+            <section className="settings-card">
+              <h2>Télécommande</h2>
+              <RemotePanel />
+            </section>
+          )}
+
+          {window.nocta?.transfer && (
+            <section className="settings-card">
+              <h2>NOCTA sur la TV</h2>
+              <SendToTv />
+            </section>
+          )}
+          {window.nocta?.platform === 'android' && <ImportCard />}
 
           <UpdateSettings />
         </>

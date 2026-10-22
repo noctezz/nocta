@@ -101,6 +101,14 @@ interface NoctaBridge {
     reset: () => Promise<NoctaRemoteStatus>;
     on: (channel: 'key' | 'text' | 'status' | 'connected', cb: (data: any) => void) => () => void;
   };
+  /** PC : partage des profils et réglages avec l'appli TV */
+  transfer?: {
+    start: () => Promise<{ running: boolean; code: string; until: number; ips: string[]; name: string; error?: string }>;
+    stop: () => Promise<unknown>;
+    onDone: (cb: (r: { ok: boolean; reason?: string }) => void) => () => void;
+  };
+  /** Android TV : adresse de la TV sur le réseau local */
+  tv?: { localIp: () => Promise<string> };
   win: {
     toggleFullscreen: () => Promise<boolean>;
     isFullscreen: () => Promise<boolean>;

@@ -9,6 +9,7 @@ interface NativePlayer {
   close(): Promise<{ time?: number; duration?: number }>;
   cmd(o: { args: unknown[] }): Promise<void>;
   probe(o: { src: string }): Promise<NoctaTrackLangs>;
+  localIp(): Promise<{ ip: string }>;
   addListener(event: 'mpv', cb: (d: { name: string; value: unknown }) => void): Promise<PluginListenerHandle>;
 }
 
@@ -140,6 +141,7 @@ function install() {
       subsync: async () => ({ status: 'unsure' as const }),
       on,
     },
+    tv: { localIp: () => Native.localIp().then((r) => r.ip).catch(() => '') },
     openVideoDialog: async () => null,
     pathForFile: () => '',
     openExternal: async (url) => { window.open(url, '_blank'); },

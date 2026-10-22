@@ -38,7 +38,11 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import org.json.JSONArray;
 
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -508,6 +512,30 @@ public class NoctaPlayerPlugin extends Plugin {
                 finish.run();
             }, 20000);
         });
+    }
+
+    // ---------------------------------------------------------------- Réseau local
+
+    /** Adresse de la TV sur le réseau de la maison (pour retrouver le PC) */
+    @PluginMethod
+    public void localIp(PluginCall call) {
+        String ip = "";
+        try {
+            for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                if (!ni.isUp() || ni.isLoopback() || ni.isVirtual()) continue;
+                for (InetAddress a : Collections.list(ni.getInetAddresses())) {
+                    if (a instanceof Inet4Address && !a.isLoopbackAddress() && !a.isLinkLocalAddress()) {
+                        ip = a.getHostAddress();
+                        break;
+                    }
+                }
+                if (!ip.isEmpty()) break;
+            }
+        } catch (Exception ignored) {
+        }
+        JSObject r = new JSObject();
+        r.put("ip", ip);
+        call.resolve(r);
     }
 
     // ---------------------------------------------------------------- Cycle de vie

@@ -1663,3 +1663,40 @@ html.native-playing, html.native-playing body { background: transparent !importa
 html.native-playing #root { visibility: hidden; }
 /* La TV n'a pas de souris : pas de survol qui reste affiché, sélection bien visible */
 html.is-tv { cursor: none; }
+
+/* ---------- Transfert PC → TV ---------- */
+.tvx-send { display: flex; flex-direction: column; gap: 14px; }
+.tvx-send-head { display: flex; align-items: center; gap: 16px; }
+.tvx-send-head > div { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.tvx-send-head span { color: var(--muted); font-size: 14px; line-height: 1.45; }
+.tvx-code-box { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 22px; border-radius: 16px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); text-align: center; }
+.tvx-code-box ol { color: rgba(255, 255, 255, 0.8); line-height: 1.7; text-align: left; }
+.tvx-code-box small { color: var(--muted); }
+.tvx-code { display: flex; gap: 12px; }
+.tvx-code span { width: 64px; height: 78px; display: grid; place-items: center; border-radius: 14px; font-size: 42px; font-weight: 900; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); font-variant-numeric: tabular-nums; }
+.tvx-code-input span.is-on { border-color: var(--accent); box-shadow: 0 0 22px rgba(229, 15, 58, 0.3); }
+
+.tvx-back { position: fixed; inset: 0; z-index: 150; display: grid; place-items: center; background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(10px); }
+.tvx { position: relative; width: min(860px, 92vw); padding: 44px 48px; border-radius: 24px; background: #121217; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7); display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; }
+.tvx-close { position: absolute; top: 18px; right: 18px; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, 0.08); }
+.tvx-kicker { font-size: 13px; font-weight: 800; letter-spacing: 0.3em; text-transform: uppercase; color: var(--accent-2); }
+.tvx h2 { font-size: 30px; font-weight: 850; line-height: 1.2; }
+.tvx h2 em { font-style: normal; color: var(--accent-2); }
+.tvx-lead { color: rgba(255, 255, 255, 0.7); font-size: 17px; }
+.tvx-pcs { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; min-height: 120px; }
+.tvx-pc { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 200px; padding: 22px; border-radius: 16px; background: rgba(255, 255, 255, 0.06); border: 2px solid rgba(255, 255, 255, 0.1); font-size: 18px; }
+.tvx-pc span { font-size: 13px; color: var(--muted); }
+.tvx-pc:focus, .tvx-pc.nav-focus { border-color: #fff; background: rgba(255, 255, 255, 0.12); }
+.tvx-searching { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 16px; }
+.tvx-none { display: flex; flex-direction: column; align-items: center; gap: 14px; color: rgba(255, 255, 255, 0.7); max-width: 560px; }
+.tvx-manual { display: flex; gap: 10px; width: 100%; }
+.tvx-manual .input { flex: 1; }
+.tvx-pad { display: grid; grid-template-columns: repeat(3, 96px); gap: 12px; }
+.tvx-pad button { height: 72px; border-radius: 16px; font-size: 30px; font-weight: 800; background: rgba(255, 255, 255, 0.07); border: 2px solid transparent; display: grid; place-items: center; transition: all 0.15s; }
+.tvx-pad button:focus, .tvx-pad button.nav-focus, .tvx-pad button:hover { background: #fff; color: #000; transform: scale(1.05); }
+.tvx-pad .tvx-pad-small { font-size: 14px; font-weight: 700; }
+.tvx-done { display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--green); }
+.tvx-done h2 { color: #fff; }
+.tvx-done p { color: rgba(255, 255, 255, 0.75); }
+.gate-actions { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.gate-actions .btn-outline { display: inline-flex; align-items: center; gap: 8px; }
