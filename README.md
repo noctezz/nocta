@@ -107,9 +107,13 @@ sont vérifiées pendant l'épisode en cours, pour un enchaînement immédiat.
 Le bouton agrandir (ou `F11`) passe en vrai plein écran, et le mode est retenu au prochain lancement.
 Pour quitter : menu du profil (en haut à droite), puis **Quitter NOCTA**.
 
-Accueil, Films et Séries utilisent le catalogue de base (Cinemeta). Les addons de catalogue que tu installes
-(TMDB, Trakt, anime…) s'affichent **uniquement dans l'onglet Catalogues**, où « Tout voir » montre le catalogue
-complet d'un coup, sans chargement infini.
+Accueil, Films et Séries utilisent le catalogue de base (Cinemeta).
+
+**Plateformes** 📺 (onglet *Plateformes*) : Netflix, Disney+, Apple TV+, Crunchyroll, Canal+, MUBI… comme de vraies
+applis. Installe l'addon **Streaming Catalogs** (Addons → Découvrir), choisis la France et coche tes plateformes :
+chacune a sa tuile à ses couleurs, puis sa page avec un grand bandeau des titres phares, ses films et séries, ses
+tops et des rangées par genre (filtre Tout / Films / Séries). Les addons de sources (Torrentio…) et de métadonnées
+n'y apparaissent pas ; les autres addons de catalogue s'affichent en dessous.
 
 Chaque rangée a un lien **Tout voir ›** : toute la catégorie en grille, chargée à l'infini quand tu descends,
 sans doublons. Les rangées elles-mêmes chargent la suite quand tu arrives au bout avec la flèche.

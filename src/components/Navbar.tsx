@@ -11,7 +11,7 @@ const LINKS: { page: Page; label: string }[] = [
   { page: 'home', label: 'Accueil' },
   { page: 'series', label: 'Séries' },
   { page: 'movies', label: 'Films' },
-  { page: 'catalogs', label: 'Catalogues' },
+  { page: 'catalogs', label: 'Plateformes' },
   { page: 'sagas', label: 'Sagas' },
   { page: 'timemachine', label: 'Voyage ⏳' },
   { page: 'mylist', label: 'Ma liste' },
