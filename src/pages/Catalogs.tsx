@@ -66,7 +66,10 @@ function PlatformIndex({ platforms, addons }: { platforms: Platform[]; addons: I
         </div>
       ) : (
         <div className="pf-tiles">
-          {platforms.map((p, i) => <PlatformTile key={p.id} p={p} i={i} />)}
+          {/* TV : seulement des lignes complètes de 3 grandes cartes ; les autres plateformes restent
+              accessibles par leur rangée « À l'affiche sur… » plus bas */}
+          {(IS_TV && platforms.length > 3 ? platforms.slice(0, platforms.length - (platforms.length % 3)) : platforms)
+            .map((p, i) => <PlatformTile key={p.id} p={p} i={i} />)}
         </div>
       )}
 
