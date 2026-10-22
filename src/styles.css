@@ -1656,3 +1656,10 @@ html[data-season='christmas'] .loading-vignette { background: radial-gradient(el
 }
 .jr-undo button { padding: 7px 14px; border-radius: 8px; background: #fff; color: #000; font-weight: 700; font-size: 13.5px; }
 .jr-undo button:hover { background: rgba(255, 255, 255, 0.85); }
+
+/* ---------- Android TV ---------- */
+/* Lecture : la vidéo native est sous la page ; on ne garde que l'interface du lecteur */
+html.native-playing, html.native-playing body { background: transparent !important; }
+html.native-playing #root { visibility: hidden; }
+/* La TV n'a pas de souris : pas de survol qui reste affiché, sélection bien visible */
+html.is-tv { cursor: none; }

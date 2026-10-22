@@ -62,6 +62,8 @@ const INTRO_RE = /^(intro|opening|op|ouverture|g[ée]n[ée]rique( de d[ée]but)?
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const bridge = () => window.nocta!.player;
+/** Android TV : télécommande au lieu de la souris et du clavier */
+const TV = window.nocta?.platform === 'android';
 const cmd = (...a: any[]) => bridge().cmd(...a);
 
 export function MpvOverlay() {
@@ -153,7 +155,11 @@ export function MpvOverlay() {
       }),
     ];
     bridge().ready();
-    return () => offs.forEach((o) => o());
+    return () => {
+      offs.forEach((o) => o());
+      // Android TV : l'interface du lecteur vit dans la fenêtre principale, qu'on rend opaque de nouveau
+      document.documentElement.classList.remove('overlay-mode');
+    };
   }, []);
 
   const chapterSegments = useMemo(() => {
@@ -381,8 +387,21 @@ export function MpvOverlay() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       poke();
+      // Télécommande de la TV : OK met en pause, ↑ ouvre l'audio et les sous-titres, ↓ affiche les commandes.
+      // Dans le panneau ouvert, les flèches passent d'un bouton à l'autre (navigation de la TV).
+      if (TV) {
+        if (panel && e.key !== 'Escape') return;
+        if (e.key === 'Enter') { e.preventDefault(); togglePlay(); return; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); setPanel('tracks'); setTimeout(() => document.querySelector<HTMLElement>('.pop-tracks button')?.focus(), 80); return; }
+        if (e.key === 'ArrowDown') { e.preventDefault(); return; }
+      }
       switch (e.key) {
-        case ' ': case 'k': e.preventDefault(); togglePlay(); break;
+        case ' ': case 'k': case 'MediaPlayPause': e.preventDefault(); togglePlay(); break;
+        case 'MediaPlay': if (paused) togglePlay(); break;
+        case 'MediaPause': if (!paused) togglePlay(); break;
+        case 'MediaFastForward': skip(30); break;
+        case 'MediaRewind': skip(-30); break;
+        case 'MediaTrackNext': if (info.next) goNext(); break;
         case 'ArrowRight': e.preventDefault(); skip(10); break;
         case 'ArrowLeft': e.preventDefault(); skip(-10); break;
         case 'ArrowUp': e.preventDefault(); setVol(volume + 5); break;
@@ -610,9 +629,11 @@ export function MpvOverlay() {
                 X-Ray
               </button>
 
-              <button className={`player-btn ${ambi !== 'off' ? 'is-lit' : ''}`} onClick={cycleAmbi} title={`${AMBI_LABEL[ambi]} (L pour changer)`}>
-                <Sun size={28} />
-              </button>
+              {!TV && (
+                <button className={`player-btn ${ambi !== 'off' ? 'is-lit' : ''}`} onClick={cycleAmbi} title={`${AMBI_LABEL[ambi]} (L pour changer)`}>
+                  <Sun size={28} />
+                </button>
+              )}
 
               <div className="pop-wrap">
                 <button className="player-btn" onClick={() => setPanel(panel === 'tracks' ? null : 'tracks')} title="Audio et sous-titres">

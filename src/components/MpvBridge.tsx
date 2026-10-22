@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { MpvOverlay } from './MpvOverlay';
 import { getMeta, getSubtitles } from '../lib/addons';
 import { useStore } from '../lib/store';
 import { useLatest } from '../lib/useLatest';
@@ -227,9 +229,13 @@ export function MpvBridge() {
     return () => {
       aliveRef.current = false;
       offs.forEach((o) => o());
+      // Android TV : le lecteur natif est fermé avec cette vue (sur PC, la fenêtre mpv l'est déjà)
+      if (window.nocta?.platform === 'android') p.close();
     };
   }, []);
 
+  // Android TV : une seule fenêtre, l'interface du lecteur s'affiche par-dessus la vidéo native
+  if (window.nocta?.platform === 'android') return createPortal(<MpvOverlay />, document.body);
   // La fenêtre principale reste noire derrière la vidéo
   return <div className="mpv-backdrop" />;
 }
