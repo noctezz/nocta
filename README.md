@@ -20,6 +20,24 @@ npm run dev
 - `npm start` : compile l'interface puis lance l'app.
 - `npm run dist` : fabrique l'installeur Windows (`release/NOCTA Setup x.y.z.exe`).
 
+## NOCTA sur la TV (Android TV : Bbox, TV Sony…)
+
+NOCTA existe aussi en appli Android TV, autonome (pas besoin du PC allumé), installée sans le Play Store.
+
+1. **Récupérer l'APK** : dans les [releases](../../releases), celle nommée *NOCTA TV*, fichier `NOCTA-TV.apk`.
+2. **L'installer sur la TV**, au choix :
+   - **Clé USB** : copie `NOCTA-TV.apk` sur une clé, branche-la sur la Bbox ou la TV, et ouvre le fichier avec un
+     gestionnaire de fichiers (par ex. *X-plore* ou *File Commander*, gratuits sur le Play Store de la TV).
+   - **Sans fil** : appli *Send Files to TV* (sur le téléphone et sur la TV), puis ouvre le fichier reçu.
+   - La première fois, Android demande d'autoriser l'installation d'applis par ce gestionnaire de fichiers
+     (*Installer des applis inconnues*) : accepte.
+3. **Récupérer tes profils** : sur le PC, *Paramètres → Envoyer vers la TV* affiche un code ; sur la TV, au choix du
+   profil, *Importer depuis mon PC*, puis tape le code. Profils, journal, addons, clé TorBox et réglages sont copiés.
+
+Sur la TV : flèches pour se déplacer, OK pour choisir, Retour pour revenir. Pendant la lecture : OK met en pause,
+← → reculent ou avancent de 10 s, ↑ ouvre l'audio et les sous-titres. Le lecteur lit les MKV, le HEVC et le son
+DTS, TrueHD et Dolby (décodé par NOCTA si la TV ne sait pas le faire).
+
 ## Premiers pas
 
 1. **Profils** : choisis ou crée un profil. Pour l'avatar, prends un emoji du preset (32 au choix,
