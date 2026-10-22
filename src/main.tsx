@@ -1,3 +1,5 @@
+// Sur Android TV, le pont avec l'appareil doit exister avant tout le reste (profils, réglages)
+import './platform/android';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@fontsource-variable/inter';

@@ -1,0 +1,77 @@
+name: Build Android TV
+
+# APK de l'appli Android TV (Bbox, TV Sony…). Sur une branche de travail : APK en artefact
+# pour tester. Sur main : ajouté à la release du jour (NOCTA-TV.apk).
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths-ignore: ['README.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install (sans Electron ni FFmpeg, inutiles sur la TV)
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck & build UI
+        run: |
+          npm run typecheck
+          npm run build
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: APK
+        working-directory: android
+        env:
+          NOCTA_BUILD: ${{ github.run_number }}
+          NOCTA_VERSION: 0.3.${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk ../NOCTA-TV.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NOCTA-TV
+          path: NOCTA-TV.apk
+
+      - name: Release notes
+        if: github.ref == 'refs/heads/main'
+        run: |
+          {
+            echo "### NOCTA pour Android TV"
+            echo
+            git log -1 --format=%B | grep -v -E '^(Co-Authored-By|Claude-Session):' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
+          } > RELEASE-TV.md
+
+      - name: Publish
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tv-v0.3.${{ github.run_number }}
+          name: NOCTA TV v0.3.${{ github.run_number }}
+          body_path: RELEASE-TV.md
+          files: NOCTA-TV.apk
+          make_latest: false

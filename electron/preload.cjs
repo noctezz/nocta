@@ -76,6 +76,15 @@ contextBridge.exposeInMainWorld('nocta', {
     create: (req) => ipcRenderer.invoke('assistant:create', req),
     testKey: (key) => ipcRenderer.invoke('assistant:testKey', key),
   },
+  transfer: {
+    start: () => ipcRenderer.invoke('transfer:start'),
+    stop: () => ipcRenderer.invoke('transfer:stop'),
+    onDone: (cb) => {
+      const fn = (_e, r) => cb(r);
+      ipcRenderer.on('transfer:done', fn);
+      return () => ipcRenderer.removeListener('transfer:done', fn);
+    },
+  },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
   win: {
     toggleFullscreen: () => ipcRenderer.invoke('win:toggleFullscreen'),

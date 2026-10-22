@@ -8,6 +8,7 @@ const intro = require('./intro.cjs');
 const subsync = require('./subsync.cjs');
 const assistant = require('./assistant.cjs');
 const remote = require('./remote.cjs');
+const transfer = require('./transfer.cjs');
 const updater = require('./updater.cjs');
 
 const isDev = !!process.env.NOCTA_DEV;
@@ -208,6 +209,11 @@ ipcMain.handle('update:status', () => updater.status());
 ipcMain.handle('update:check', () => updater.check({ manual: true }));
 ipcMain.handle('update:install', () => updater.install());
 
+// Envoyer vers la TV : profils, addons et réglages partagés quelques minutes sur le réseau local
+ipcMain.handle('transfer:start', () => transfer.start(() => store.load(), (r) => {
+  if (win && !win.isDestroyed()) win.webContents.send('transfer:done', r);
+}));
+ipcMain.handle('transfer:stop', () => { transfer.stop(); return transfer.status(); });
 ipcMain.handle('remote:status', () => remote.status());
 ipcMain.handle('remote:setEnabled', async (_e, v) => { const st = await remote.setEnabled(v); remoteStatusToRenderer(); return st; });
 ipcMain.handle('remote:reset', async () => { const st = await remote.resetToken(); remoteStatusToRenderer(); return st; });
@@ -325,6 +331,7 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', () => {
   media.stop();
   remote.stop();
+  transfer.stop();
   if (session) session.stop();
   if (process.platform !== 'darwin') app.quit();
 });

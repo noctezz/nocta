@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Pencil, Plus } from 'lucide-react';
+import { Laptop, Pencil, Plus } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { playClick } from '../lib/sound';
 import { Avatar } from './Avatar';
 import { Logo } from './Logo';
 import { ProfileEditor } from './ProfileEditor';
 import { SeasonalLayer } from './SeasonalLayer';
+import { ImportFromPc } from './TvTransfer';
 import { useSeasonTheme } from '../lib/theme';
 
 export function ProfileGate() {
@@ -15,6 +16,7 @@ export function ProfileGate() {
   const [manage, setManage] = useState(false);
   const [editing, setEditing] = useState<string | 'new' | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   const season = useSeasonTheme();
 
   const pick = (id: string) => {
@@ -69,11 +71,17 @@ export function ProfileGate() {
           )}
         </div>
 
-        <button className={`btn-outline ${manage ? 'is-on' : ''}`} onClick={() => setManage(!manage)}>
-          {manage ? 'Terminé' : 'Gérer les profils'}
-        </button>
+        <div className="gate-actions">
+          <button className={`btn-outline ${manage ? 'is-on' : ''}`} onClick={() => setManage(!manage)}>
+            {manage ? 'Terminé' : 'Gérer les profils'}
+          </button>
+          {window.nocta?.platform === 'android' && (
+            <button className="btn-outline" onClick={() => setImporting(true)}><Laptop size={18} /> Importer depuis mon PC</button>
+          )}
+        </div>
       </motion.div>
 
+      <AnimatePresence>{importing && <ImportFromPc onClose={() => setImporting(false)} />}</AnimatePresence>
       <AnimatePresence>
         {editing && (
           <ProfileEditor
