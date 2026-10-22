@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, Check, Info, Play, Search as SearchIcon, Star } from 'lucide-react';
+import { ArrowLeft, Check, Info, Pencil, Play, Search as SearchIcon, Star, X } from 'lucide-react';
 import { create } from 'zustand';
 import { useProfile, useStore } from '../lib/store';
 import { backdropOf, posterOf, resumeEntry } from '../lib/ui';
 import { playTarget } from '../lib/autoplay';
 import type { MetaPreview } from '../lib/types';
 import {
-  SAGAS, SAGA_CATS, coverOf, ensureSaga, filmKey, filmLabel, filmOf, isSeen, nextOf, orderOf, sagaById, sagaProgress,
-  useSagaFilms, yearsOf, type SagaDef,
+  SAGAS, SAGA_CATS, coverOf, ensureSaga, filmKey, filmLabel, filmOf, isSeen, nextOf, nextStep, orderOf, sagaById, sagaProgress,
+  searchFilms, setFilm, useSagaFilms, yearsOf, type SagaDef,
 } from '../lib/sagas';
 
 const CHRONO_KEY = 'nocta-sagas-chrono';
@@ -211,7 +211,6 @@ function SagaView({ saga }: { saga: SagaDef }) {
   const profile = useProfile();
   const chrono = useSagaView((s) => !!s.chrono[saga.id] && !!saga.chrono);
   const openDetail = useStore((s) => s.openDetail);
-  const setSearch = useStore((s) => s.setSearch);
   const [hover, setHover] = useState<string | null>(null);
   const rail = useRef<HTMLDivElement>(null);
 
@@ -243,7 +242,9 @@ function SagaView({ saga }: { saga: SagaDef }) {
 
   const films = orderOf(saga, chrono);
   const { seen, total } = sagaProgress(profile, hits, saga);
-  const next = nextOf(profile, hits, saga, chrono);
+  const step = nextStep(profile, hits, saga, chrono);
+  const next = step?.m || null;
+  const [fix, setFix] = useState<[string, number] | null>(null);
   const allFound = saga.films.every((f) => filmOf(hits, f) !== undefined);
   const focusFilm = (hover && films.map((f) => filmOf(hits, f)).find((m) => m?.id === hover)) || next || coverOf(hits, saga);
   const cover = coverOf(hits, saga);
@@ -252,11 +253,13 @@ function SagaView({ saga }: { saga: SagaDef }) {
   const started = !!next && profile && (profile.progress[next.id] || seen > 0);
 
   // Le prochain film bien en vue dans la frise
+  const stepKey = step ? filmKey(step.f) : '';
   useEffect(() => {
-    if (!next || !rail.current) return;
-    const el = rail.current.querySelector<HTMLElement>(`[data-id="${next.id}"]`);
+    if (!stepKey || !rail.current) return;
+    const el = rail.current.querySelector<HTMLElement>(`[data-key="${CSS.escape(stepKey)}"]`);
     if (el) rail.current.scrollTo({ left: Math.max(0, el.offsetLeft - rail.current.clientWidth * 0.3), behavior: 'smooth' });
-  }, [next?.id, chrono]);
+  }, [stepKey, chrono]);
+  const focusKey = focusFilm && films.find((f) => filmOf(hits, f)?.id === focusFilm.id);
 
   return (
     <motion.div className="page sg-view" style={accent(saga)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
@@ -293,6 +296,12 @@ function SagaView({ saga }: { saga: SagaDef }) {
             <button className="btn btn-white btn-lg" onClick={() => playFilm(next)}>
               <Play size={22} fill="currentColor" /> <span>{started ? 'Continuer' : 'Commencer'} : {next.name}</span>
             </button>
+          ) : step?.m === null ? (
+            <button className="btn btn-white btn-lg" onClick={() => setFix(step.f)}>
+              <Pencil size={20} /> <span>Choisir le film : {filmLabel(step.f)}</span>
+            </button>
+          ) : step ? (
+            <button className="btn btn-white btn-lg" disabled><Play size={22} fill="currentColor" /> <span>Recherche de {filmLabel(step.f)}…</span></button>
           ) : first && seen === total ? (
             <button className="btn btn-white btn-lg" onClick={() => playFilm(first)}><Play size={22} fill="currentColor" /> Revoir depuis le début</button>
           ) : (
@@ -319,6 +328,7 @@ function SagaView({ saga }: { saga: SagaDef }) {
                   {focusFilm.id === next?.id && <span className="sg-focus-next">À voir ensuite</span>}
                 </div>
                 {focusFilm.description && <p>{focusFilm.description}</p>}
+                {focusKey && <button className="sg-wrong" onClick={() => setFix(focusKey)}>Ce n'est pas le bon film ?</button>}
               </motion.div>
             )}
           </AnimatePresence>
@@ -330,7 +340,7 @@ function SagaView({ saga }: { saga: SagaDef }) {
           {films.map((f, i) => {
             const m = filmOf(hits, f);
             const isSeenFilm = !!m && isSeen(profile, m.id);
-            const isNext = !!m && m.id === next?.id;
+            const isNext = filmKey(f) === stepKey;
             const e = m ? profile?.progress[m.id] : undefined;
             const pct = e && e.duration && !isSeenFilm ? Math.min(100, (e.position / e.duration) * 100) : 0;
             return (
@@ -339,7 +349,7 @@ function SagaView({ saga }: { saga: SagaDef }) {
                 layout
                 transition={{ type: 'spring', stiffness: 260, damping: 30 }}
                 className={`sg-film ${isSeenFilm ? 'is-seen' : ''} ${isNext ? 'is-next' : ''} ${m === null ? 'is-missing' : ''}`}
-                data-id={m?.id}
+                data-key={filmKey(f)}
                 onMouseEnter={() => m && setHover(m.id)}
                 onMouseLeave={() => setHover(null)}
               >
@@ -350,11 +360,13 @@ function SagaView({ saga }: { saga: SagaDef }) {
                 <span className="sg-num">{String(i + 1).padStart(2, '0')}</span>
                 <button
                   className="sg-poster"
-                  onClick={() => (m ? openDetail({ type: 'movie', id: m.id, preview: m }) : m === null && setSearch(filmLabel(f)))}
-                  title={m ? m.name : m === null ? `Chercher « ${filmLabel(f)} »` : filmLabel(f)}
+                  onClick={() => (m ? openDetail({ type: 'movie', id: m.id, preview: m }) : m === null && setFix(f))}
+                  title={m ? m.name : m === null ? `Choisir « ${filmLabel(f)} »` : filmLabel(f)}
                 >
-                  {m ? <Poster m={m} /> : (
-                    <div className={`sg-poster-blank ${m === undefined ? 'is-loading' : ''}`}><span>{filmLabel(f)}</span></div>
+                  {m ? <Poster m={m} /> : m === null ? (
+                    <div className="sg-poster-blank is-pick"><span>{filmLabel(f)}</span><em><Pencil size={14} /> Choisir le film</em></div>
+                  ) : (
+                    <div className="sg-poster-blank is-loading"><span>{filmLabel(f)}</span></div>
                   )}
                   {isSeenFilm && <span className="sg-seen"><Check size={14} strokeWidth={3} /> Vu</span>}
                   {pct > 0 && <div className="sg-film-bar"><div style={{ width: `${pct}%` }} /></div>}
@@ -370,6 +382,7 @@ function SagaView({ saga }: { saga: SagaDef }) {
         </div>
       </div>
       {!allFound && <div className="sg-hint"><Info size={14} /> Recherche des films dans le catalogue…</div>}
+      <AnimatePresence>{fix && <FixFilm key={filmKey(fix)} film={fix} onClose={() => setFix(null)} />}</AnimatePresence>
     </motion.div>
   );
 }
@@ -379,4 +392,60 @@ function Poster({ m }: { m: MetaPreview }) {
   return ok
     ? <img src={posterOf(m)} alt={m.name} loading="lazy" decoding="async" draggable={false} onError={() => setOk(false)} />
     : <div className="sg-poster-blank"><span>{m.name}</span></div>;
+}
+
+/** Choisir à la main le bon film (retenu pour toujours) */
+function FixFilm({ film, onClose }: { film: [string, number]; onClose: () => void }) {
+  const [q, setQ] = useState(filmLabel(film));
+  const [list, setList] = useState<MetaPreview[] | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { input.current?.select(); }, []);
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) { setList([]); return; }
+    let alive = true;
+    setList(null);
+    const t = setTimeout(() => searchFilms(term).then((r) => {
+      if (!alive) return;
+      // Les films de la bonne année d'abord
+      const y = (m: MetaPreview) => Math.abs((parseInt(String(m.releaseInfo || ''), 10) || 0) - film[1]);
+      setList([...r].sort((a, b) => (y(a) <= 1 ? 0 : 1) - (y(b) <= 1 ? 0 : 1)));
+    }), 350);
+    return () => { alive = false; clearTimeout(t); };
+  }, [q]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); onClose(); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+
+  return (
+    <motion.div className="sg-fix-back" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div className="sg-fix" initial={{ y: 30, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 20, opacity: 0 }} onClick={(e) => e.stopPropagation()}>
+        <button className="sg-fix-close" onClick={onClose} aria-label="Fermer"><X size={20} /></button>
+        <span className="sg-kicker">Choisir le film</span>
+        <h2>{filmLabel(film)} <small>({film[1]})</small></h2>
+        <label className="sg-search sg-fix-search">
+          <SearchIcon size={16} />
+          <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Titre du film" />
+        </label>
+        <div className="sg-fix-grid">
+          {list === null && Array.from({ length: 6 }, (_, i) => <div key={i} className="sg-fix-item"><div className="sg-poster-blank is-loading" /></div>)}
+          {list?.length === 0 && <p className="muted">Aucun film trouvé. Essaie le titre anglais ou le titre original.</p>}
+          {list?.map((m) => {
+            const yr = parseInt(String(m.releaseInfo || ''), 10);
+            return (
+              <button key={m.id} className={`sg-fix-item ${yr && Math.abs(yr - film[1]) <= 1 ? 'is-match' : ''}`} onClick={() => { setFilm(film, m); onClose(); }}>
+                <div className="sg-fix-poster"><Poster m={m} /></div>
+                <strong>{m.name}</strong>
+                <span>{yr || '—'}</span>
+              </button>
+            );
+          })}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
 }

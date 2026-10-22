@@ -1317,7 +1317,7 @@ html[data-season='christmas'] .loading-vignette { background: radial-gradient(el
 .sg-film:hover .sg-poster { transform: translateY(-8px) scale(1.04); outline-color: color-mix(in srgb, var(--sg) 80%, transparent); box-shadow: 0 24px 50px rgba(0, 0, 0, 0.6), 0 0 34px color-mix(in srgb, var(--sg) 35%, transparent); }
 .sg-film.is-next .sg-poster { outline: 2px solid var(--sg); outline-offset: -2px; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55), 0 0 30px color-mix(in srgb, var(--sg) 40%, transparent); }
 .sg-film.is-seen .sg-poster img { filter: saturate(0.55) brightness(0.62); }
-.sg-film.is-missing .sg-poster { opacity: 0.55; }
+.sg-film.is-missing .sg-poster { outline: 2px dashed color-mix(in srgb, var(--sg) 60%, transparent); outline-offset: -2px; }
 .sg-poster-blank { width: 100%; height: 100%; display: grid; place-items: center; padding: 14px; text-align: center; font-size: 14px; font-weight: 700; color: rgba(255, 255, 255, 0.6); background: linear-gradient(160deg, color-mix(in srgb, var(--sg) 25%, #16161c), #0e0e12); }
 .sg-poster-blank.is-loading { background-size: 200% 100%; background-image: linear-gradient(100deg, #15151b 30%, #22222a 50%, #15151b 70%); animation: sg-shimmer 1.4s linear infinite; }
 @keyframes sg-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
@@ -1334,3 +1334,29 @@ html[data-season='christmas'] .loading-vignette { background: radial-gradient(el
 .sg-film-name { margin-top: 10px; width: var(--pw); font-size: 14px; font-weight: 700; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .sg-film-year { margin-top: 3px; font-size: 12.5px; font-weight: 600; color: rgba(255, 255, 255, 0.5); }
 .sg-hint { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 0 var(--pad); font-size: 13px; color: var(--muted); }
+.sg-poster-blank.is-pick { display: flex; flex-direction: column; justify-content: center; gap: 14px; color: #fff; }
+.sg-poster-blank.is-pick em { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 99px; font-style: normal; font-size: 12.5px; font-weight: 800; color: #000; background: var(--sg); }
+.sg-film.is-missing:hover .sg-poster-blank.is-pick em { box-shadow: 0 0 18px var(--sg); }
+.sg-wrong { margin-top: 6px; font-size: 12.5px; font-weight: 600; color: rgba(255, 255, 255, 0.45); text-decoration: underline; text-underline-offset: 3px; }
+.sg-wrong:hover { color: #fff; }
+.sg-fix-back { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); }
+.sg-fix {
+  position: relative; width: min(880px, 100%); max-height: min(780px, 90vh); overflow-y: auto; padding: 28px 30px; border-radius: 18px;
+  background: #121217; border: 1px solid color-mix(in srgb, var(--sg) 35%, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 60px color-mix(in srgb, var(--sg) 15%, transparent);
+}
+.sg-fix h2 { margin: 10px 0 16px; font-size: 26px; font-weight: 850; }
+.sg-fix h2 small { font-size: 18px; font-weight: 600; color: var(--muted); }
+.sg-fix-close { position: absolute; top: 16px; right: 16px; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, 0.08); }
+.sg-fix-close:hover { background: rgba(255, 255, 255, 0.16); }
+.sg-fix-search { width: 100%; }
+.sg-fix-search input { width: 100%; }
+.sg-fix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 16px; margin-top: 20px; }
+.sg-fix-item { display: flex; flex-direction: column; gap: 4px; text-align: left; border-radius: 10px; padding: 6px; transition: background 0.2s; }
+.sg-fix-item:hover { background: rgba(255, 255, 255, 0.07); }
+.sg-fix-item > .sg-poster-blank { aspect-ratio: 2 / 3; border-radius: 8px; }
+.sg-fix-poster { aspect-ratio: 2 / 3; border-radius: 8px; overflow: hidden; background: #1a1a20; margin-bottom: 4px; }
+.sg-fix-poster img { width: 100%; height: 100%; object-fit: cover; }
+.sg-fix-item.is-match .sg-fix-poster { outline: 2px solid var(--sg); outline-offset: -2px; }
+.sg-fix-item strong { font-size: 13.5px; line-height: 1.25; }
+.sg-fix-item span { font-size: 12px; color: var(--muted); }
