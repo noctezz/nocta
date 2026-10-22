@@ -5,6 +5,7 @@ import type { CardVariant } from '../lib/ui';
 import { useStore } from '../lib/store';
 import type { RowDef } from '../pages/Home';
 import { Card } from './Card';
+import { IS_TV } from '../lib/tv';
 
 interface RowProps {
   /** Rangée issue d'un catalogue (chargement, pagination, « Tout voir ») */
@@ -29,6 +30,8 @@ export function mergeUnique(prev: MetaPreview[], next: MetaPreview[]) {
   return { list: add.length ? [...prev, ...add] : prev, added: add.length };
 }
 
+const TV_BATCH = 18;
+
 export function Row({ def, title: givenTitle, items: given, variant: givenVariant, entries, action }: RowProps) {
   const title = def?.title ?? givenTitle ?? '';
   const variant: CardVariant = def?.variant ?? givenVariant ?? 'landscape';
@@ -45,6 +48,8 @@ export function Row({ def, title: givenTitle, items: given, variant: givenVarian
   const [step, setStep] = useState(0);
   const [moved, setMoved] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  // Sur la TV, une rangée n'affiche qu'une partie de ses titres et s'allonge en avançant
+  const [shown, setShown] = useState(IS_TV ? TV_BATCH : Infinity);
   const fetched = useRef(0);
   const exhausted = useRef(false);
 
@@ -90,7 +95,8 @@ export function Row({ def, title: givenTitle, items: given, variant: givenVarian
 
   if (failed || (items && items.length === 0)) return null;
 
-  const list = items || [];
+  const all = items || [];
+  const list = all.slice(0, shown);
   const pages = Math.max(1, Math.ceil(list.length / perRow));
   const p = Math.min(page, pages - 1);
 
@@ -102,6 +108,7 @@ export function Row({ def, title: givenTitle, items: given, variant: givenVarian
       const more = await def.load(fetched.current);
       fetched.current += more.length;
       const r = mergeUnique(items || [], more);
+      if (IS_TV) setShown((n) => n + more.length);
       setItems(r.list);
       if (!more.length) exhausted.current = true;
       return r.added;
@@ -115,6 +122,7 @@ export function Row({ def, title: givenTitle, items: given, variant: givenVarian
 
   const go = async (d: number) => {
     setMoved(true);
+    if (d > 0 && p >= pages - 2 && list.length < all.length) { setShown((n) => n + TV_BATCH); setPage(p + 1); return; }
     if (d > 0 && p >= pages - 2 && pageable && !exhausted.current) {
       // On approche de la fin : on charge la suite avant d'y arriver
       const added = await loadMore();
@@ -130,7 +138,8 @@ export function Row({ def, title: givenTitle, items: given, variant: givenVarian
     if (idx < 0) return;
     const target = Math.floor(idx / perRow);
     if (target !== p) { setMoved(true); setPage(target); }
-    if (pageable && idx >= list.length - perRow) loadMore();
+    if (idx >= list.length - perRow && list.length < all.length) setShown((n) => n + TV_BATCH);
+    else if (pageable && idx >= list.length - perRow) loadMore();
   };
 
   const seeAll = () => def && openBrowse({ key: def.key, title, load: (skip) => def.load(skip), pageable, loadAll: def.loadAll });

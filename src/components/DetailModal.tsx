@@ -4,6 +4,7 @@ import { Check, CheckCheck, CircleCheck, Circle, ListVideo, Play, Plus, X } from
 import { getMeta, GENRE_FR } from '../lib/addons';
 import { useLatest } from '../lib/useLatest';
 import { TrailerPreview } from './TrailerPreview';
+import { IS_TV } from '../lib/tv';
 import { EpisodeRate, JournalBar, SeasonRate } from './JournalBar';
 import { useProfile, useStore } from '../lib/store';
 import { backdropOf, logoOf, resumeEntry, year } from '../lib/ui';
@@ -170,7 +171,8 @@ export function DetailModal() {
           </div>
         </div>
 
-        <JournalBar meta={meta} />
+        {/* Le Journal reste sur PC */}
+        {!IS_TV && <JournalBar meta={meta} />}
 
         <div className="detail-body">
           <div className="detail-main">
@@ -201,7 +203,7 @@ export function DetailModal() {
                   {seasons.map((s) => <option key={s} value={s}>{s === 0 ? 'Bonus' : `Saison ${s}`}</option>)}
                 </select>
               )}
-              {season != null && <SeasonRate meta={meta} season={season} />}
+              {season != null && !IS_TV && <SeasonRate meta={meta} season={season} />}
               {seasonEps.length > 0 && (
                 <button className="season-watched" onClick={() => setWatched(seasonEps.map((v) => v.id), !seasonAllWatched)}>
                   {seasonAllWatched ? <CircleCheck size={16} /> : <Circle size={16} />}
@@ -244,7 +246,7 @@ export function DetailModal() {
                         {isUpNext && <span className="up-next">À suivre</span>}
                       </strong>
                       <div className="episode-tools">
-                        {v.season != null && <EpisodeRate meta={meta} season={v.season} episode={n} />}
+                        {v.season != null && !IS_TV && <EpisodeRate meta={meta} season={v.season} episode={n} />}
                         {v.released && <span className="muted">{new Date(v.released).toLocaleDateString('fr-FR')}</span>}
                         <button
                           className={`ep-tool ${isWatched ? 'is-on' : ''}`}

@@ -5,6 +5,7 @@ import { getCatalog, getMeta, mainAddons, searchableCatalogs } from './addons';
 import { useStore } from './store';
 import type { MetaPreview, Profile } from './types';
 import { SAGAS, type Film, type SagaDef } from './sagaList';
+import { IS_TV } from './tv';
 
 export { SAGAS, SAGA_CATS, type Film, type SagaDef, type SagaCat } from './sagaList';
 
@@ -73,14 +74,28 @@ function load(): Record<string, Hit> {
 
 export const useSagaFilms = create<{ hits: Record<string, Hit> }>(() => ({ hits: load() }));
 
+// Films trouvés regroupés avant d'être affichés : à l'ouverture des Sagas, des centaines de
+// réponses arrivent en quelques secondes, l'interface ne se redessine qu'une fois par vague
+const pending: Record<string, Hit> = {};
+let flushTimer: ReturnType<typeof setTimeout> | undefined;
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 function remember(key: string, hit: Hit) {
-  useSagaFilms.setState((s) => ({ hits: { ...s.hits, [key]: hit } }));
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(useSagaFilms.getState().hits)); } catch {}
-  }, 800);
+  pending[key] = hit;
+  if (flushTimer) return;
+  flushTimer = setTimeout(() => {
+    flushTimer = undefined;
+    const add = { ...pending };
+    for (const k of Object.keys(pending)) delete pending[k];
+    useSagaFilms.setState((s) => ({ hits: { ...s.hits, ...add } }));
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try { localStorage.setItem(KEY, JSON.stringify(useSagaFilms.getState().hits)); } catch {}
+    }, 800);
+  }, 250);
 }
+
+/** Résultat connu pour un film, y compris ceux pas encore affichés */
+const knownHit = (key: string): Hit | undefined => pending[key] ?? useSagaFilms.getState().hits[key];
 
 export function filmOf(hits: Record<string, Hit>, f: Film): MetaPreview | null | undefined {
   const h = hits[filmKey(f)];
@@ -114,7 +129,7 @@ const slim = (m: MetaPreview): MetaPreview => ({
 let running = 0;
 const waiting: (() => void)[] = [];
 async function slot<T>(fn: () => Promise<T>): Promise<T> {
-  if (running >= 6) await new Promise<void>((r) => waiting.push(r));
+  if (running >= (IS_TV ? 3 : 6)) await new Promise<void>((r) => waiting.push(r));
   running++;
   try { return await fn(); } finally { running--; waiting.shift()?.(); }
 }
@@ -245,7 +260,7 @@ const inflight = new Map<string, Promise<void>>();
 
 function resolveFilm(f: Film, force = false): Promise<void> {
   const key = filmKey(f);
-  const known = useSagaFilms.getState().hits[key];
+  const known = knownHit(key);
   if (known && (!('miss' in known) || (!force && Date.now() - known.miss < MISS_RETRY))) return Promise.resolve();
   if (inflight.has(key)) return inflight.get(key)!;
   const job = slot(async () => {

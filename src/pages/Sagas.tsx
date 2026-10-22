@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, Check, Info, Pencil, Play, Search as SearchIcon, Star, X } from 'lucide-react';
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import { useProfile, useStore } from '../lib/store';
 import { backdropOf, posterOf, resumeEntry } from '../lib/ui';
 import { playTarget } from '../lib/autoplay';
+import { lightImg } from '../lib/tv';
 import type { MetaPreview } from '../lib/types';
 import {
   SAGAS, SAGA_CATS, coverOf, ensureSaga, filmKey, filmLabel, filmOf, isSeen, nextOf, nextStep, orderOf, sagaById, sagaProgress,
@@ -168,8 +170,14 @@ function SagaHero() {
   );
 }
 
-function SagaCard({ saga, i, showNext }: { saga: SagaDef; i: number; showNext?: boolean }) {
-  const hits = useSagaFilms((s) => s.hits);
+// Chaque carte ne suit que les films de sa saga : elle ne se redessine pas quand une autre change
+const SagaCard = memo(function SagaCard({ saga, i, showNext }: { saga: SagaDef; i: number; showNext?: boolean }) {
+  const found = useSagaFilms(useShallow((s) => saga.films.map((f) => s.hits[filmKey(f)])));
+  const hits = useMemo(() => {
+    const h: Parameters<typeof filmOf>[0] = {};
+    saga.films.forEach((f, k) => { if (found[k]) h[filmKey(f)] = found[k]; });
+    return h;
+  }, [saga, found]);
   const profile = useProfile();
   const chrono = useSagaView((s) => !!s.chrono[saga.id]);
   const cover = coverOf(hits, saga);
@@ -186,7 +194,7 @@ function SagaCard({ saga, i, showNext }: { saga: SagaDef; i: number; showNext?: 
       onClick={() => { useSagaView.setState({ open: saga.id }); window.scrollTo({ top: 0 }); }}
     >
       <div className="sg-card-img">
-        {cover && ok ? <img src={backdropOf(cover)} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setOk(false)} /> : <div className="sg-card-blank" />}
+        {cover && ok ? <img src={lightImg(backdropOf(cover), 'w300')} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setOk(false)} /> : <div className="sg-card-blank" />}
       </div>
       <div className="sg-card-shade" />
       <div className="sg-card-body">
@@ -202,7 +210,7 @@ function SagaCard({ saga, i, showNext }: { saga: SagaDef; i: number; showNext?: 
       )}
     </motion.button>
   );
-}
+});
 
 // ---------------------------------------------------------------- Une saga
 

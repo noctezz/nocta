@@ -20,6 +20,9 @@ const LINKS: { page: Page; label: string }[] = [
   { page: 'addons', label: 'Addons' },
 ];
 
+/** Onglets gardés pour le PC : le Voyage (carte animée, trop lourde pour une box) et le Journal */
+const TV_HIDDEN: Page[] = ['timemachine', 'journal'];
+
 export function Navbar() {
   const page = useStore((s) => s.page);
   const setPage = useStore((s) => s.setPage);
@@ -72,8 +75,7 @@ export function Navbar() {
         <Logo height={30} />
       </button>
       <nav className="nav-links no-drag">
-        {/* Le Voyage (carte animée) reste sur PC : trop lourd pour une box */}
-        {LINKS.filter((l) => !IS_TV || l.page !== 'timemachine').map((l) => (
+        {LINKS.filter((l) => !IS_TV || !TV_HIDDEN.includes(l.page)).map((l) => (
           <button
             key={l.page}
             className={page === l.page ? 'is-active' : ''}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { IS_TV } from '../lib/tv';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ChevronRight, Info, MonitorPlay, Play, Puzzle } from 'lucide-react';
 import { create } from 'zustand';
@@ -206,9 +207,14 @@ function PlatformPage({ p }: { p: Platform }) {
     add('series', series);
     // Rangées par genre : films et séries ensemble, ou seulement ceux du filtre choisi
     const all = filter === 'movie' ? movies || [] : filter === 'series' ? series || [] : interleave(movies || [], series || []);
+    let genres = 0;
     for (const g of PF_GENRES) {
+      // Sur la TV, quelques rangées par genre seulement (chacune coûte des dizaines d'images)
+      if (IS_TV && genres >= 5) break;
       const items = all.filter((m) => m.genres?.includes(g));
-      if (items.length >= 8) out.push({ key: `${p.id}|g|${filter}|${g}`, type: filter === 'series' ? 'series' : 'movie', title: GENRE_FR[g] || g, items });
+      if (items.length < 8) continue;
+      genres++;
+      out.push({ key: `${p.id}|g|${filter}|${g}`, type: filter === 'series' ? 'series' : 'movie', title: GENRE_FR[g] || g, items });
     }
     return out;
   }, [p, movies, series, filter]);

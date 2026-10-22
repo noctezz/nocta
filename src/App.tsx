@@ -182,9 +182,13 @@ export default function App() {
           ? <MpvBridge key="mpv" />
           : <Player key={player.src + (player.videoId || '')} />)}
       </AnimatePresence>
-      <LogModal />
-      <RatePrompt />
-      <JournalUndo />
+      {!IS_TV && (
+        <>
+          <LogModal />
+          <RatePrompt />
+          <JournalUndo />
+        </>
+      )}
       <BusyOverlay />
       {!player && <UpdateBanner />}
       <Toasts />
