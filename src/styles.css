@@ -1768,3 +1768,6 @@ html.is-tv .sg-bg { position: absolute; }
 html.is-tv .sg-poster-blank.is-loading, html.is-tv .skeleton, html.is-tv .skeleton-text { animation: none; }
 html.is-tv .sg-card, html.is-tv .pf-tile, html.is-tv .sg-card-img img, html.is-tv .pf-tile-posters img { transition: none; box-shadow: none; }
 html.is-tv .sg-link.is-lit, html.is-tv .sg-film.is-seen .sg-dot, html.is-tv .sg-card-bar div, html.is-tv .pf-hero-thumbs button.is-on { box-shadow: none; }
+
+/* TV : textes de l'X-Ray sélectionnables à la télécommande (pour les faire défiler) */
+.kbd-nav .xr-fact.nav-focus, .kbd-nav .xr-recap-text p.nav-focus, .kbd-nav .xr-bio p.nav-focus, .kbd-nav .xr-poster.nav-focus { outline: 2px solid rgba(255, 255, 255, 0.85); outline-offset: 4px; border-radius: 10px; box-shadow: none; }

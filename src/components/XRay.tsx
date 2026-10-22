@@ -5,7 +5,7 @@ import type { XPerson, XPersonDetails, XScene } from '../lib/xray';
 import { IS_TV } from '../lib/tv';
 import { navFocus } from '../lib/spatialNav';
 
-type Op = 'scene' | 'person' | 'recap' | 'trivia';
+type Op = 'scene' | 'cast' | 'person' | 'recap' | 'trivia';
 type Reply = { nonce: number; op: Op; data: any; error?: string };
 type Tab = 'scene' | 'cast' | 'recap' | 'trivia';
 
@@ -49,7 +49,8 @@ export function XRay({ time, paused, controls, reply, onPause, onPlay, title, su
   started: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<Tab>('scene');
+  // TV : pas d'onglet Scène, le panneau s'ouvre sur la distribution
+  const [tab, setTab] = useState<Tab>(IS_TV ? 'cast' : 'scene');
   const [cast, setCast] = useState<XPerson[] | null>(null);
   const [scene, setScene] = useState<(XScene & { at: number }) | null>(null);
   const [sceneBusy, setSceneBusy] = useState(false);
@@ -77,7 +78,10 @@ export function XRay({ time, paused, controls, reply, onPause, onPlay, title, su
     if (!p) return;
     if (reply.error) { setError(reply.error); setSceneBusy(false); if (p.op === 'person' && p.key) setDetails((d) => ({ ...d, [p.key!]: 'error' })); return; }
     setError(null);
-    if (p.op === 'scene') {
+    if (p.op === 'cast') {
+      pending.current.delete(reply.nonce);
+      setCast(reply.data?.cast || []);
+    } else if (p.op === 'scene') {
       if (reply.data?.cast) setCast(reply.data.cast);
       if (reply.data?.scene) { setScene({ ...reply.data.scene, at: timeRef.current }); setSceneBusy(false); pending.current.delete(reply.nonce); }
     } else {
@@ -90,11 +94,13 @@ export function XRay({ time, paused, controls, reply, onPause, onPlay, title, su
 
   /** Analyse de la scène (réutilisée si on est toujours au même endroit) */
   const loadScene = useCallback(() => {
+    // TV : seulement la distribution (pas d'analyse de la scène)
+    if (IS_TV) { if (!cast) ask('cast'); return; }
     if (scene && Math.abs(scene.at - timeRef.current) < 25) return;
     if (sceneBusy) return;
     setSceneBusy(true);
     ask('scene');
-  }, [scene, sceneBusy, ask]);
+  }, [scene, sceneBusy, ask, cast]);
 
   // À la pause : bandeau « Dans cette scène »
   const [strip, setStrip] = useState(false);
@@ -105,7 +111,7 @@ export function XRay({ time, paused, controls, reply, onPause, onPlay, title, su
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paused, started, autoOnPause, open]);
 
-  const openPanel = useCallback((t: Tab = 'scene', who?: XPerson) => {
+  const openPanel = useCallback((t: Tab = IS_TV ? 'cast' : 'scene', who?: XPerson) => {
     if (!paused) { resumeOnClose.current = true; onPause(); }
     setOpen(true);
     setTab(t);
@@ -202,7 +208,7 @@ export function XRay({ time, paused, controls, reply, onPause, onPlay, title, su
 
             {!person && (
               <nav className="xr-tabs">
-                {([['scene', 'Scène', Clapperboard], ['cast', 'Distribution', Users], ['recap', 'Rattrapage', History], ['trivia', 'Anecdotes', Sparkles]] as const).map(([k, l, Icon]) => (
+                {([['scene', 'Scène', Clapperboard], ['cast', 'Distribution', Users], ['recap', 'Rattrapage', History], ['trivia', 'Anecdotes', Sparkles]] as const).filter(([k]) => !IS_TV || k !== 'scene').map(([k, l, Icon]) => (
                   <button key={k} className={tab === k ? 'is-on' : ''} onClick={() => { setTab(k); if (k === 'trivia' && !trivia) { setTrivia('loading'); ask('trivia'); } }}>
                     <Icon size={14} /> {l}
                   </button>
@@ -253,7 +259,7 @@ export function XRay({ time, paused, controls, reply, onPause, onPlay, title, su
                     <button className={recap?.range === 'all' ? 'is-on' : ''} onClick={() => { setRecap({ range: 'all', at: time }); ask('recap', { range: 'all' }); }}>Depuis le début</button>
                   </div>
                   {recap && (recap.text
-                    ? <div className="xr-recap-text">{recap.text.split('\n').filter(Boolean).map((l, i) => <p key={i}>{l.replace(/\*\*/g, '')}</p>)}</div>
+                    ? <div className="xr-recap-text">{recap.text.split('\n').filter(Boolean).map((l, i) => <p key={i} tabIndex={IS_TV ? 0 : undefined}>{l.replace(/\*\*/g, '')}</p>)}</div>
                     : <div className="xr-loading"><Loader2 size={18} className="spin" /> Lecture des dialogues {recap.range === 'recent' ? 'les dernières minutes' : 'depuis le début'}…</div>)}
                 </div>
               ) : (
@@ -261,7 +267,7 @@ export function XRay({ time, paused, controls, reply, onPause, onPlay, title, su
                   {trivia === 'loading' && <div className="xr-loading"><Loader2 size={18} className="spin" /> Recherche dans les coulisses…</div>}
                   {Array.isArray(trivia) && !trivia.length && <p className="xr-muted">Pas d'anecdote sûre pour celui-ci.</p>}
                   {Array.isArray(trivia) && trivia.map((f, i) => (
-                    <motion.div key={i} className="xr-fact" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
+                    <motion.div key={i} className="xr-fact" tabIndex={IS_TV ? 0 : undefined} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
                       <Sparkles size={14} /> <p>{f}</p>
                     </motion.div>
                   ))}
@@ -294,7 +300,7 @@ function PersonView({ p, d }: { p: XPerson; d?: XPersonDetails | 'loading' | 'er
       {d === 'error' && <p className="xr-muted">Impossible de charger la fiche pour le moment.</p>}
       {info?.bio && (
         <div className={`xr-bio ${more ? 'is-open' : ''}`}>
-          <p>{info.bio}</p>
+          <p tabIndex={IS_TV ? 0 : undefined}>{info.bio}</p>
           {info.bio.length > 320 && <button onClick={() => setMore(!more)}>{more ? 'Moins' : 'Lire la suite'}</button>}
         </div>
       )}
@@ -303,7 +309,7 @@ function PersonView({ p, d }: { p: XPerson; d?: XPersonDetails | 'loading' | 'er
           <h4>Aussi dans</h4>
           <div className="xr-known">
             {info.knownFor.map((k) => (
-              <div key={k.title} className="xr-poster">
+              <div key={k.title} className="xr-poster" tabIndex={IS_TV ? 0 : undefined}>
                 {k.poster && <img src={k.poster} alt="" />}
                 <strong>{k.title}</strong>
                 <small>{[k.year, k.character].filter(Boolean).join(' · ')}</small>

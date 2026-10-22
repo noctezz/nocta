@@ -402,13 +402,21 @@ export function MpvOverlay() {
       // Télécommande de la TV : OK met en pause, ↑ ouvre l'audio et les sous-titres, ↓ affiche les commandes.
       // Dans le panneau ouvert, les flèches passent d'un bouton à l'autre (navigation de la TV).
       if (TV) {
-        const dir = ({ ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' } as const)[e.key as 'ArrowUp'];
+        const dir = ({ ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' } as Record<string, 'up' | 'down' | 'left' | 'right' | undefined>)[e.key];
         const pop = panel ? document.querySelector<HTMLElement>('.pop') : null;
         // Panneau X-Ray ouvert : les flèches passent d'un élément à l'autre, OK valide ;
         // Retour est géré par l'X-Ray (fiche d'acteur, puis fermeture du panneau)
         const xr = document.querySelector<HTMLElement>('.xr-panel');
         if (xr) {
-          if (dir) { e.preventDefault(); navWithin(xr, dir); return; }
+          if (dir) {
+            e.preventDefault();
+            // Rien de plus bas (ou de plus haut) à sélectionner : le texte du panneau défile
+            if (!navWithin(xr, dir) && (dir === 'up' || dir === 'down')) {
+              const body = xr.querySelector<HTMLElement>('.xr-body');
+              body?.scrollBy({ top: (dir === 'down' ? 1 : -1) * body.clientHeight * 0.6 });
+            }
+            return;
+          }
           if (e.key === 'Enter') {
             e.preventDefault();
             const el = document.activeElement as HTMLElement | null;

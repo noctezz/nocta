@@ -94,6 +94,11 @@ function ensureVisible(el: HTMLElement) {
     const dy = r.top - target;
     if (window.scrollY + dy < 40 && r.top < top) window.scrollTo({ top: 0, behavior: SCROLL });
     else window.scrollBy({ top: dy, behavior: SCROLL });
+    // Sécurité TV : si la page n'a pas bougé, l'élément est amené au centre quoi qu'il arrive
+    if (IS_TV) {
+      const after = el.getBoundingClientRect();
+      if (after.top < 0 || after.bottom > window.innerHeight) el.scrollIntoView({ block: 'center', inline: 'nearest' });
+    }
   }
 }
 
@@ -113,12 +118,13 @@ function defaultTarget(scope: ParentNode, list: HTMLElement[]) {
   })[0];
 }
 
-function move(dir: 'up' | 'down' | 'left' | 'right', within?: HTMLElement) {
+/** Déplace la sélection ; renvoie false s'il n'y a rien dans cette direction */
+function move(dir: 'up' | 'down' | 'left' | 'right', within?: HTMLElement): boolean {
   const scope = within || activeScope();
   const list = candidates(scope);
-  if (!list.length) return;
+  if (!list.length) return false;
   const cur = current && current.isConnected && list.includes(current) ? current : null;
-  if (!cur) { const d = defaultTarget(scope, list); if (d) setCurrent(d); return; }
+  if (!cur) { const d = defaultTarget(scope, list); if (d) setCurrent(d); return !!d; }
 
   const a = cur.getBoundingClientRect();
   const horiz = dir === 'left' || dir === 'right';
@@ -145,13 +151,13 @@ function move(dir: 'up' | 'down' | 'left' | 'right', within?: HTMLElement) {
   if (dir === 'up' && !inNav(cur) && scored.some((s) => !inNav(s.el))) {
     for (let i = scored.length - 1; i >= 0; i--) if (inNav(scored[i].el)) scored.splice(i, 1);
   }
-  if (!scored.length) return;
+  if (!scored.length) return false;
   let best;
   if (horiz) {
-    // Même ligne d'abord (cartes d'une rangée), sinon le plus proche
+    // Seulement sur la même ligne : au bout d'une rangée, la sélection ne saute pas ailleurs
     const same = scored.filter((s) => s.overlap);
-    const pool = same.length ? same : scored;
-    best = pool.sort((x, y) => (x.primary + x.orth * 2) - (y.primary + y.orth * 2))[0];
+    if (!same.length) return false;
+    best = same.sort((x, y) => (x.primary + x.orth * 2) - (y.primary + y.orth * 2))[0];
   } else {
     // La ligne la plus proche, puis l'élément le mieux aligné dans cette ligne
     const nearest = Math.min(...scored.map((s) => s.primary));
@@ -159,6 +165,7 @@ function move(dir: 'up' | 'down' | 'left' | 'right', within?: HTMLElement) {
     best = line.sort((x, y) => x.orth - y.orth)[0];
   }
   setCurrent(best.el);
+  return true;
 }
 
 function activate() {
@@ -191,14 +198,14 @@ export function navFocus(el: HTMLElement) {
 }
 
 /** Flèches de la télécommande dans un panneau précis (ex. audio et sous-titres du lecteur) */
-export function navWithin(scope: HTMLElement, dir: 'up' | 'down' | 'left' | 'right') {
+export function navWithin(scope: HTMLElement, dir: 'up' | 'down' | 'left' | 'right'): boolean {
   document.documentElement.classList.add('kbd-nav');
   if (!current || !scope.contains(current)) {
     const first = scope.querySelector<HTMLElement>('.is-on') || candidates(scope)[0];
     if (first) setCurrent(first);
-    return;
+    return !!first;
   }
-  move(dir, scope);
+  return move(dir, scope);
 }
 
 const WEB_PLAYER_KEYS: Record<string, string> = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', ok: ' ', playpause: ' ', back: 'Escape', next: 'n' };

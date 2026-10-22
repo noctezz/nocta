@@ -146,7 +146,7 @@ export function MpvBridge() {
         }
       }),
       // X-Ray : demandes du lecteur (distribution, scène, fiche acteur, rattrapage, anecdotes)
-      p.on('player:xray', async (q: { op: 'scene' | 'person' | 'recap' | 'trivia'; nonce: number; time?: number; person?: any; range?: 'recent' | 'all' }) => {
+      p.on('player:xray', async (q: { op: 'scene' | 'cast' | 'person' | 'recap' | 'trivia'; nonce: number; time?: number; person?: any; range?: 'recent' | 'all' }) => {
         const r = reqRef.current;
         const reply = (data: unknown, error?: string) => { if (alive()) p.info({ xray: { nonce: q.nonce, op: q.op, data, error } }); };
         try {
@@ -155,7 +155,8 @@ export function MpvBridge() {
           if (!meta) return reply(null, 'Fiche introuvable');
           metaRef.current = meta;
           const ctx: XContext = { meta, type: r.type, videoId: r.videoId, season: r.season, episode: r.episode, subtitle: r.subtitle };
-          if (q.op === 'scene') {
+          if (q.op === 'cast') reply({ cast: await getCast(ctx) });
+          else if (q.op === 'scene') {
             const cast = await getCast(ctx);
             reply({ cast });
             const scene = await getScene(ctx, q.time || 0, cast);
