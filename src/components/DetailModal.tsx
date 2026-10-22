@@ -4,7 +4,7 @@ import { Check, CheckCheck, CircleCheck, Circle, ListVideo, Play, Plus, X } from
 import { getMeta, GENRE_FR } from '../lib/addons';
 import { useLatest } from '../lib/useLatest';
 import { TrailerPreview } from './TrailerPreview';
-import { JournalBar } from './JournalBar';
+import { EpisodeRate, JournalBar, SeasonRate } from './JournalBar';
 import { useProfile, useStore } from '../lib/store';
 import { backdropOf, logoOf, resumeEntry, year } from '../lib/ui';
 import { episodeLabel, formatTime, slimMeta, sortedEpisodes } from '../lib/playback';
@@ -201,7 +201,7 @@ export function DetailModal() {
                   {seasons.map((s) => <option key={s} value={s}>{s === 0 ? 'Bonus' : `Saison ${s}`}</option>)}
                 </select>
               )}
-              {seasons.length === 1 && <span className="muted">Saison {seasons[0]}</span>}
+              {season != null && <SeasonRate meta={meta} season={season} />}
               {seasonEps.length > 0 && (
                 <button className="season-watched" onClick={() => setWatched(seasonEps.map((v) => v.id), !seasonAllWatched)}>
                   {seasonAllWatched ? <CircleCheck size={16} /> : <Circle size={16} />}
@@ -244,6 +244,7 @@ export function DetailModal() {
                         {isUpNext && <span className="up-next">À suivre</span>}
                       </strong>
                       <div className="episode-tools">
+                        {v.season != null && <EpisodeRate meta={meta} season={v.season} episode={n} />}
                         {v.released && <span className="muted">{new Date(v.released).toLocaleDateString('fr-FR')}</span>}
                         <button
                           className={`ep-tool ${isWatched ? 'is-on' : ''}`}

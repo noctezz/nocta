@@ -5,11 +5,13 @@ import { posterOf } from '../lib/ui';
 import { openLog, saveEntry, today, useRatePrompt } from '../lib/journal';
 import { LikeButton, StarInput } from './Stars';
 
-/** À la sortie d'un film terminé : « Ta note ? » en un clic */
+/** À la sortie d'un film ou d'une saison terminés : « Ta note ? » en un clic */
 export function RatePrompt() {
-  const meta = useRatePrompt((s) => s.meta);
+  const { meta, kind, season } = useRatePrompt();
   const player = useStore((s) => s.player);
-  const close = () => useRatePrompt.setState({ meta: null });
+  const close = () => useRatePrompt.setState({ meta: null, kind: undefined, season: undefined });
+  const isSeason = kind === 'season' && season != null;
+  const part = isSeason ? { season } : {};
   return (
     <AnimatePresence>
       {meta && !player && (
@@ -22,13 +24,24 @@ export function RatePrompt() {
         >
           <img src={posterOf(meta)} alt="" />
           <div className="rate-prompt-main">
-            <span className="rate-prompt-kicker">Tu viens de finir</span>
+            <span className="rate-prompt-kicker">{isSeason ? `Saison ${season} terminée` : kind === 'series' ? 'Série terminée' : 'Tu viens de finir'}</span>
             <strong>{meta.name}</strong>
             <div className="rate-prompt-stars">
-              <StarInput onChange={(v) => { if (v) { saveEntry({ meta, date: today(), rating: v }); close(); useStore.getState().toast(`${meta.name} ajouté à ton journal`, 'success'); } }} size={26} />
-              <LikeButton onChange={() => { openLog(meta, { preset: { liked: true } }); close(); }} size={22} />
+              <StarInput
+                onChange={(v) => {
+                  if (!v) return;
+                  saveEntry({ meta, date: today(), rating: v, ...part });
+                  close();
+                  useStore.getState().toast(`${meta.name}${isSeason ? ` · saison ${season}` : ''} : ajouté à ton journal`, 'success');
+                }}
+                size={26}
+              />
+              <LikeButton onChange={() => { openLog(meta, { preset: { liked: true, ...part } }); close(); }} size={22} />
             </div>
-            <button className="rate-prompt-more" onClick={() => { openLog(meta); close(); }}>Écrire une critique…</button>
+            <div className="rate-prompt-links">
+              <button className="rate-prompt-more" onClick={() => { openLog(meta, { preset: part }); close(); }}>Écrire une critique…</button>
+              {isSeason && <button className="rate-prompt-more" onClick={() => { openLog(meta); close(); }}>Noter la série entière</button>}
+            </div>
           </div>
           <button className="rate-prompt-close" onClick={close} aria-label="Plus tard"><X size={16} /></button>
         </motion.div>

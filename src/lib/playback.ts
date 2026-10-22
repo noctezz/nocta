@@ -1,4 +1,4 @@
-import { filmFinished } from './journal';
+import { finished } from './journal';
 import { useStore } from './store';
 import { getStreams } from './addons';
 import type { Meta, MetaPreview, PlayRequest, Stream, StreamDesc, Video } from './types';
@@ -96,6 +96,8 @@ export function recordProgress(req: PlayRequest, pos: number, duration: number, 
   if (!req.meta || !duration || duration < 60 || pos < 10) return;
   if (pos / duration > WATCHED_RATIO) {
     st.setWatched([req.videoId || req.meta.id], true);
+    // Fin d'une saison (l'épisode suivant est dans la saison d'après) : « Ta note pour la saison ? »
+    if (next && req.season != null && next.season != null && next.season !== req.season && req.season > 0) finished(req.meta, 'season', req.season);
     if (next) {
       st.saveProgress(req.meta.id, {
         meta: slimMeta(req.meta), videoId: next.id, season: next.season, episode: next.episode ?? next.number,
@@ -103,8 +105,10 @@ export function recordProgress(req: PlayRequest, pos: number, duration: number, 
       });
     } else {
       st.removeProgress(req.meta.id);
-      // Film terminé : « Ta note ? » s'affichera à la sortie du lecteur
-      if (req.meta.type !== 'series') filmFinished(req.meta);
+      // Film ou série terminés : « Ta note ? » s'affichera à la sortie du lecteur
+      if (req.meta.type !== 'series' && req.season == null) finished(req.meta, 'film');
+      // Dernier épisode disponible : la saison est finie (on proposera aussi de noter la série)
+      else if (req.season != null && req.season > 0) finished(req.meta, 'season', req.season);
     }
     return;
   }

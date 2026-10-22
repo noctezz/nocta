@@ -130,6 +130,17 @@ export interface JournalEntry {
   review?: string;
   spoilers?: boolean;
   rewatch?: boolean;
+  /** Série : la séance porte sur une saison, ou un épisode précis */
+  season?: number;
+  episode?: number;
+  episodeTitle?: string;
+  at: number;
+}
+
+/** Note d'une saison ou d'un épisode */
+export interface PartMark {
+  rating?: number;
+  liked?: boolean;
   at: number;
 }
 
@@ -144,6 +155,10 @@ export interface FilmMark {
 export interface Journal {
   entries: JournalEntry[];
   marks: Record<string, FilmMark>;
+  /** Saisons notées (« idSérie:saison ») */
+  seasons?: Record<string, PartMark>;
+  /** Épisodes notés (« idSérie:saison:épisode », comme les identifiants d'épisode) */
+  episodes?: Record<string, PartMark>;
   /** 4 films favoris maximum (identifiants) */
   favorites?: string[];
   /** Titres vus mais qu'on ne veut pas noter (« À noter ») */

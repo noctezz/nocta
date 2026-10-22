@@ -1,6 +1,6 @@
 import { NotebookPen, PenLine } from 'lucide-react';
 import { useProfile } from '../lib/store';
-import { journalOf, markFilm, openLog } from '../lib/journal';
+import { episodeKey, journalOf, markFilm, markPart, openLog, seasonKey } from '../lib/journal';
 import type { MetaPreview } from '../lib/types';
 import { LikeButton, ratingLabel, StarInput } from './Stars';
 
@@ -30,5 +30,29 @@ export function JournalBar({ meta }: { meta: MetaPreview }) {
         <button className="jbar-btn is-main" onClick={() => openLog(meta)}><NotebookPen size={16} /> {last ? 'Revu' : 'Ajouter au journal'}</button>
       </div>
     </div>
+  );
+}
+
+/** En tête de la liste d'épisodes : la note de la saison affichée */
+export function SeasonRate({ meta, season }: { meta: MetaPreview; season: number }) {
+  const profile = useProfile();
+  const m = journalOf(profile).seasons?.[seasonKey(meta.id, season)];
+  return (
+    <div className="season-rate" title={`Ta note pour la saison ${season}`}>
+      <span>Ta note</span>
+      <StarInput value={m?.rating} onChange={(v) => markPart(meta, season, null, { rating: v })} size={18} />
+      <button className="season-rate-log" onClick={() => openLog(meta, { preset: { season } })} title="Ajouter la saison au journal"><NotebookPen size={15} /></button>
+    </div>
+  );
+}
+
+/** Sur chaque épisode : sa note (visible au survol tant qu'il n'est pas noté) */
+export function EpisodeRate({ meta, season, episode }: { meta: MetaPreview; season: number; episode: number }) {
+  const profile = useProfile();
+  const m = journalOf(profile).episodes?.[episodeKey(meta.id, season, episode)];
+  return (
+    <span className={`ep-rate ${m?.rating ? 'is-rated' : ''}`} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      <StarInput value={m?.rating} onChange={(v) => markPart(meta, season, episode, { rating: v })} size={15} />
+    </span>
   );
 }

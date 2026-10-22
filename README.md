@@ -88,6 +88,11 @@ cœur et écris tes critiques (masquées si elles contiennent des spoilers), dep
 (titres, cette année, heures, critiques, coups de cœur, répartition des notes), le journal mois par mois, la grille
 de tout ce que tu as noté (tri et filtres), tes critiques, et *À noter* : les films déjà vus dans NOCTA mais pas
 encore notés, ajoutés au journal à la date où tu les as vus. Chaque profil a son propre journal.
+Les séries se notent en entier, **saison par saison** (note de la saison au-dessus de la liste des épisodes) et
+**épisode par épisode** (étoiles sur chaque épisode, au survol). *Ajouter au journal* permet de choisir la série, une
+saison ou un épisode précis. Quand tu finis une saison, la carte *Saison 2 terminée : ta note ?* apparaît, et les
+saisons terminées non notées attendent dans *À noter*. L'onglet *Séries* du journal montre chaque série avec ses
+épisodes vus, sa progression et la note de chaque saison.
 
 **X-Ray** 🔎 : comme sur Prime Video, mais en mieux. À la pause, les personnages de la scène en cours apparaissent
 (une IA lit les dialogues autour de ce moment pour savoir qui est là). Touche **X** : le panneau complet avec la scène,
