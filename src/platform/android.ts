@@ -148,7 +148,11 @@ function install() {
     openLogs: async () => '',
     quit: async () => { await CapApp.exitApp(); },
     intro: undefined as unknown as NoctaBridge['intro'],
-    addons: undefined as unknown as NoctaBridge['addons'],
+    // Pages « Configurer » des addons : ouvertes dans le navigateur de la TV
+    addons: {
+      openWindow: async (url) => { window.open(url, '_blank'); },
+      onInstall: () => () => {},
+    },
     assistant: {
       create: async () => ({ ok: false, error: 'L\'IA de l\'X-Ray n\'est pas encore disponible sur la TV' }),
       testKey: async () => ({ ok: false, error: 'Indisponible sur la TV' }),
