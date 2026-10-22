@@ -10,6 +10,7 @@ import { formatTime } from '../lib/playback';
 import { langName } from '../lib/subs';
 import type { MetaPreview } from '../lib/types';
 import { LoadingScreen } from './LoadingScreen';
+import { navWithin } from '../lib/spatialNav';
 
 // Interface du lecteur affichée par-dessus mpv (fenêtre transparente)
 
@@ -390,10 +391,28 @@ export function MpvOverlay() {
       // Télécommande de la TV : OK met en pause, ↑ ouvre l'audio et les sous-titres, ↓ affiche les commandes.
       // Dans le panneau ouvert, les flèches passent d'un bouton à l'autre (navigation de la TV).
       if (TV) {
-        if (panel && e.key !== 'Escape') return;
-        if (e.key === 'Enter') { e.preventDefault(); togglePlay(); return; }
-        if (e.key === 'ArrowUp') { e.preventDefault(); setPanel('tracks'); setTimeout(() => document.querySelector<HTMLElement>('.pop-tracks button')?.focus(), 80); return; }
-        if (e.key === 'ArrowDown') { e.preventDefault(); return; }
+        const dir = ({ ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' } as const)[e.key as 'ArrowUp'];
+        const pop = panel ? document.querySelector<HTMLElement>('.pop') : null;
+        if (pop) {
+          // Panneau ouvert : les flèches passent d'un choix à l'autre, OK valide
+          if (dir) { e.preventDefault(); navWithin(pop, dir); return; }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const el = document.activeElement as HTMLElement | null;
+            if (el && pop.contains(el)) el.click();
+            return;
+          }
+          if (e.key !== 'Escape') return;
+        } else {
+          if (e.key === 'Enter') { e.preventDefault(); togglePlay(); return; }
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setPanel('tracks');
+            setTimeout(() => { const p = document.querySelector<HTMLElement>('.pop'); if (p) navWithin(p, 'down'); }, 120);
+            return;
+          }
+          if (e.key === 'ArrowDown') { e.preventDefault(); return; }
+        }
       }
       switch (e.key) {
         case ' ': case 'k': case 'MediaPlayPause': e.preventDefault(); togglePlay(); break;
@@ -727,7 +746,8 @@ export function MpvOverlay() {
           onPlay={() => cmd('set_property', 'pause', false)}
           title={init.title}
           subtitle={init.subtitle}
-          autoOnPause={info.xrayOnPause !== false}
+          // Sur la TV, pas d'X-Ray automatique à la pause : la télécommande reste au lecteur
+          autoOnPause={!TV && info.xrayOnPause !== false}
           started={started && !error}
         />
       )}

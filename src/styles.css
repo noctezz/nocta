@@ -199,6 +199,7 @@ html[data-platform='darwin'] .gate-top { padding-left: 90px; }
 .nav-search.is-open input { width: 230px; }
 .nav-search button { display: grid; place-items: center; }
 .nav-profile { position: relative; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.nav-profile-btn { display: flex; align-items: center; gap: 8px; border-radius: 6px; }
 .caret { transition: transform 0.25s; }
 .caret.is-up { transform: rotate(180deg); }
 .nav-menu {
@@ -1715,3 +1716,46 @@ html.is-tv .card, html.is-tv .card *, html.is-tv .tvx, html.is-tv .update-card {
 .tvx-done p { color: rgba(255, 255, 255, 0.75); }
 .gate-actions { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
 .gate-actions .btn-outline { display: inline-flex; align-items: center; gap: 8px; }
+.kbd-nav .pop-col button.nav-focus { outline: none; box-shadow: none; background: #fff; color: #000; }
+.kbd-nav .pop-col button.nav-focus small { color: #444; }
+
+/* ---------- TV : Sagas et Plateformes à la taille d'un écran de box ---------- */
+html.is-tv .sg-hero { height: 64vh; min-height: 0; }
+html.is-tv .sg-hero-text h1 { font-size: 44px; }
+html.is-tv .sg-hero-text p { font-size: 15px; }
+html.is-tv .sg-index { margin-top: -30px; }
+/* Filtres : ne restent plus collés en haut (ils prenaient un tiers de l'écran) */
+html.is-tv .sg-filters { position: static; padding: 8px 0; background: none; }
+html.is-tv .sg-chips { gap: 6px; }
+html.is-tv .sg-chips button { padding: 6px 12px; font-size: 13px; }
+html.is-tv .sg-group { margin-top: 20px; }
+html.is-tv .sg-group h2 { font-size: 18px; margin-bottom: 10px; }
+html.is-tv .sg-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+html.is-tv .sg-card { border-radius: 8px; }
+html.is-tv .sg-card-body { left: 10px; right: 10px; bottom: 8px; }
+html.is-tv .sg-card-count { font-size: 9.5px; }
+html.is-tv .sg-card-body h3 { font-size: 15px; }
+html.is-tv .sg-card-next { font-size: 11px; }
+/* Fiche d'une saga */
+html.is-tv .sg-view { --pw: 104px; }
+html.is-tv .sg-view-top { padding-top: 72px; }
+html.is-tv .sg-view-top h1, html.is-tv .sg-view-top h1.is-long { font-size: 38px; }
+html.is-tv .sg-tagline { font-size: 14px; }
+html.is-tv .sg-actions { margin-top: 14px; gap: 10px; }
+html.is-tv .sg-order button { width: 140px; padding: 7px 0; font-size: 13px; }
+html.is-tv .sg-focus { min-height: 64px; margin-top: 12px; }
+html.is-tv .sg-focus p { -webkit-line-clamp: 2; font-size: 13px; }
+html.is-tv .pf-index-head { padding-top: 84px; }
+html.is-tv .pf-index-head h1 { font-size: 34px; }
+html.is-tv .pf-index-head p { font-size: 14px; }
+html.is-tv .pf-tiles { grid-template-columns: repeat(3, 1fr); gap: 12px; padding-top: 20px; }
+html.is-tv .pf-tile { height: 120px; border-radius: 10px; }
+html.is-tv .pf-tile-body { left: 16px; bottom: 14px; gap: 6px; }
+html.is-tv .pf-index-rows { margin-top: 24px; gap: 16px; }
+html.is-tv .pf-hero { height: 70vh; min-height: 0; }
+html.is-tv .pf-hero-brand { top: 72px; }
+html.is-tv .pf-hero-text { bottom: 16%; gap: 10px; }
+html.is-tv .pf-hero-logo { max-height: 90px; }
+html.is-tv .pf-hero-desc { -webkit-line-clamp: 2; font-size: 13px; }
+html.is-tv .pf-hero-thumbs { bottom: 16%; }
+html.is-tv .pf-bar { margin-top: -24px; }

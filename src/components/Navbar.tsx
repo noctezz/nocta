@@ -6,6 +6,7 @@ import { playLocalFile } from '../lib/playback';
 import { Avatar } from './Avatar';
 import { Logo } from './Logo';
 import { RemoteModal, useRemoteStatus } from './RemotePanel';
+import { IS_TV } from '../lib/tv';
 
 const LINKS: { page: Page; label: string }[] = [
   { page: 'home', label: 'Accueil' },
@@ -42,6 +43,14 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Menu du profil : se referme quand la sélection (télécommande, clavier) en sort
+  useEffect(() => {
+    if (!menu) return;
+    const onFocus = (e: FocusEvent) => { if (!(e.target as HTMLElement)?.closest?.('.nav-profile')) setMenu(false); };
+    document.addEventListener('focusin', onFocus);
+    return () => document.removeEventListener('focusin', onFocus);
+  }, [menu]);
+
   // Recherche lancée depuis la télécommande : le champ s'ouvre avec le texte tapé
   useEffect(() => { if (query) setSearchOpen(true); }, [query]);
 
@@ -63,7 +72,8 @@ export function Navbar() {
         <Logo height={30} />
       </button>
       <nav className="nav-links no-drag">
-        {LINKS.map((l) => (
+        {/* Le Voyage (carte animée) reste sur PC : trop lourd pour une box */}
+        {LINKS.filter((l) => !IS_TV || l.page !== 'timemachine').map((l) => (
           <button
             key={l.page}
             className={page === l.page ? 'is-active' : ''}
@@ -88,7 +98,7 @@ export function Navbar() {
           {query && <button onClick={() => { setSearch(''); inputRef.current?.focus(); }}><X size={16} /></button>}
         </div>
 
-        {window.nocta && (
+        {window.nocta && !IS_TV && (
           <button
             className={`nav-icon ${remote?.clients.length ? 'has-remote' : ''}`}
             onClick={() => setRemoteOpen(true)}
@@ -98,7 +108,7 @@ export function Navbar() {
           </button>
         )}
 
-        {window.nocta && (
+        {window.nocta && !IS_TV && (
           <button className="nav-icon" onClick={openFile} title="Ouvrir une vidéo de ton PC">
             <FolderOpen size={20} />
           </button>
@@ -109,8 +119,11 @@ export function Navbar() {
           onMouseEnter={() => { clearTimeout(menuTimer.current); setMenu(true); }}
           onMouseLeave={() => { menuTimer.current = setTimeout(() => setMenu(false), 250); }}
         >
-          {profile && <Avatar avatar={profile.avatar} size={32} />}
-          <ChevronDown size={16} className={`caret ${menu ? 'is-up' : ''}`} />
+          {/* Bouton : ouvert au clic ou avec OK de la télécommande (pas seulement au survol) */}
+          <button className="nav-profile-btn" onClick={() => setMenu((m) => !m)} aria-label="Profil et paramètres" aria-expanded={menu}>
+            {profile && <Avatar avatar={profile.avatar} size={32} />}
+            <ChevronDown size={16} className={`caret ${menu ? 'is-up' : ''}`} />
+          </button>
           <AnimatePresence>
             {menu && (
               <motion.div
@@ -131,7 +144,7 @@ export function Navbar() {
                 <button onClick={() => { setMenu(false); setSearch(''); setPage('settings'); }}>
                   <Settings size={18} /> Paramètres
                 </button>
-                {window.nocta && (
+                {window.nocta && !IS_TV && (
                   <button onClick={() => { setMenu(false); window.nocta!.win.toggleFullscreen(); }}>
                     {fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />} {fullscreen ? 'Quitter le plein écran' : 'Plein écran'}
                     <kbd>F11</kbd>

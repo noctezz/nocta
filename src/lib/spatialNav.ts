@@ -88,8 +88,8 @@ function defaultTarget(scope: ParentNode, list: HTMLElement[]) {
   })[0];
 }
 
-function move(dir: 'up' | 'down' | 'left' | 'right') {
-  const scope = activeScope();
+function move(dir: 'up' | 'down' | 'left' | 'right', within?: HTMLElement) {
+  const scope = within || activeScope();
   const list = candidates(scope);
   if (!list.length) return;
   const cur = current && current.isConnected && list.includes(current) ? current : null;
@@ -113,6 +113,12 @@ function move(dir: 'up' | 'down' | 'left' | 'right') {
     const orth = horiz ? Math.abs(bc.y - ac.y) : Math.abs(bc.x - ac.x);
     const overlap = horiz ? b.top < a.bottom - 4 && b.bottom > a.top + 4 : b.left < a.right - 4 && b.right > a.left + 4;
     scored.push({ el, primary: Math.max(0, primary), orth, overlap });
+  }
+  // La barre de navigation reste fixée en haut : elle paraît « plus proche » que les éléments
+  // de la page passés au-dessus de l'écran. On ne la rejoint qu'en haut de la page.
+  const inNav = (el: HTMLElement) => !!el.closest('.navbar');
+  if (dir === 'up' && !inNav(cur) && scored.some((s) => !inNav(s.el))) {
+    for (let i = scored.length - 1; i >= 0; i--) if (inNav(scored[i].el)) scored.splice(i, 1);
   }
   if (!scored.length) return;
   let best;
@@ -151,6 +157,17 @@ function back() {
   if (st.searchQuery) { st.setSearch(''); return; }
   if (st.page !== 'home') { st.setPage('home'); window.scrollTo({ top: 0 }); return; }
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/** Flèches de la télécommande dans un panneau précis (ex. audio et sous-titres du lecteur) */
+export function navWithin(scope: HTMLElement, dir: 'up' | 'down' | 'left' | 'right') {
+  document.documentElement.classList.add('kbd-nav');
+  if (!current || !scope.contains(current)) {
+    const first = scope.querySelector<HTMLElement>('.is-on') || candidates(scope)[0];
+    if (first) setCurrent(first);
+    return;
+  }
+  move(dir, scope);
 }
 
 const WEB_PLAYER_KEYS: Record<string, string> = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', ok: ' ', playpause: ' ', back: 'Escape', next: 'n' };
