@@ -35,6 +35,8 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Typecheck & build UI
+        env:
+          NOCTA_TV: '1'
         run: |
           npm run typecheck
           npm run build

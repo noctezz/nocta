@@ -12,9 +12,12 @@ const csp: Plugin = {
     ),
 };
 
+// Version TV (Android) : compilée pour les moteurs web plus anciens des box et TV
+const TV = !!process.env.NOCTA_TV;
+
 export default defineConfig({
   base: './',
-  plugins: [react(), csp],
+  plugins: TV ? [react()] : [react(), csp],
   server: { host: '127.0.0.1', port: 5173, strictPort: true },
-  build: { outDir: 'dist', emptyOutDir: true, target: 'chrome120' },
+  build: { outDir: 'dist', emptyOutDir: true, target: TV ? ['chrome69', 'es2019'] : 'chrome120', cssTarget: TV ? 'chrome69' : 'chrome120' },
 });
