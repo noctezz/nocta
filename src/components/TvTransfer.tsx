@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Laptop, Loader2, RefreshCw, Tv, X } from 'lucide-react';
 import { useStore } from '../lib/store';
-import { merge } from '../lib/merge3';
 
 // ---------------------------------------------------------------- PC : « Envoyer vers la TV »
 
@@ -131,12 +130,8 @@ export function ImportFromPc({ onClose }: { onClose: () => void }) {
       try { d = JSON.parse(raw || '')?.data; } catch { /* données illisibles */ }
       if (!d || d.version !== 1 || !Array.isArray(d.profiles)) return setState({ error: 'Les données reçues sont illisibles. Réessaie depuis le PC.' });
       const st = useStore.getState();
-      // TV encore vierge (profil de départ jamais utilisé) : les profils du PC la remplacent.
-      // Sinon on fusionne, pour ne rien perdre de ce qui a été regardé sur la TV.
-      const blank = st.profiles.length === 1 && !Object.keys(st.profiles[0].progress || {}).length
-        && !Object.keys(st.profiles[0].watched || {}).length && !st.profiles[0].myList.length && !st.profiles[0].journal;
       useStore.setState({
-        profiles: blank ? d.profiles : merge(undefined, st.profiles, d.profiles),
+        profiles: d.profiles,
         addons: Array.isArray(d.addons) && d.addons.length ? d.addons : st.addons,
         // Réglages du PC, sauf ceux propres à la TV (lecteur natif)
         settings: { ...st.settings, ...(d.settings || {}), playerEngine: 'mpv' },

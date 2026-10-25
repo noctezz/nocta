@@ -210,10 +210,6 @@ export interface Settings {
   noxKey?: string;
   /** Clés des services d'IA gratuits de l'X-Ray, dans l'ordre d'essai (nom gardé pour les réglages existants) */
   noxKeys?: { provider: 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'cerebras'; key: string }[];
-  /** Synchronisation des profils entre appareils : jeton GitHub (droit « gist » seulement) */
-  syncToken?: string;
-  /** Gist secret qui contient les profils synchronisés */
-  syncGistId?: string;
   /** Passer automatiquement le générique (sinon : bouton) */
   autoSkipIntro: boolean;
   /** Détection du générique par analyse audio */

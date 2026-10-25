@@ -1771,16 +1771,3 @@ html.is-tv .sg-link.is-lit, html.is-tv .sg-film.is-seen .sg-dot, html.is-tv .sg-
 
 /* TV : textes de l'X-Ray sélectionnables à la télécommande (pour les faire défiler) */
 .kbd-nav .xr-fact.nav-focus, .kbd-nav .xr-recap-text p.nav-focus, .kbd-nav .xr-bio p.nav-focus, .kbd-nav .xr-poster.nav-focus { outline: 2px solid rgba(255, 255, 255, 0.85); outline-offset: 4px; border-radius: 10px; box-shadow: none; }
-
-/* ---------- Synchronisation PC ↔ TV ---------- */
-.sync-lead { margin-bottom: 16px; line-height: 1.5; }
-.sync-steps { display: flex; flex-direction: column; gap: 10px; margin: 0 0 14px 18px; color: rgba(255, 255, 255, 0.8); line-height: 1.5; }
-.sync-steps .btn-link { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; }
-.sync-input { display: flex; gap: 10px; }
-.sync-input .input { flex: 1; }
-.sync-status { display: flex; align-items: center; gap: 10px; font-weight: 600; margin-bottom: 14px; }
-.sync-status.is-ok { color: var(--green); }
-.sync-status.is-error { color: #ff6b6b; }
-.sync-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.sync-actions .btn, .sync-actions .btn-outline { display: inline-flex; align-items: center; gap: 8px; }
-.sync-hint { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 14px; }
