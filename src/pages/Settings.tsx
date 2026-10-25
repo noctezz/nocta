@@ -3,6 +3,7 @@ import { useStore } from '../lib/store';
 import { playIntroSound } from '../lib/sound';
 import { RemotePanel } from '../components/RemotePanel';
 import { ImportFromPc, SendToTv } from '../components/TvTransfer';
+import { SyncCard } from '../components/SyncCard';
 import { UpdateSettings } from '../components/UpdateBanner';
 import { testKey } from '../lib/torbox';
 import { AiKeyList } from '../components/AiKeys';
@@ -271,6 +272,8 @@ export function Settings() {
               <RemotePanel />
             </section>
           )}
+
+          <SyncCard />
 
           {window.nocta?.transfer && (
             <section className="settings-card">

@@ -121,8 +121,9 @@ export function Navbar() {
           onMouseEnter={() => { clearTimeout(menuTimer.current); setMenu(true); }}
           onMouseLeave={() => { menuTimer.current = setTimeout(() => setMenu(false), 250); }}
         >
-          {/* Bouton : ouvert au clic ou avec OK de la télécommande (pas seulement au survol) */}
-          <button className="nav-profile-btn" onClick={() => setMenu((m) => !m)} aria-label="Profil et paramètres" aria-expanded={menu}>
+          {/* Bouton : ouvert au clic ou avec OK de la télécommande (pas seulement au survol) ; à la souris,
+              le clic qui suit le survol garde le menu ouvert */}
+          <button className="nav-profile-btn" onClick={() => setMenu((m) => (document.documentElement.classList.contains('kbd-nav') ? !m : true))} aria-label="Profil et paramètres" aria-expanded={menu}>
             {profile && <Avatar avatar={profile.avatar} size={32} />}
             <ChevronDown size={16} className={`caret ${menu ? 'is-up' : ''}`} />
           </button>

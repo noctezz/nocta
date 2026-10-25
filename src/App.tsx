@@ -18,6 +18,7 @@ import { MpvBridge } from './components/MpvBridge';
 import { LoadingScreen } from './components/LoadingScreen';
 import { SeasonalLayer } from './components/SeasonalLayer';
 import { IS_TV } from './lib/tv';
+import { installSync } from './lib/sync';
 import { useSeasonTheme } from './lib/theme';
 import { Home } from './pages/Home';
 import { Browse } from './pages/Browse';
@@ -110,6 +111,8 @@ export default function App() {
 
   // Navigation façon TV (flèches) + télécommande du téléphone
   useEffect(() => installSpatialNav(), []);
+  // Profils synchronisés entre le PC et la TV (si activé dans les paramètres)
+  useEffect(() => installSync(), []);
   useEffect(() => {
     const r = window.nocta?.remote;
     if (!r) return;

@@ -38,6 +38,19 @@ Sur la TV : flèches pour se déplacer, OK pour choisir, Retour pour revenir. Pe
 ← → reculent ou avancent de 10 s, ↑ ouvre l'audio et les sous-titres. Le lecteur lit les MKV, le HEVC et le son
 DTS, TrueHD et Dolby (décodé par NOCTA si la TV ne sait pas le faire).
 
+## Synchronisation PC ↔ TV
+
+Progression, épisodes vus, Ma liste et journal se suivent d'un appareil à l'autre : un épisode commencé
+sur la TV se reprend au même endroit sur le PC.
+
+1. Sur le PC : **Paramètres → Synchronisation PC ↔ TV → Créer le jeton** (jeton GitHub, case « gist »
+   seulement, sans expiration), colle-le puis **Activer**.
+2. Sur la TV : **Importer depuis mon PC** (le PC fait **Envoyer vers la TV**) : la synchronisation suit.
+
+Les profils sont rangés dans un gist secret de ton compte GitHub. Chaque appareil synchronise au
+démarrage, à la fin d'une lecture, après chaque changement et toutes les 2 minutes ; les changements
+faits des deux côtés sont fusionnés (la reprise la plus récente l'emporte).
+
 ## Premiers pas
 
 1. **Profils** : choisis ou crée un profil. Pour l'avatar, prends un emoji du preset (32 au choix,
