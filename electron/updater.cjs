@@ -9,7 +9,8 @@ const { Readable } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
 
 const REPO = 'noctezz/nocta';
-const ASSET = 'NOCTA-Setup.exe';
+const variant = require('./variant.cjs');
+const ASSET = variant.asset;
 const CHECK_EVERY = 6 * 3600 * 1000;
 
 let state = { state: 'idle', current: app.getVersion() };
@@ -25,7 +26,7 @@ function set(next) {
   notify(state);
 }
 
-const parse = (v) => String(v || '').replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
+const parse = (v) => String(v || '').replace(/^(mini-)?v/, '').split('.').map((n) => parseInt(n, 10) || 0);
 function newer(a, b) {
   const x = parse(a), y = parse(b);
   for (let i = 0; i < Math.max(x.length, y.length); i++) {
@@ -55,7 +56,7 @@ async function check({ manual } = {}) {
     if (!res.ok) throw new Error(`GitHub ${res.status}`);
     const releases = await res.json();
     const nocta = releases
-      .filter((r) => !r.draft && !r.prerelease && /^v\d+\.\d+\.\d+$/.test(r.tag_name) && /^NOCTA\b/.test(r.name || ''))
+      .filter((r) => !r.draft && !r.prerelease && variant.tagRe.test(r.tag_name) && variant.nameRe.test(r.name || ''))
       .map((r) => ({ r, asset: (r.assets || []).find((a) => a.name === ASSET) }))
       .filter((x) => x.asset)
       .sort((a, b) => (newer(a.r.tag_name, b.r.tag_name) ? -1 : 1));
@@ -66,7 +67,7 @@ async function check({ manual } = {}) {
       return state;
     }
     latest = {
-      version: top.r.tag_name.replace(/^v/, ''),
+      version: top.r.tag_name.replace(/^(mini-)?v/, ''),
       url: top.asset.browser_download_url,
       size: top.asset.size,
       page: top.r.html_url,

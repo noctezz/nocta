@@ -10,14 +10,17 @@ const assistant = require('./assistant.cjs');
 const remote = require('./remote.cjs');
 const transfer = require('./transfer.cjs');
 const updater = require('./updater.cjs');
+const variant = require('./variant.cjs');
 
 const isDev = !!process.env.NOCTA_DEV;
 let win;
 let session = null;
 
 function loadRenderer(w, query) {
-  if (isDev) w.loadURL('http://127.0.0.1:5173/' + (query ? '?' + new URLSearchParams(query) : ''));
-  else w.loadFile(path.join(__dirname, '..', 'dist', 'index.html'), query ? { query } : undefined);
+  // L'interface du lecteur (?overlay) est commune aux deux applis
+  const page = query && query.overlay != null ? '' : variant.entry === 'index.html' ? '' : variant.entry;
+  if (isDev) w.loadURL('http://127.0.0.1:5173/' + page + (query ? '?' + new URLSearchParams(query) : ''));
+  else w.loadFile(path.join(__dirname, '..', 'dist', query && query.overlay != null ? 'index.html' : variant.entry), query ? { query } : undefined);
 }
 
 // Mémorise le plein écran entre deux lancements
@@ -35,9 +38,9 @@ function createWindow() {
     height: 900,
     minWidth: 960,
     minHeight: 600,
-    backgroundColor: '#000000',
+    backgroundColor: variant.MINI ? '#0a0a0a' : '#000000',
     show: false,
-    icon: fs.existsSync(path.join(__dirname, '..', 'build', 'icon.png')) ? path.join(__dirname, '..', 'build', 'icon.png') : undefined,
+    icon: fs.existsSync(path.join(__dirname, '..', 'build', variant.icon)) ? path.join(__dirname, '..', 'build', variant.icon) : undefined,
     titleBarStyle: 'hidden',
     titleBarOverlay: process.platform === 'darwin'
       ? undefined
@@ -316,7 +319,8 @@ app.whenReady().then(async () => {
   );
   createWindow();
   updater.init((st) => { if (win && !win.isDestroyed()) win.webContents.send('update:status', st); });
-  remote.init(app.getPath('userData'), {
+  // Télécommande du téléphone : seulement dans NOCTA (NOCTA Mini peut être ouvert en même temps)
+  if (!variant.MINI) remote.init(app.getPath('userData'), {
     getState: remoteState,
     onMessage: onRemoteMessage,
     onClients: (count, device) => {

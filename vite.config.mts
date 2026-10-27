@@ -19,5 +19,12 @@ export default defineConfig({
   base: './',
   plugins: TV ? [react()] : [react(), csp],
   server: { host: '127.0.0.1', port: 5173, strictPort: true },
-  build: { outDir: 'dist', emptyOutDir: true, target: TV ? ['chrome69', 'es2019'] : 'chrome120', cssTarget: TV ? 'chrome69' : 'chrome120' },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    target: TV ? ['chrome69', 'es2019'] : 'chrome120',
+    cssTarget: TV ? 'chrome69' : 'chrome120',
+    // PC : deux pages, NOCTA (index.html) et NOCTA Mini (mini.html) ; la TV n'a que NOCTA
+    rollupOptions: { input: TV ? 'index.html' : { main: 'index.html', mini: 'mini.html' } },
+  },
 });

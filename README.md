@@ -38,6 +38,18 @@ Sur la TV : flèches pour se déplacer, OK pour choisir, Retour pour revenir. Pe
 ← → reculent ou avancent de 10 s, ↑ ouvre l'audio et les sous-titres. Le lecteur lit les MKV, le HEVC et le son
 DTS, TrueHD et Dolby (décodé par NOCTA si la TV ne sait pas le faire).
 
+## NOCTA Mini (version minimaliste, PC)
+
+Une deuxième appli, à côté de NOCTA, pour les jours où l'on veut juste choisir un film ou une série :
+deux sections (**Films**, **Séries**), une recherche, des fiches épurées façon MUBI / Apple TV.
+
+- S'installe à part (`NOCTA-Mini-Setup.exe`, releases `mini-v…`) et se met à jour toute seule.
+- Utilise **les mêmes profils, addons, clé TorBox et la même progression** que NOCTA : un épisode
+  commencé dans l'une se reprend dans l'autre (éviter d'ouvrir les deux en même temps).
+- Même lecteur que NOCTA (VF/VO, sous-titres, épisode suivant…).
+
+Pour le développement : `NOCTA_MINI=1 npm run dev` (l'interface est dans `src/mini/`).
+
 ## Premiers pas
 
 1. **Profils** : choisis ou crée un profil. Pour l'avatar, prends un emoji du preset (32 au choix,

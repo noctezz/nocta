@@ -2,7 +2,11 @@ const { app } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const file = () => path.join(app.getPath('userData'), 'nocta-data.json');
+const { MINI } = require('./variant.cjs');
+
+// NOCTA Mini lit et écrit les mêmes données que NOCTA (profils, addons, progression) :
+// les deux applis partagent la même bibliothèque.
+const file = () => path.join(MINI ? path.join(app.getPath('appData'), 'NOCTA') : app.getPath('userData'), 'nocta-data.json');
 
 function load() {
   try {

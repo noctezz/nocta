@@ -3,7 +3,7 @@ name: Build Windows
 on:
   push:
     branches: [main]
-    paths-ignore: ['README.md']
+    paths-ignore: ['README.md', 'src/mini/**', 'mini.html', 'build/icon-mini.png', 'build/mini-builder.cjs', '.github/workflows/mini.yml']
   workflow_dispatch:
 
 permissions:
